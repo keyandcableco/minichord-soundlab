@@ -689,23 +689,6 @@
     // presses to play on this preset, matching the rhythm scorer's pressOf.
     const HARP_INFER_TYPES = ["major", "minor", "seventh", "maj_seventh", "min_seventh", "dim", "aug", "maj_sixth", "min_sixth", "full_dim"];
 
-    // Re-infer the harp context from the notes the device is emitting, called when a harp
-    // note doesn't fit the current labels. The harp follows the held chord, so the notes
-    // themselves carry the chord. Two regimes:
-    //   • SETTLED (no chord held, no pot on addr 40, settleHarp below): the row is exactly the
-    //     dump's, so every candidate's 12-string layout is EXACT and inference is a closed search
-    //     over suffixes of the strum.
-    //   • FUZZY (chord held and/or pot on 40): the held chord is reliable but the ROW can be off
-    //     (a pot drives addr 40, unreported over sysex), scored over the LAST ≤12 notes by how
-    //     plausibly a human strummed them. Lexicographic:
-    //       1. coverage: played note-OCCURRENCES the candidate can place (multiset: a note on N
-    //          strings is played N times, so multiplicity separates octaves/keymaster, which
-    //          repeat a note, from rows that don't)
-    //       2. overplay: notes played MORE times than the candidate has strings for (impossible
-    //          in one strum) → penalise
-    //       3. path: strum smoothness. A strum hits ADJACENT strings in quick succession, so the
-    //          right (chord,row) traces a smooth near-monotonic path while a wrong guess scatters
-    //       4. extra: fewest spurious notes; then keep the current context on ties.
     const FAST_MS = 150;       // notes ≤ this apart count as one quick strum-run (expect adjacency)
     const HARP_DIR_MS = 600;   // strum momentum: travel direction stays trusted for this long after the
                                // front last moved; after a pause the duplicate choice falls back to nearest
@@ -857,6 +840,24 @@
       relabelHarp();
       if (dbg()) console.log(`[Play] harp ctx → ${ctxLabel(harpCtx())}${harpHeld ? ` (desynced — chord port holds ${ctxLabel(held)})` : ""} row ${row}(${HARP_PATTERN_NAME[row]}) — note ${noteLabel(note)} didn't fit; last ${best.len}/${seq.length} fully explained (cover ${best.coverage}, overplay ${best.overplay}, path ${best.pathLen})`);
     }
+
+    // Re-infer the harp context from the notes the device is emitting, called when a harp
+    // note doesn't fit the current labels. The harp follows the held chord, so the notes
+    // themselves carry the chord. Two regimes:
+    //   • SETTLED (no chord held, no pot on addr 40, settleHarp above): the row is exactly the
+    //     dump's, so every candidate's 12-string layout is EXACT and inference is a closed search
+    //     over suffixes of the strum.
+    //   • FUZZY (chord held and/or pot on 40): the held chord is reliable but the ROW can be off
+    //     (a pot drives addr 40, unreported over sysex), scored over the LAST ≤12 notes by how
+    //     plausibly a human strummed them. Lexicographic:
+    //       1. coverage: played note-OCCURRENCES the candidate can place (multiset: a note on N
+    //          strings is played N times, so multiplicity separates octaves/keymaster, which
+    //          repeat a note, from rows that don't)
+    //       2. overplay: notes played MORE times than the candidate has strings for (impossible
+    //          in one strum) → penalise
+    //       3. path: strum smoothness. A strum hits ADJACENT strings in quick succession, so the
+    //          right (chord,row) traces a smooth near-monotonic path while a wrong guess scatters
+    //       4. extra: fewest spurious notes; then keep the current context on ties.
     function reinferHarp(note) {
       if (s.chromatic) return;                       // chromatic mode: fixed notes, no context
       const seq = recentHarp;                        // ordered {note,t}, last ≤12

@@ -1102,7 +1102,10 @@ span.hk-chip.trig-ev { cursor: default; }
 }
 .trig-row-body:hover .trig-active-ev { color: var(--accent); border-color: var(--accent-line); }   /* mirrors button.hk-chip:hover */
 .trig-row-body:hover .trig-active-do { color: var(--text-strong); }
-.trig-active-when { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px 5px; flex: 0 1 auto; min-width: 0; }
+/* no min-width:0 here: the event chip is nowrap, so letting this box shrink below
+   its content spills the chip over the arrow + DO text (worst on a long "(1 on / 3 off)"
+   alternate label). Holding it at the widest chip makes the DO text ellipsize instead. */
+.trig-active-when { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px 5px; flex: 0 1 auto; }
 .trig-active-ev { white-space: nowrap; }
 .trig-active-or { flex: 0 0 auto; font-size: 0.66rem; font-weight: 600; color: var(--text-faint); }
 .trig-active-arrow { flex: 0 0 auto; color: var(--text-faint); }
