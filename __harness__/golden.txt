@@ -1,0 +1,945 @@
+[Play] device-map engine play-engine-2026-06-09-r58-desync-momentum
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S1 connect + resting seed (default patch) ================
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+  · after connect | lit: —
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S2 C major press/release (col5/button5, default) ================
+  input C major = 60,64,67,72
+[Play] MIDI  chord  ON   60 C4  (+0ms)
+[Play] ▶ DETECTED: —   (live: C4)
+[Play] MIDI  chord  ON   64 E4  (+0ms)
+[Play] MIDI  chord  ON   67 G4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] ▶ DETECTED: C [col1 rows0]   (live: C4 E4 G4 C5)
+  · held | lit: button.lit:C
+[Play] MIDI  chord  OFF  60 C4  (+20ms)
+[Play] MIDI  chord  OFF  64 E4  (+0ms)
+[Play] MIDI  chord  OFF  67 G4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+  · released+faded | lit: —
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S3 C -> F transition ================
+  input C=60,64,67,72 F=65,69,72,77
+[Play] MIDI  chord  ON   60 C4  (+0ms)
+[Play] ▶ DETECTED: —   (live: C4)
+[Play] MIDI  chord  ON   64 E4  (+0ms)
+[Play] MIDI  chord  ON   67 G4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] ▶ DETECTED: C [col1 rows0]   (live: C4 E4 G4 C5)
+  · C held | lit: button.lit:C
+[Play] MIDI  chord  ON   65 F4  (+20ms)
+[Play] MIDI  chord  ON   69 A4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] MIDI  chord  ON   77 F5  (+0ms)
+[Play] MIDI  chord  OFF  60 C4  (+0ms)
+[Play] MIDI  chord  OFF  64 E4  (+0ms)
+[Play] MIDI  chord  OFF  67 G4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] HARP shown top→bot: #11:C7  #10:A6  #9:F6  #8:C6  #7:A5  #6:F5  #5:C5  #4:A4  #3:F4  #2:C4  #1:A3  #0:F3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=major
+[Play] ▶ DETECTED: F [col0 rows0]   (live: F4 A4 C5 F5)
+  · F taken over | lit: button.lit:F
+[Play] MIDI  chord  OFF  65 F4  (+30ms)
+[Play] MIDI  chord  OFF  69 A4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] MIDI  chord  OFF  77 F5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S4 C/E slash (doubled bass multiset) ================
+  input C/E = 64,64,67,72
+[Play] MIDI  chord  ON   64 E4  (+0ms)
+[Play] ▶ DETECTED: —   (live: E4)
+[Play] MIDI  chord  ON   64 E4  (+0ms)
+[Play] MIDI  chord  ON   67 G4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:E6  #8:G5  #7:E5  #6:E5  #5:G4  #4:E4  #3:E4  #2:G3  #1:E3  #0:E3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major slash→E
+[Play] ▶ DETECTED: C/E [col1 rows0 slash@col5]   (live: E4 G4 C5)
+  · held | lit: button.lit:C  button.slash:E  button.slash:Em  button.slash:E7
+[Play] MIDI  chord  OFF  64 E4  (+60ms)
+[Play] MIDI  chord  OFF  64 E4  (+0ms)
+[Play] MIDI  chord  OFF  67 G4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S5 combo: C maj+7th -> maj_seventh ================
+  input Cmaj7 = 60,64,71,67
+[Play] MIDI  chord  ON   60 C4  (+0ms)
+[Play] ▶ DETECTED: —   (live: C4)
+[Play] MIDI  chord  ON   64 E4  (+0ms)
+[Play] MIDI  chord  ON   71 B4  (+0ms)
+[Play] MIDI  chord  ON   67 G4  (+0ms)
+[Play] HARP shown top→bot: #11:B6  #10:E6  #9:C6  #8:B5  #7:E5  #6:C5  #5:B4  #4:E4  #3:C4  #2:B3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=maj_seventh
+[Play] ▶ DETECTED: Cmaj7 [col1 rows02]   (live: C4 E4 G4 B4)
+  · held | lit: button.lit:C  button.lit:C7
+[Play] MIDI  chord  OFF  60 C4  (+60ms)
+[Play] MIDI  chord  OFF  64 E4  (+0ms)
+[Play] MIDI  chord  OFF  71 B4  (+0ms)
+[Play] MIDI  chord  OFF  67 G4  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S6 sharp chord then natural (E#/F gate) ================
+  input F#=66,70,73,78 F=65,69,72,77
+[Play] MIDI  chord  ON   66 F#4  (+0ms)
+[Play] ▶ DETECTED: —   (live: F#4)
+[Play] MIDI  chord  ON   70 A#4  (+0ms)
+[Play] MIDI  chord  ON   73 C#5  (+0ms)
+[Play] MIDI  chord  ON   78 F#5  (+0ms)
+[Play] HARP shown top→bot: #11:C#7  #10:A#6  #9:F#6  #8:C#6  #7:A#5  #6:F#5  #5:C#5  #4:A#4  #3:F#4  #2:C#4  #1:A#3  #0:F#3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=major +sharp
+[Play] ▶ DETECTED: F# [col0 rows0 SHARP]   (live: F#4 A#4 C#5 F#5)
+  · F# held | lit: button.lit:♯  button.lit:F
+[Play] MIDI  chord  OFF  66 F#4  (+40ms)
+[Play] MIDI  chord  OFF  70 A#4  (+0ms)
+[Play] MIDI  chord  OFF  73 C#5  (+0ms)
+[Play] MIDI  chord  OFF  78 F#5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] MIDI  chord  ON   65 F4  (+200ms)
+[Play] MIDI  chord  ON   69 A4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] MIDI  chord  ON   77 F5  (+0ms)
+[Play] HARP shown top→bot: #11:C7  #10:A6  #9:F6  #8:C6  #7:A5  #6:F5  #5:C5  #4:A4  #3:F4  #2:C4  #1:A3  #0:F3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=major
+[Play] ▶ DETECTED: F [col0 rows0]   (live: F4 A4 C5 F5)
+  · F held | lit: button.lit:F
+[Play] MIDI  chord  OFF  65 F4  (+40ms)
+[Play] MIDI  chord  OFF  69 A4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] MIDI  chord  OFF  77 F5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S7 barry: major press reads as 6th ================
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=1 sharp-btn | held: button=0(B) type=major
+[Play] ▶ DETECTED: —   (live: none)
+  input (barry C major emits) = 60,64,67,69
+[Play] MIDI  chord  ON   60 C4  (+0ms)
+[Play] MIDI  chord  ON   64 E4  (+0ms)
+[Play] MIDI  chord  ON   67 G4  (+0ms)
+[Play] MIDI  chord  ON   69 A4  (+0ms)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=1 sharp-btn | held: button=5(C) type=maj_sixth
+[Play] ▶ DETECTED: C6 [col1 rows0]   (live: C4 E4 G4 A4)
+  · held | lit: button.lit:C6
+[Play] MIDI  chord  OFF  60 C4  (+40ms)
+[Play] MIDI  chord  OFF  64 E4  (+0ms)
+[Play] MIDI  chord  OFF  67 G4  (+0ms)
+[Play] MIDI  chord  OFF  69 A4  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=maj_sixth
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S8 harp octaves strum (real capture, default) ================
+[Play] MIDI  harp  ON   53 F3  (+0ms)
+[Play] HARP shown top→bot: #11:A6  #10:F6  #9:D6  #8:A5  #7:F5  #6:D5  #5:A4  #4:F4  #3:D4  #2:A3  #1:F3  #0:D3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=3(D) type=minor
+[Play] harp ctx → Dm row 0(normal) — note F3 didn't fit; last 1/1 fully explained (cover 1, overplay 0, path 0)
+[Play]   harp 53 F3 -> string#1 (labels: F)
+[Play] MIDI  harp  ON   57 A3  (+10ms)
+[Play]   harp 57 A3 -> string#2 (labels: A)
+[Play] MIDI  harp  ON   60 C4  (+10ms)
+[Play] HARP shown top→bot: #11:C7  #10:A6  #9:F6  #8:C6  #7:A5  #6:F5  #5:C5  #4:A4  #3:F4  #2:C4  #1:A3  #0:F3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=major
+[Play] harp ctx → F row 0(normal) — note C4 didn't fit; last 3/3 fully explained (cover 3, overplay 0, path 2)
+[Play]   harp 60 C4 -> string#2 (labels: C)
+[Play] MIDI  harp  ON   65 F4  (+10ms)
+[Play]   harp 65 F4 -> string#3 (labels: F)
+[Play] MIDI  harp  ON   65 F4  (+10ms)
+[Play]   harp 65 F4 -> string#3 (labels: F)
+[Play] MIDI  harp  ON   69 A4  (+10ms)
+[Play]   harp 69 A4 -> string#4 (labels: A)
+[Play] MIDI  harp  ON   72 C5  (+10ms)
+[Play]   harp 72 C5 -> string#5 (labels: C)
+[Play] MIDI  harp  ON   77 F5  (+10ms)
+[Play]   harp 77 F5 -> string#6 (labels: F)
+[Play] MIDI  harp  ON   77 F5  (+10ms)
+[Play]   harp 77 F5 -> string#6 (labels: F)
+[Play] MIDI  harp  ON   81 A5  (+10ms)
+[Play]   harp 81 A5 -> string#7 (labels: A)
+[Play] MIDI  harp  ON   84 C6  (+10ms)
+[Play]   harp 84 C6 -> string#8 (labels: C)
+[Play] MIDI  harp  ON   89 F6  (+10ms)
+[Play]   harp 89 F6 -> string#9 (labels: F)
+  · after strum | lit: button.lit:F  button.lit:C  button.lit:A  button.lit:F  button.lit:C  button.lit:A  button.lit:F  button.lit:C  button.lit:A
+[Play] MIDI  harp  OFF  53 F3  (+10ms)
+[Play] MIDI  harp  OFF  57 A3  (+0ms)
+[Play] MIDI  harp  OFF  60 C4  (+0ms)
+[Play] MIDI  harp  OFF  65 F4  (+0ms)
+[Play] MIDI  harp  OFF  65 F4  (+0ms)
+[Play] MIDI  harp  OFF  69 A4  (+0ms)
+[Play] MIDI  harp  OFF  72 C5  (+0ms)
+[Play] MIDI  harp  OFF  77 F5  (+0ms)
+[Play] MIDI  harp  OFF  77 F5  (+0ms)
+[Play] MIDI  harp  OFF  81 A5  (+0ms)
+[Play] MIDI  harp  OFF  84 C6  (+0ms)
+[Play] MIDI  harp  OFF  89 F6  (+0ms)
+  · released | lit: —
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S9 rhythm arpeggio identifyChord (C major, default) ================
+  rhythm step0 pitches=60 -> null
+  rhythm step1 pitches=60,64 -> 5/major d0 slashnull notes60,64,67,72,48,55,60
+  rhythm step2 pitches=60,64,67 -> 5/major d0 slashnull notes60,64,67,72,48,55,60
+  rhythm step3 pitches=60,64,67,72 -> 5/major d0 slashnull notes60,64,67,72,48,55,60
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S10 rhythm with harp corroboration ================
+[Play] MIDI  harp  ON   60 C4  (+0ms)
+[Play] HARP shown top→bot: #11:E7  #10:C7  #9:A6  #8:E6  #7:C6  #6:A5  #5:E5  #4:C5  #3:A4  #2:E4  #1:C4  #0:A3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=2(A) type=minor
+[Play] harp ctx → Am row 0(normal) — note C4 didn't fit; last 1/1 fully explained (cover 1, overplay 0, path 0)
+[Play]   harp 60 C4 -> string#1 (labels: C)
+[Play] MIDI  harp  ON   64 E4  (+10ms)
+[Play]   harp 64 E4 -> string#2 (labels: E)
+[Play] MIDI  harp  ON   67 G4  (+10ms)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] harp ctx → C row 0(normal) — note G4 didn't fit; last 3/3 fully explained (cover 3, overplay 0, path 2)
+[Play]   harp 67 G4 -> string#5 (labels: G)
+  rhythm+harp step0 pitches=60 -> 5/major d0
+  rhythm+harp step1 pitches=60,67 -> 5/major d0
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S11 pot-on-120 chord voicing (Underwater-style) ================
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2[pot] chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+[Play] ▶ DETECTED: —   (live: none)
+  input C@voicing5 = 72,76,79,84
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] MIDI  chord  ON   76 E5  (+0ms)
+[Play] MIDI  chord  ON   79 G5  (+0ms)
+[Play] MIDI  chord  ON   84 C6  (+0ms)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2[pot] chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] ▶ DETECTED: C [col1 rows0]   (live: C5 E5 G5 C6)
+  · grid: voicing recovered? | lit: button.lit:C
+[Play] MIDI  chord  OFF  72 C5  (+40ms)
+[Play] MIDI  chord  OFF  76 E5  (+0ms)
+[Play] MIDI  chord  OFF  79 G5  (+0ms)
+[Play] MIDI  chord  OFF  84 C6  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+  rhythm @voicing5 -> 5/major notes72,76,79,84,74,77,81
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S12 transpose +3 nudge while holding ================
+[Play] MIDI  chord  ON   60 C4  (+0ms)
+[Play] ▶ DETECTED: —   (live: C4)
+[Play] MIDI  chord  ON   64 E4  (+0ms)
+[Play] MIDI  chord  ON   67 G4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] ▶ DETECTED: C [col1 rows0]   (live: C4 E4 G4 C5)
+  · C held @t0 | lit: button.lit:C
+[Play] HARP shown top→bot: #11:A#6  #10:G6  #9:D#6  #8:A#5  #7:G5  #6:D#5  #5:A#4  #4:G4  #3:D#4  #2:A#3  #1:G3  #0:D#3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=3(chord frozen@0) slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+  · transpose=3 while held (matching frozen, labels live) | lit: button.lit:D#
+[Play] MIDI  chord  OFF  60 C4  (+30ms)
+[Play] MIDI  chord  OFF  64 E4  (+0ms)
+[Play] MIDI  chord  OFF  67 G4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S14 barry chord HELD + rhythm identify (pressedChord authority + barry type) ================
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=1 sharp-btn | held: button=0(B) type=major
+[Play] ▶ DETECTED: —   (live: none)
+  barry C (emits 6th) = 60,64,67,69
+[Play] MIDI  chord  ON   60 C4  (+0ms)
+[Play] MIDI  chord  ON   64 E4  (+0ms)
+[Play] MIDI  chord  ON   67 G4  (+0ms)
+[Play] MIDI  chord  ON   69 A4  (+0ms)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=1 sharp-btn | held: button=5(C) type=maj_sixth
+[Play] ▶ DETECTED: C6 [col1 rows0]   (live: C4 E4 G4 A4)
+  · barry C held | lit: button.lit:C6
+  barry rhythm step0 pitches=60 -> null
+  barry rhythm step1 pitches=60,64 -> 5/maj_sixth d0
+  barry rhythm step2 pitches=60,64,67,69 -> 5/maj_sixth d0
+[Play] MIDI  chord  OFF  60 C4  (+150ms)
+[Play] MIDI  chord  OFF  64 E4  (+0ms)
+[Play] MIDI  chord  OFF  67 G4  (+0ms)
+[Play] MIDI  chord  OFF  69 A4  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=maj_sixth
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S15 plain chord HELD + rhythm lone-root (held/dropped fusion) ================
+[Play] MIDI  chord  ON   60 C4  (+0ms)
+[Play] ▶ DETECTED: —   (live: C4)
+[Play] MIDI  chord  ON   64 E4  (+0ms)
+[Play] MIDI  chord  ON   67 G4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] ▶ DETECTED: C [col1 rows0]   (live: C4 E4 G4 C5)
+  · C held | lit: button.lit:C
+  held+rhythm lone-root pitches=60 -> null
+[Play] MIDI  chord  OFF  60 C4  (+30ms)
+[Play] MIDI  chord  OFF  64 E4  (+0ms)
+[Play] MIDI  chord  OFF  67 G4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S16 watchdog releases a stuck note + unblocks new chord ================
+[Play] MIDI  chord  ON   60 C4  (+0ms)
+[Play] ▶ DETECTED: —   (live: C4)
+[Play] MIDI  chord  ON   64 E4  (+0ms)
+[Play] MIDI  chord  ON   67 G4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] ▶ DETECTED: C [col1 rows0]   (live: C4 E4 G4 C5)
+  · C held (no note-off sent) | lit: button.lit:C
+[Play] watchdog released stale note 60 C4
+[Play] watchdog released stale note 64 E4
+[Play] watchdog released stale note 67 G4
+[Play] watchdog released stale note 72 C5
+[Play] ▶ DETECTED: —   (live: none)
+  · after watchdog (should be clear) | lit: —
+[Play] MIDI  chord  ON   65 F4  (+9030ms)
+[Play] MIDI  chord  ON   69 A4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] MIDI  chord  ON   77 F5  (+0ms)
+[Play] HARP shown top→bot: #11:C7  #10:A6  #9:F6  #8:C6  #7:A5  #6:F5  #5:C5  #4:A4  #3:F4  #2:C4  #1:A3  #0:F3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=major
+[Play] ▶ DETECTED: F [col0 rows0]   (live: F4 A4 C5 F5)
+  · new F lights (was blocked by phantom) | lit: button.lit:F
+[Play] MIDI  chord  OFF  65 F4  (+30ms)
+[Play] MIDI  chord  OFF  69 A4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] MIDI  chord  OFF  77 F5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S17 harp fallback: out-of-range note still lights a string + panel glows ================
+[Play] MIDI  harp  ON   30 F#1  (+0ms)
+  out-of-range harp 30 -> lit: — | panel glow: true
+[Play] MIDI  harp  OFF  30 F#1  (+0ms)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S18 rhythm: a bass note only in the bucket does NOT make a split ================
+[Play] MIDI  chord  ON   62 D4  (+0ms)
+[Play] ▶ DETECTED: —   (live: D4)
+  C triad onsets + D in bucket -> 5/major slash=null
+[Play] MIDI  chord  OFF  62 D4  (+10ms)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S19 DIAG rhythm with held-note accumulation across a chord change ================
+[Play] MIDI  chord  ON   60 C4  (+0ms)
+[Play] ▶ DETECTED: —   (live: C4)
+  C voice 60 -> null
+[Play] MIDI  chord  ON   64 E4  (+200ms)
+  C voice 64 -> 5/major
+[Play] MIDI  chord  ON   67 G4  (+200ms)
+  C voice 67 -> 5/major
+[Play] MIDI  chord  ON   72 C5  (+200ms)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] ▶ DETECTED: C [col1 rows0]   (live: C4 E4 G4 C5)
+  C voice 72 -> 5/major
+[Play] MIDI  chord  ON   65 F4  (+200ms)
+  F voice 65 (C still held) -> null
+[Play] MIDI  chord  ON   69 A4  (+200ms)
+  F voice 69 (C still held) -> 3/minor
+[Play] MIDI  chord  ON   72 C5  (+200ms)
+  F voice 72 (C still held) -> 6/major
+[Play] MIDI  chord  ON   77 F5  (+200ms)
+  F voice 77 (C still held) -> 6/major
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S20 DIAG Cm rhythm (should read minor, not dim) ================
+  Cm voices = 60,63,67,72
+[Play] MIDI  chord  ON   60 C4  (+0ms)
+[Play] ▶ DETECTED: —   (live: C4)
+[Play] MIDI  chord  OFF  60 C4  (+0ms)
+  Cm onset 60 -> null
+[Play] MIDI  chord  ON   63 D#4  (+200ms)
+[Play] MIDI  chord  OFF  63 D#4  (+0ms)
+  Cm onset 63 -> 5/minor
+[Play] MIDI  chord  ON   67 G4  (+200ms)
+[Play] MIDI  chord  OFF  67 G4  (+0ms)
+  Cm onset 67 -> 5/minor
+[Play] MIDI  chord  ON   72 C5  (+200ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+  Cm onset 72 -> 5/minor
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S21 pattern disambiguation: {F,A} → F when the ROOT voice fires (not Dm) ================
+  {F,A} root+3rd voices fired -> 6/major  (want 6/major = F)
+  {F,A} no pattern (bare tie)   -> 3/minor  (ambiguous)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S22 pattern: Cm with root+3rd+5th voices fired stays minor (seq agrees, not dim) ================
+  Cm root/3rd/5th fired -> 5/minor  (want 5/minor)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S23 GATE: natural 5th, no ♭5 → minor (the gate guarantees dim can never appear) ================
+  {C4,Eb4,G4} (P5, no ♭5) -> 5/minor  (want 5/minor, never 5/dim)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S24 GATE: the ♭5 (Gb) IS heard → dim is correctly named ================
+  {C4,Eb4,Gb4} (♭5 heard) -> 5/dim  (want 5/dim)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S25 GATE: ♭7 (Bb) gates dominant vs triad ================
+  {C,E,G} no ♭7 -> 5/major  (want major, never seventh)
+  {C,E,G,Bb} ♭7 -> 5/seventh  (want 5/seventh)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S26 GATE grid: a held set missing the ♭5 can never match dim (containment already enforces it) ================
+[Play] MIDI  chord  ON   60 C4  (+0ms)
+[Play] ▶ DETECTED: —   (live: C4)
+[Play] MIDI  chord  ON   63 D#4  (+0ms)
+[Play] MIDI  chord  ON   67 G4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] HARP shown top→bot: #11:G6  #10:D#6  #9:C6  #8:G5  #7:D#5  #6:C5  #5:G4  #4:D#4  #3:C4  #2:G3  #1:D#3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=minor
+[Play] ▶ DETECTED: Cm [col1 rows1]   (live: C4 D#4 G4 C5)
+  held Cm (no ♭5) lit: button.lit:Cm  (want a minor cell, never dim)
+[Play] MIDI  chord  OFF  60 C4  (+30ms)
+[Play] MIDI  chord  OFF  63 D#4  (+0ms)
+[Play] MIDI  chord  OFF  67 G4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S27 POSITIONAL rhythm: a marginal fired ♭7 voice flips D6→D7 where fuzzy stickiness can't ================
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=1 sharp-btn | held: button=0(B) type=major
+[Play] ▶ DETECTED: —   (live: none)
+  D6 established              -> D/maj_sixth  (want 3/maj_sixth)
+  +♭7 on v2 (POSITIONAL)      -> D/seventh  (want 3/seventh = D7 — position decides)
+  +♭7 same notes (FUZZY)      -> D/seventh  (want 3/seventh — dominance: D6 can't place the C, no vs needed)
+  v2=A again (POSITIONAL)     -> D/maj_sixth  (want 3/maj_sixth = D6 — momentary demote)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S28 SETTLE harp: an ambiguous B-C-D run no longer flips the context ================
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+[Play] ▶ DETECTED: —   (live: none)
+[Play] MIDI  harp  ON   95 B6  (+0ms)
+[Play]   harp 95 B6 -> string#9 (labels: B)
+[Play] MIDI  harp  ON   84 C6  (+60ms)
+[Play] harp settle: keep B — best rival D7/B explains only the last 2/2 (<3); C6 stays unplaced
+[Play] MIDI  harp  ON   86 D6  (+60ms)
+[Play] HARP shown top→bot: #11:D7  #10:B6  #9:C6  #8:D6  #7:B5  #6:C5  #5:D5  #4:B4  #3:C4  #2:D4  #1:B3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=4(G) type=major slash→C
+[Play] harp ctx → G/C row 0(normal) — note D6 didn't fit; last 3/3 fully explained (cover 3, overplay 0, path 2)
+[Play]   harp 86 D6 -> string#8 (labels: D)
+[Play] MIDI  harp  ON   83 B5  (+60ms)
+[Play]   harp 83 B5 -> string#7 (labels: B)
+[Play] MIDI  harp  ON   72 C5  (+60ms)
+[Play]   harp 72 C5 -> string#6 (labels: C)
+[Play] MIDI  harp  ON   74 D5  (+60ms)
+[Play]   harp 74 D5 -> string#5 (labels: D)
+[Play] MIDI  harp  ON   71 B4  (+60ms)
+[Play]   harp 71 B4 -> string#4 (labels: B)
+[Play] MIDI  harp  ON   60 C4  (+60ms)
+[Play]   harp 60 C4 -> string#3 (labels: C)
+[Play] MIDI  harp  ON   62 D4  (+60ms)
+[Play]   harp 62 D4 -> string#2 (labels: D)
+[Play] MIDI  harp  ON   59 B3  (+60ms)
+[Play]   harp 59 B3 -> string#1 (labels: B)
+[Play] MIDI  harp  ON   48 C3  (+60ms)
+[Play]   harp 48 C3 -> string#0 (labels: C)
+  harp ctx switches during the B-C-D run: 1  (want few — settled, not flipping)
+[Play] MIDI  harp  OFF  95 B6  (+60ms)
+[Play] MIDI  harp  OFF  84 C6  (+0ms)
+[Play] MIDI  harp  OFF  86 D6  (+0ms)
+[Play] MIDI  harp  OFF  83 B5  (+0ms)
+[Play] MIDI  harp  OFF  72 C5  (+0ms)
+[Play] MIDI  harp  OFF  74 D5  (+0ms)
+[Play] MIDI  harp  OFF  71 B4  (+0ms)
+[Play] MIDI  harp  OFF  60 C4  (+0ms)
+[Play] MIDI  harp  OFF  62 D4  (+0ms)
+[Play] MIDI  harp  OFF  59 B3  (+0ms)
+[Play] MIDI  harp  OFF  48 C3  (+0ms)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S29 SETTLE harp: A7 strum then a D/G swipe — slash contexts are first-class (log2 shape) ================
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+[Play] ▶ DETECTED: —   (live: none)
+[Play] MIDI  harp  ON   57 A3  (+0ms)
+[Play] HARP shown top→bot: #11:E7  #10:C#7  #9:A6  #8:E6  #7:C#6  #6:A5  #5:E5  #4:C#5  #3:A4  #2:E4  #1:C#4  #0:A3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=2(A) type=major
+[Play] harp ctx → A row 0(normal) — note A3 didn't fit; last 1/1 fully explained (cover 1, overplay 0, path 0)
+[Play]   harp 57 A3 -> string#0 (labels: A)
+[Play] MIDI  harp  ON   61 C#4  (+50ms)
+[Play]   harp 61 C#4 -> string#1 (labels: C#)
+[Play] MIDI  harp  ON   67 G4  (+50ms)
+[Play] HARP shown top→bot: #11:G7  #10:C#7  #9:A6  #8:G6  #7:C#6  #6:A5  #5:G5  #4:C#5  #3:A4  #2:G4  #1:C#4  #0:A3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=2(A) type=seventh
+[Play] harp ctx → A7 row 0(normal) — note G4 didn't fit; last 3/3 fully explained (cover 3, overplay 0, path 2)
+[Play]   harp 67 G4 -> string#2 (labels: G)
+[Play] MIDI  harp  ON   93 A6  (+2550ms)
+[Play]   harp 93 A6 -> string#9 (labels: A)
+[Play] MIDI  harp  ON   90 F#6  (+50ms)
+[Play] harp settle: keep A7 — best rival D/G explains only the last 2/2 (<3); F#6 stays unplaced
+[Play] MIDI  harp  ON   91 G6  (+50ms)
+[Play]   harp 91 G6 -> string#8 (labels: G)
+[Play] MIDI  harp  ON   81 A5  (+50ms)
+[Play]   harp 81 A5 -> string#6 (labels: A)
+[Play] MIDI  harp  ON   78 F#5  (+50ms)
+[Play] HARP shown top→bot: #11:A6  #10:F#6  #9:G6  #8:A5  #7:F#5  #6:G5  #5:A4  #4:F#4  #3:G4  #2:A3  #1:F#3  #0:G3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=3(D) type=major slash→G
+[Play] harp ctx → D/G row 0(normal) — note F#5 didn't fit; last 5/8 fully explained (cover 7, overplay 1, path 4)
+[Play]   harp 78 F#5 -> string#7 (labels: F#)
+[Play] MIDI  harp  ON   79 G5  (+50ms)
+[Play]   harp 79 G5 -> string#6 (labels: G)
+[Play] MIDI  harp  ON   69 A4  (+50ms)
+[Play]   harp 69 A4 -> string#5 (labels: A)
+[Play] MIDI  harp  ON   66 F#4  (+50ms)
+[Play]   harp 66 F#4 -> string#4 (labels: F#)
+[Play] MIDI  harp  ON   67 G4  (+50ms)
+[Play]   harp 67 G4 -> string#3 (labels: G)
+[Play] MIDI  harp  ON   57 A3  (+50ms)
+[Play]   harp 57 A3 -> string#2 (labels: A)
+[Play] MIDI  harp  ON   54 F#3  (+50ms)
+[Play]   harp 54 F#3 -> string#1 (labels: F#)
+[Play] MIDI  harp  ON   55 G3  (+50ms)
+[Play]   harp 55 G3 -> string#0 (labels: G)
+  ctx switches: 3  (want 3: a 1-note cold read, A7 on its suffix, D/G on the swipe — then silence)
+  final read: D/G row 0(normal)  (want D/G row 0(normal))
+[Play] MIDI  harp  OFF  57 A3  (+50ms)
+[Play] MIDI  harp  OFF  61 C#4  (+0ms)
+[Play] MIDI  harp  OFF  67 G4  (+0ms)
+[Play] MIDI  harp  OFF  93 A6  (+50ms)
+[Play] MIDI  harp  OFF  90 F#6  (+0ms)
+[Play] MIDI  harp  OFF  91 G6  (+0ms)
+[Play] MIDI  harp  OFF  81 A5  (+0ms)
+[Play] MIDI  harp  OFF  78 F#5  (+0ms)
+[Play] MIDI  harp  OFF  79 G5  (+0ms)
+[Play] MIDI  harp  OFF  69 A4  (+0ms)
+[Play] MIDI  harp  OFF  66 F#4  (+0ms)
+[Play] MIDI  harp  OFF  67 G4  (+0ms)
+[Play] MIDI  harp  OFF  57 A3  (+0ms)
+[Play] MIDI  harp  OFF  54 F#3  (+0ms)
+[Play] MIDI  harp  OFF  55 G3  (+0ms)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S30 DOMINANCE fuzzy rhythm: the ONE distinguishing onset flips D6↔D7 with no voice info ================
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=1 sharp-btn | held: button=0(B) type=major
+[Play] ▶ DETECTED: —   (live: none)
+  {D,F#,A} bare                -> D/maj_sixth  (want 3/maj_sixth)
+  {D,F#,C} prev=D6 (FUZZY)     -> D/seventh  (want 3/seventh — D6 can't place the C)
+  {D,F#,B} prev=D7 (FUZZY)     -> D/maj_sixth  (want 3/maj_sixth — gate demotes the stale 7th)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S31 SETTLE harp: two full G/C swipes (the log5 §1 capture) — one read, zero flips ================
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+[Play] ▶ DETECTED: —   (live: none)
+[Play] MIDI  harp  ON   98 D7  (+0ms)
+[Play] HARP shown top→bot: #11:F#7  #10:D7  #9:B6  #8:F#6  #7:D6  #6:B5  #5:F#5  #4:D5  #3:B4  #2:F#4  #1:D4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=minor
+[Play] harp ctx → Bm row 0(normal) — note D7 didn't fit; last 1/1 fully explained (cover 1, overplay 0, path 0)
+[Play]   harp 98 D7 -> string#10 (labels: D)
+[Play] MIDI  harp  ON   95 B6  (+80ms)
+[Play]   harp 95 B6 -> string#9 (labels: B)
+[Play] MIDI  harp  ON   84 C6  (+80ms)
+[Play] HARP shown top→bot: #11:D7  #10:B6  #9:C6  #8:D6  #7:B5  #6:C5  #5:D5  #4:B4  #3:C4  #2:D4  #1:B3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=4(G) type=major slash→C
+[Play] harp ctx → G/C row 0(normal) — note C6 didn't fit; last 3/3 fully explained (cover 3, overplay 0, path 2)
+[Play]   harp 84 C6 -> string#9 (labels: C)
+[Play] MIDI  harp  ON   86 D6  (+80ms)
+[Play]   harp 86 D6 -> string#8 (labels: D)
+[Play] MIDI  harp  ON   83 B5  (+80ms)
+[Play]   harp 83 B5 -> string#7 (labels: B)
+[Play] MIDI  harp  ON   72 C5  (+80ms)
+[Play]   harp 72 C5 -> string#6 (labels: C)
+[Play] MIDI  harp  ON   74 D5  (+80ms)
+[Play]   harp 74 D5 -> string#5 (labels: D)
+[Play] MIDI  harp  ON   71 B4  (+80ms)
+[Play]   harp 71 B4 -> string#4 (labels: B)
+[Play] MIDI  harp  ON   60 C4  (+80ms)
+[Play]   harp 60 C4 -> string#3 (labels: C)
+[Play] MIDI  harp  ON   62 D4  (+80ms)
+[Play]   harp 62 D4 -> string#2 (labels: D)
+[Play] MIDI  harp  ON   59 B3  (+80ms)
+[Play]   harp 59 B3 -> string#1 (labels: B)
+[Play] MIDI  harp  ON   48 C3  (+80ms)
+[Play]   harp 48 C3 -> string#0 (labels: C)
+[Play] MIDI  harp  OFF  98 D7  (+80ms)
+[Play] MIDI  harp  OFF  95 B6  (+0ms)
+[Play] MIDI  harp  OFF  84 C6  (+0ms)
+[Play] MIDI  harp  OFF  86 D6  (+0ms)
+[Play] MIDI  harp  OFF  83 B5  (+0ms)
+[Play] MIDI  harp  OFF  72 C5  (+0ms)
+[Play] MIDI  harp  OFF  74 D5  (+0ms)
+[Play] MIDI  harp  OFF  71 B4  (+0ms)
+[Play] MIDI  harp  OFF  60 C4  (+0ms)
+[Play] MIDI  harp  OFF  62 D4  (+0ms)
+[Play] MIDI  harp  OFF  59 B3  (+0ms)
+[Play] MIDI  harp  OFF  48 C3  (+0ms)
+[Play] MIDI  harp  ON   48 C3  (+2450ms)
+[Play]   harp 48 C3 -> string#0 (labels: C)
+[Play] MIDI  harp  ON   59 B3  (+80ms)
+[Play]   harp 59 B3 -> string#1 (labels: B)
+[Play] MIDI  harp  ON   62 D4  (+80ms)
+[Play]   harp 62 D4 -> string#2 (labels: D)
+[Play] MIDI  harp  ON   60 C4  (+80ms)
+[Play]   harp 60 C4 -> string#3 (labels: C)
+[Play] MIDI  harp  ON   71 B4  (+80ms)
+[Play]   harp 71 B4 -> string#4 (labels: B)
+[Play] MIDI  harp  ON   74 D5  (+80ms)
+[Play]   harp 74 D5 -> string#5 (labels: D)
+[Play] MIDI  harp  ON   72 C5  (+80ms)
+[Play]   harp 72 C5 -> string#6 (labels: C)
+[Play] MIDI  harp  ON   83 B5  (+80ms)
+[Play]   harp 83 B5 -> string#7 (labels: B)
+[Play] MIDI  harp  ON   86 D6  (+80ms)
+[Play]   harp 86 D6 -> string#8 (labels: D)
+[Play] MIDI  harp  ON   84 C6  (+80ms)
+[Play]   harp 84 C6 -> string#9 (labels: C)
+[Play] MIDI  harp  ON   95 B6  (+80ms)
+[Play]   harp 95 B6 -> string#10 (labels: B)
+[Play] MIDI  harp  ON   98 D7  (+80ms)
+[Play]   harp 98 D7 -> string#11 (labels: D)
+[Play] MIDI  harp  OFF  98 D7  (+80ms)
+[Play] MIDI  harp  OFF  95 B6  (+0ms)
+[Play] MIDI  harp  OFF  84 C6  (+0ms)
+[Play] MIDI  harp  OFF  86 D6  (+0ms)
+[Play] MIDI  harp  OFF  83 B5  (+0ms)
+[Play] MIDI  harp  OFF  72 C5  (+0ms)
+[Play] MIDI  harp  OFF  74 D5  (+0ms)
+[Play] MIDI  harp  OFF  71 B4  (+0ms)
+[Play] MIDI  harp  OFF  60 C4  (+0ms)
+[Play] MIDI  harp  OFF  62 D4  (+0ms)
+[Play] MIDI  harp  OFF  59 B3  (+0ms)
+[Play] MIDI  harp  OFF  48 C3  (+0ms)
+  ctx switches over both swipes: 2  (want 2: one cold read + G/C — never Cmaj7, no flipping)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S32 MULTISET rhythm: a doubled voice separates C6/G from C6 (log6 shape) ================
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=4 chromatic=0 barry=1 sharp-btn | held: button=0(B) type=major
+[Play] ▶ DETECTED: —   (live: none)
+  {C4,E4,G4}                  -> C/maj_sixth  (want 5/maj_sixth — plain C6)
+  {C5,E4,A4,G4×2} prev=C6     -> C/maj_sixth/G  (want 5/maj_sixth/G — a doubled G4 is impossible for plain C6)
+  {A4,G4,C4} prev=C6/G        -> C/maj_sixth  (want 5/maj_sixth — C6/G can never sound a C4)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S33 HARP momentum: duplicate strings follow the finger (heat-map lighting) ================
+[Play] MIDI  chord  ON   67 G4  (+0ms)
+[Play] ▶ DETECTED: —   (live: G4)
+[Play] MIDI  chord  ON   64 E4  (+0ms)
+[Play] MIDI  chord  ON   67 G4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:G6  #8:G5  #7:E5  #6:G5  #5:G4  #4:E4  #3:G4  #2:G3  #1:E3  #0:G3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major slash→G
+[Play] ▶ DETECTED: C/G [col1 rows0 slash@col2]   (live: E4 G4 C5)
+  · C/G held | lit: button.lit:C  button.slash:G  button.slash:Gm  button.slash:G7
+[Play] MIDI  harp  ON   55 G3  (+80ms)
+[Play]   harp 55 G3 -> string#0 (labels: G)
+[Play] MIDI  harp  OFF  55 G3  (+80ms)
+[Play] MIDI  harp  ON   52 E3  (+20ms)
+[Play]   harp 52 E3 -> string#1 (labels: E)
+[Play] MIDI  harp  ON   55 G3  (+80ms)
+[Play]   harp 55 G3 -> string#2 (labels: G)
+[Play] MIDI  harp  ON   67 G4  (+80ms)
+[Play]   harp 67 G4 -> string#3 (labels: G)
+[Play] MIDI  harp  ON   64 E4  (+80ms)
+[Play]   harp 64 E4 -> string#4 (labels: E)
+[Play] MIDI  harp  ON   67 G4  (+80ms)
+[Play]   harp 67 G4 -> string#5,3 (labels: G,G)
+  · upward sweep with re-plucked twins | lit: button.lit:C  button.slash:G  button.slash:Gm  button.slash:G7  button.lit:G  button.lit:E  button.lit:G  button.lit:G  button.lit:E
+[Play] MIDI  harp  OFF  55 G3  (+80ms)
+[Play] MIDI  harp  OFF  52 E3  (+0ms)
+[Play] MIDI  harp  OFF  67 G4  (+0ms)
+[Play] MIDI  harp  OFF  64 E4  (+0ms)
+[Play] MIDI  harp  OFF  67 G4  (+0ms)
+[Play] MIDI  harp  ON   67 G4  (+700ms)
+[Play]   harp 67 G4 -> string#5 (labels: G)
+  · after pause: nearest again | lit: button.lit:C  button.slash:G  button.slash:Gm  button.slash:G7  button.lit:G
+[Play] MIDI  harp  OFF  67 G4  (+80ms)
+[Play] MIDI  chord  OFF  67 G4  (+0ms)
+[Play] MIDI  chord  OFF  64 E4  (+0ms)
+[Play] MIDI  chord  OFF  67 G4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S34 DESYNC badge: the port plays F while the harp plays Fmaj7 (firmware race mirror) ================
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+[Play] ▶ DETECTED: —   (live: none)
+[Play] MIDI  chord  ON   65 F4  (+0ms)
+[Play] MIDI  chord  ON   69 A4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] MIDI  chord  ON   77 F5  (+0ms)
+[Play] HARP shown top→bot: #11:C7  #10:A6  #9:F6  #8:C6  #7:A5  #6:F5  #5:C5  #4:A4  #3:F4  #2:C4  #1:A3  #0:F3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=major
+[Play] ▶ DETECTED: F [col0 rows0]   (live: F4 A4 C5 F5)
+  · F held on the chord port | lit: button.lit:F
+  badge: hidden  (want hidden — nothing diverged yet)
+[Play] MIDI  harp  ON   53 F3  (+30ms)
+[Play]   harp 53 F3 -> string#0 (labels: F)
+[Play] MIDI  harp  ON   57 A3  (+12ms)
+[Play]   harp 57 A3 -> string#1 (labels: A)
+[Play] MIDI  harp  ON   64 E4  (+12ms)
+[Play] HARP shown top→bot: #11:E7  #10:A6  #9:F6  #8:E6  #7:A5  #6:F5  #5:E5  #4:A4  #3:F4  #2:E4  #1:A3  #0:F3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=major | harp: Fmaj7 (desynced)
+[Play] harp ctx → Fmaj7 (desynced — chord port holds F) row 0(normal) — note E4 didn't fit; last 3/3 fully explained (cover 3, overplay 0, path 2)
+[Play]   harp 64 E4 -> string#2 (labels: E)
+[Play] MIDI  harp  ON   65 F4  (+12ms)
+[Play]   harp 65 F4 -> string#3 (labels: F)
+[Play] MIDI  harp  ON   69 A4  (+12ms)
+[Play]   harp 69 A4 -> string#4 (labels: A)
+[Play] MIDI  harp  ON   76 E5  (+12ms)
+[Play]   harp 76 E5 -> string#5 (labels: E)
+  · Fmaj7 strum over held F (grid must stay F) | lit: button.lit:F  button.lit:E  button.lit:A  button.lit:F  button.lit:E  button.lit:A  button.lit:F
+  badge: hidden  (want hidden — context adopted instantly, badge waits out the min play time)
+[Play] HARP shown top→bot: #11:E7  #10:A6  #9:F6  #8:E6  #7:A5  #6:F5  #5:E5  #4:A4  #3:F4  #2:E4  #1:A3  #0:F3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=major | harp: Fmaj7 (desynced)
+  badge: "Fmaj7"  (want "Fmaj7" — shown once the desync has lasted)
+[Play] MIDI  harp  OFF  53 F3  (+1112ms)
+[Play] MIDI  harp  OFF  57 A3  (+0ms)
+[Play] MIDI  harp  OFF  64 E4  (+0ms)
+[Play] MIDI  harp  OFF  65 F4  (+0ms)
+[Play] MIDI  harp  OFF  69 A4  (+0ms)
+[Play] MIDI  harp  OFF  76 E5  (+0ms)
+[Play] MIDI  chord  OFF  65 F4  (+50ms)
+[Play] MIDI  chord  OFF  69 A4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] MIDI  chord  OFF  77 F5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+  · F released (device harp keeps Fmaj7) | lit: —
+  badge: "Fmaj7"  (want "Fmaj7" still — desync persists through release)
+[Play] MIDI  chord  ON   65 F4  (+2700ms)
+[Play] MIDI  chord  ON   69 A4  (+0ms)
+[Play] MIDI  chord  ON   76 E5  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] HARP shown top→bot: #11:E7  #10:A6  #9:F6  #8:E6  #7:A5  #6:F5  #5:E5  #4:A4  #3:F4  #2:E4  #1:A3  #0:F3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=maj_seventh
+[Play] ▶ DETECTED: Fmaj7 [col0 rows02]   (live: F4 A4 C5 E5)
+  · Fmaj7 pressed for real — applyChord resync | lit: button.lit:F  button.lit:F7
+  badge: hidden  (want hidden — held adopted Fmaj7, badge cleared)
+[Play] MIDI  chord  OFF  65 F4  (+60ms)
+[Play] MIDI  chord  OFF  69 A4  (+0ms)
+[Play] MIDI  chord  OFF  76 E5  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S35 MOMENTUM row ID: a pot-driven row resolves at the finger's expected spot ================
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) [pot can drive] key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+[Play] ▶ DETECTED: —   (live: none)
+[Play] MIDI  chord  ON   60 C4  (+0ms)
+[Play] MIDI  chord  ON   64 E4  (+0ms)
+[Play] MIDI  chord  ON   67 G4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) [pot can drive] key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] ▶ DETECTED: C [col1 rows0]   (live: C4 E4 G4 C5)
+[Play] MIDI  harp  ON   48 C3  (+30ms)
+[Play]   harp 48 C3 -> string#0 (labels: C)
+[Play] MIDI  harp  ON   52 E3  (+80ms)
+[Play]   harp 52 E3 -> string#1 (labels: E)
+[Play] MIDI  harp  ON   55 G3  (+80ms)
+[Play]   harp 55 G3 -> string#2 (labels: G)
+[Play] MIDI  harp  ON   53 F3  (+80ms)
+[Play] HARP shown top→bot: #11:A4  #10:G4  #9:F4  #8:E4  #7:D4  #6:C4  #5:A3  #4:G3  #3:F3  #2:E3  #1:D3  #0:C3
+[Play] effective: harpShuf=5(chromatic) [inferred; dump=0, pot-driven] key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] harp ctx → C row 5(chromatic) — note F3 didn't fit (cover 4/4, overplay 0, path 5)
+[Play]   harp 53 F3 -> string#3 (labels: F)
+  · knob row 0 → 5 mid-swipe | lit: button.lit:C  button.lit:F  button.lit:E  button.lit:D  button.lit:C
+[Play] MIDI  harp  OFF  48 C3  (+80ms)
+[Play] MIDI  harp  OFF  52 E3  (+0ms)
+[Play] MIDI  harp  OFF  55 G3  (+0ms)
+[Play] MIDI  harp  OFF  53 F3  (+0ms)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) [pot can drive] key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] MIDI  harp  ON   48 C3  (+900ms)
+[Play]   harp 48 C3 -> string#0 (labels: C)
+[Play] MIDI  harp  ON   52 E3  (+80ms)
+[Play]   harp 52 E3 -> string#1 (labels: E)
+[Play] MIDI  harp  ON   55 G3  (+80ms)
+[Play]   harp 55 G3 -> string#2 (labels: G)
+[Play] MIDI  harp  ON   60 C4  (+80ms)
+[Play]   harp 60 C4 -> string#3 (labels: C)
+[Play] MIDI  harp  ON   60 C4  (+80ms)
+[Play] HARP shown top→bot: #11:C6  #10:G5  #9:E5  #8:C5  #7:C5  #6:G4  #5:E4  #4:C4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=4(octaves) [inferred; dump=0, pot-driven] key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] harp ctx → C row 4(octaves) — note C4 didn't fit (cover 5/5, overplay 0, path 3)
+[Play]   harp 60 C4 -> string#3,4 (labels: C,C)
+[Play] MIDI  harp  ON   64 E4  (+80ms)
+[Play]   harp 64 E4 -> string#5 (labels: E)
+  · octaves double resolves the row | lit: button.lit:C  button.lit:E  button.lit:C  button.lit:C  button.lit:G  button.lit:E  button.lit:C
+[Play] MIDI  harp  OFF  48 C3  (+80ms)
+[Play] MIDI  harp  OFF  52 E3  (+0ms)
+[Play] MIDI  harp  OFF  55 G3  (+0ms)
+[Play] MIDI  harp  OFF  60 C4  (+0ms)
+[Play] MIDI  harp  OFF  60 C4  (+0ms)
+[Play] MIDI  harp  OFF  64 E4  (+0ms)
+[Play] MIDI  chord  OFF  60 C4  (+0ms)
+[Play] MIDI  chord  OFF  64 E4  (+0ms)
+[Play] MIDI  chord  OFF  67 G4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:G6  #10:E6  #9:C6  #8:G5  #7:E5  #6:C5  #5:G4  #4:E4  #3:C4  #2:G3  #1:E3  #0:C3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=5(C) type=major
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S36 DESYNC suppressed while the rhythm drives the context ================
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+[Play] ▶ DETECTED: —   (live: none)
+[Play] MIDI  chord  ON   65 F4  (+0ms)
+[Play] MIDI  chord  ON   69 A4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] MIDI  chord  ON   77 F5  (+0ms)
+[Play] HARP shown top→bot: #11:C7  #10:A6  #9:F6  #8:C6  #7:A5  #6:F5  #5:C5  #4:A4  #3:F4  #2:C4  #1:A3  #0:F3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=major
+[Play] ▶ DETECTED: F [col0 rows0]   (live: F4 A4 C5 F5)
+[Play] MIDI  harp  ON   53 F3  (+30ms)
+[Play]   harp 53 F3 -> string#0 (labels: F)
+[Play] MIDI  harp  ON   57 A3  (+12ms)
+[Play]   harp 57 A3 -> string#1 (labels: A)
+[Play] MIDI  harp  ON   64 E4  (+12ms)
+[Play] harp settle: rival Fmaj7 suppressed — rhythm owns the context
+[Play] MIDI  harp  ON   65 F4  (+12ms)
+[Play]   harp 65 F4 -> string#3 (labels: F)
+  desync adopted during rhythm: false  (want false — the settle rival is suppressed)
+[Play] MIDI  harp  OFF  53 F3  (+1212ms)
+[Play] MIDI  harp  OFF  57 A3  (+0ms)
+[Play] MIDI  harp  OFF  64 E4  (+0ms)
+[Play] MIDI  harp  OFF  65 F4  (+0ms)
+[Play] MIDI  chord  OFF  65 F4  (+50ms)
+[Play] MIDI  chord  OFF  69 A4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] MIDI  chord  OFF  77 F5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S37 HELD-COLUMN sharp: F held, # added → F# on the SAME column (sharp lit) ================
+  input F=65,69,72,77 F#=66,70,73,78
+[Play] MIDI  chord  ON   65 F4  (+0ms)
+[Play] ▶ DETECTED: —   (live: F4)
+[Play] MIDI  chord  ON   69 A4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] MIDI  chord  ON   77 F5  (+0ms)
+[Play] HARP shown top→bot: #11:C7  #10:A6  #9:F6  #8:C6  #7:A5  #6:F5  #5:C5  #4:A4  #3:F4  #2:C4  #1:A3  #0:F3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=major
+[Play] ▶ DETECTED: F [col0 rows0]   (live: F4 A4 C5 F5)
+  · F held | lit: button.lit:F
+[Play] MIDI  chord  ON   66 F#4  (+40ms)
+[Play] MIDI  chord  ON   70 A#4  (+0ms)
+[Play] MIDI  chord  ON   73 C#5  (+0ms)
+[Play] MIDI  chord  ON   78 F#5  (+0ms)
+[Play] MIDI  chord  OFF  65 F4  (+0ms)
+[Play] MIDI  chord  OFF  69 A4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] MIDI  chord  OFF  77 F5  (+0ms)
+[Play] HARP shown top→bot: #11:C#7  #10:A#6  #9:F#6  #8:C#6  #7:A#5  #6:F#5  #5:C#5  #4:A#4  #3:F#4  #2:C#4  #1:A#3  #0:F#3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=major +sharp
+[Play] ▶ DETECTED: F# [col0 rows0 SHARP]   (live: F#4 A#4 C#5 F#5)
+  · # added (want col F + sharp) | lit: button.lit:♯  button.lit:F
+[Play] MIDI  chord  OFF  66 F#4  (+30ms)
+[Play] MIDI  chord  OFF  70 A#4  (+0ms)
+[Play] MIDI  chord  OFF  73 C#5  (+0ms)
+[Play] MIDI  chord  OFF  78 F#5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+  input E=64,68,71,76 E#=65,69,72,77  (E# ≡ F natural — the collision)
+[Play] MIDI  chord  ON   64 E4  (+200ms)
+[Play] MIDI  chord  ON   68 G#4  (+0ms)
+[Play] MIDI  chord  ON   71 B4  (+0ms)
+[Play] MIDI  chord  ON   76 E5  (+0ms)
+[Play] HARP shown top→bot: #11:B6  #10:G#6  #9:E6  #8:B5  #7:G#5  #6:E5  #5:B4  #4:G#4  #3:E4  #2:B3  #1:G#3  #0:E3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=1(E) type=major
+[Play] ▶ DETECTED: E [col5 rows0]   (live: E4 G#4 B4 E5)
+  · E held | lit: button.lit:E
+[Play] MIDI  chord  ON   65 F4  (+40ms)
+[Play] MIDI  chord  ON   69 A4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] MIDI  chord  ON   77 F5  (+0ms)
+[Play] MIDI  chord  OFF  64 E4  (+0ms)
+[Play] MIDI  chord  OFF  68 G#4  (+0ms)
+[Play] MIDI  chord  OFF  71 B4  (+0ms)
+[Play] MIDI  chord  OFF  76 E5  (+0ms)
+[Play] HARP shown top→bot: #11:C7  #10:A6  #9:F6  #8:C6  #7:A5  #6:F5  #5:C5  #4:A4  #3:F4  #2:C4  #1:A3  #0:F3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=1(E) type=major +sharp
+[Play] ▶ DETECTED: F [col5 rows0 SHARP]   (live: F4 A4 C5 F5)
+  · # added (want col E + sharp, NOT F natural) | lit: button.lit:♯  button.lit:E
+[Play] MIDI  chord  OFF  65 F4  (+30ms)
+[Play] MIDI  chord  OFF  69 A4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] MIDI  chord  OFF  77 F5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S38 HELD-COLUMN flat mode: F held, # added → F♭ keeps column F (never E) ================
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 flat-btn | held: button=0(B) type=major
+[Play] ▶ DETECTED: —   (live: none)
+  input F=65,69,72,77 Fb=64,68,71,76  (F♭ ≡ E natural — the collision)
+[Play] MIDI  chord  ON   65 F4  (+0ms)
+[Play] MIDI  chord  ON   69 A4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] MIDI  chord  ON   77 F5  (+0ms)
+[Play] HARP shown top→bot: #11:C7  #10:A6  #9:F6  #8:C6  #7:A5  #6:F5  #5:C5  #4:A4  #3:F4  #2:C4  #1:A3  #0:F3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 flat-btn | held: button=6(F) type=major
+[Play] ▶ DETECTED: F [col0 rows0]   (live: F4 A4 C5 F5)
+  · F held | lit: button.lit:F
+[Play] MIDI  chord  ON   64 E4  (+40ms)
+[Play] MIDI  chord  ON   68 G#4  (+0ms)
+[Play] MIDI  chord  ON   71 B4  (+0ms)
+[Play] MIDI  chord  ON   76 E5  (+0ms)
+[Play] MIDI  chord  OFF  65 F4  (+0ms)
+[Play] MIDI  chord  OFF  69 A4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] MIDI  chord  OFF  77 F5  (+0ms)
+[Play] HARP shown top→bot: #11:B6  #10:G#6  #9:E6  #8:B5  #7:G#5  #6:E5  #5:B4  #4:G#4  #3:E4  #2:B3  #1:G#3  #0:E3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 flat-btn | held: button=6(F) type=major +sharp
+[Play] ▶ DETECTED: E [col0 rows0 SHARP]   (live: E4 G#4 B4 E5)
+  · # added in flat mode (want col F + sharp, NOT E) | lit: button.lit:♭  button.lit:F
+[Play] MIDI  chord  OFF  64 E4  (+30ms)
+[Play] MIDI  chord  OFF  68 G#4  (+0ms)
+[Play] MIDI  chord  OFF  71 B4  (+0ms)
+[Play] MIDI  chord  OFF  76 E5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:C#7  #10:A#6  #9:F#6  #8:C#6  #7:A#5  #6:F#5  #5:C#5  #4:A#4  #3:F#4  #2:C#4  #1:A#3  #0:F#3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=major +sharp
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S13 disconnect clears ================
+  · disconnected | lit: —
+
+[devicemap VERSION] play-engine-2026-06-09-r58-desync-momentum

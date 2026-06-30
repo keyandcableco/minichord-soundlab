@@ -1,0 +1,7 @@
+# scratch harness transcripts
+__harness__/out*.txt
+# local user presets (index.json ships empty; drop your own .json files beside it)
+json/custom_presets/*.json
+!json/custom_presets/index.json
+# dev tooling
+node_modules/

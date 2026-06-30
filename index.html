@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>minichord Sound Lab</title>
+  <script>
+    // FOUC guard — apply the saved theme + accessibility prefs before the stylesheet paints
+    try {
+      var p = JSON.parse(localStorage.getItem("minichord.soundlab.prefs.v1")) || {};
+      var de = document.documentElement;
+      if (p.theme === "light" || (p.theme === "auto" && window.matchMedia
+          && matchMedia("(prefers-color-scheme: light)").matches)) de.setAttribute("data-theme", "light");
+      if (["s", "l", "xl"].indexOf(p.textScale) >= 0) de.setAttribute("data-text", p.textScale);
+      if (p.contrast === "high") de.setAttribute("data-contrast", "high");
+      if (p.motion === "on" || (p.motion !== "off" && window.matchMedia
+          && matchMedia("(prefers-reduced-motion: reduce)").matches)) de.classList.add("motion-off");
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="fonts/nunito.css">
+  <link rel="stylesheet" href="soundlab.css">
+</head>
+<body>
+  <a class="skip-link" href="#middle">Skip to main content</a>
+  <!-- polite live region: connection changes, saves and preset loads are announced to screen readers -->
+  <div id="sr-status" class="visually-hidden" aria-live="polite"></div>
+  <header class="topbar">
+    <div class="brand">
+      <h1>minichord <span>Sound Lab</span></h1>
+    </div>
+    <nav id="view-switch" class="view-switch" role="tablist" aria-label="View">
+      <!-- Play | Customize | About buttons rendered by soundlab.js -->
+    </nav>
+    <div class="topbar-right">
+      <span id="mode-badge" class="badge offline" title="No minichord connected: explore and learn, plug one in over USB to sync">
+        learning mode
+      </span>
+      <button id="a11y-btn" type="button" class="ghost-btn" title="Accessibility options" aria-label="Accessibility options" aria-haspopup="true" aria-expanded="false">♿&#xFE0E;</button>
+      <button id="hotkeys-btn" type="button" class="ghost-btn" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" aria-haspopup="true" aria-expanded="false">⌨&#xFE0E;</button>
+      <button id="prefs-btn" type="button" class="ghost-btn" title="Preferences" aria-label="Preferences" aria-haspopup="true" aria-expanded="false">⚙</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- LEFT: global — overall profile + patch settings -->
+    <aside id="left" class="panel left-panel" aria-label="Device, presets and overall sound">
+      <div class="left-head-row">
+        <h2 class="panel-label">Device</h2>
+        <!-- undo/redo live here — the left panel is visible in every view -->
+        <span class="mirror-actions" id="hist-actions"></span>
+      </div>
+      <div id="device-card" class="profile-card">
+        <!-- connection UI injected by soundlab.js -->
+      </div>
+      <h2 class="panel-label">Presets</h2>
+      <div id="presets-panel" class="preset-panel">
+        <!-- preset browser injected by soundlab.js -->
+      </div>
+      <h2 class="panel-label">Sound Profile</h2>
+      <div id="overall-profile" class="profile-card placeholder">
+        <p>An overall description of the whole patch, tags and feel-meters,
+           appears here once the app loads.</p>
+      </div>
+    </aside>
+
+    <!-- MIDDLE: component navigator — tabs, graphs, per-component profile -->
+    <section id="middle" class="panel middle-panel" aria-label="Component" tabindex="-1">
+      <div id="domain-switch" class="domain-switch" role="tablist" aria-label="Voice / section">
+        <!-- domain buttons rendered by soundlab.js -->
+      </div>
+      <nav id="tabs" class="tabs" role="tablist" aria-label="Parameter groups">
+        <!-- tab buttons rendered by soundlab.js -->
+      </nav>
+      <div id="middle-content">
+        <!-- per-group middle sections rendered by soundlab.js -->
+      </div>
+    </section>
+
+    <!-- RIGHT: detail — the component's other sliders + descriptions -->
+    <section id="right" class="panel right-panel" aria-label="Detailed controls">
+      <div id="right-content">
+        <!-- per-group detail sections rendered by soundlab.js -->
+      </div>
+    </section>
+  </main>
+
+  <script src="minichordcontroller.js"></script>
+  <script src="prefs.js"></script>
+  <script src="hotkeys.js"></script>
+  <script src="triggers.js"></script>
+  <script src="presets.js"></script>
+  <script src="params.js"></script>
+  <script src="graphs.js"></script>
+  <script src="profiler.js"></script>
+  <script src="random.js"></script>
+  <script src="glossary.js"></script>
+  <script src="devicemap.js"></script>
+  <script src="soundlab.js"></script>
+</body>
+</html>

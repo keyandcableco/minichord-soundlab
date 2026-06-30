@@ -1,0 +1,1712 @@
+/* ============================================================================
+ * soundlab.css — minichord Sound Lab stylesheet
+ *
+ * Theme variables (dark by default, light via [data-theme="light"]), the
+ * three-panel layout and its per-view variants (.devicemap = Play,
+ * .overview, .about), and every component's styles. House aesthetic: no hard
+ * card borders — dim separators, soft shadows, rounded panels.
+ * ========================================================================== */
+
+:root {
+  --bg: #1a1a18;
+  --panel: #232320;
+  --panel-2: #2a2a27;
+  --line: #3a3a36;
+  --line-soft: #2e2e2b;
+  --text: #e8e6de;
+  --text-dim: #9c9a92;
+  --text-faint: #918f86;   /* ≥4.5:1 on --panel/--panel-2 (WCAG AA for the small labels that use it) */
+  --accent: #CECBF6;
+  --accent-bg: #26215C;
+  --accent-line: #534AB7;
+  --warm: #FAC775;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --maxw: none;
+  --scroll-thumb: #3d3d39;
+  --scroll-thumb-hover: #54534c;
+  --text-strong: #d0cec5;   /* bold/emphasis — softer than --text so it isn't too bright */
+  --font: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* depth — barely there, just a hint of lift */
+  --shadow: 0 1px 4px rgba(0,0,0,.10);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
+  --shadow-raise: 0 2px 6px rgba(0,0,0,.12);
+  --inset-hi: inset 0 1px 0 rgba(255,255,255,.02);
+}
+
+[data-theme="light"] {
+  --bg: #f4f3ee;
+  --panel: #fff;
+  --panel-2: #f0efe9;
+  --line: #d9d7cd;
+  --line-soft: #e6e4db;
+  --text: #25241f;
+  --text-dim: #5f5e57;
+  --text-faint: #6f6d63;   /* ≥4.5:1 on --panel/--panel-2 (WCAG AA for the small labels that use it) */
+  --accent: #4036a8;
+  --accent-bg: #e7e4fb;
+  --accent-line: #b7b1ec;
+  --warm: #b06a00;
+  --shadow: 0 1px 4px rgba(40,38,30,.06);
+  --shadow-sm: 0 1px 2px rgba(40,38,30,.04);
+  --shadow-raise: 0 2px 6px rgba(40,38,30,.08);
+  --inset-hi: inset 0 1px 0 rgba(255,255,255,.5);
+  --scroll-thumb: #cdcbc1;
+  --scroll-thumb-hover: #b1afa4;
+  --text-strong: #25241f;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* keyboard focus: one consistent ring, only for keyboard navigation (mouse
+   clicks never show it) — individual rules must not re-suppress it */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* skip link: first tab stop, invisible until focused */
+.skip-link {
+  position: absolute; left: 1rem; top: -3rem; z-index: 300;
+  padding: 8px 14px; border-radius: var(--radius-sm);
+  background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-line);
+  font-size: 0.8rem; font-weight: 700; text-decoration: none;
+}
+.skip-link:focus { top: 0.5rem; }
+
+/* screen-reader-only content (the aria-live status region) */
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px;
+  padding: 0; border: 0; clip-path: inset(50%); overflow: hidden; white-space: nowrap;
+}
+
+html { font-size: 19.5px; }   /* scales all rem-based sizing up a notch (user-tuned 2026-06-11: the old 17.5px default is now the "Small" step) */
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-weight: 600;          /* Nunito Sans at 600 reads fuller, less thin */
+  line-height: 1.5;
+}
+
+/* ---- minimal rounded scrollbars ---- */
+/* Note: no standard `scrollbar-width`/`scrollbar-color` — when those are set,
+   Chrome 121+ ignores the ::-webkit-scrollbar rules and falls back to the OS
+   scrollbar (which shows up/down arrow buttons on Windows). Relying on the
+   webkit pseudo-elements keeps the thin, arrow-less bar in Chrome (the target). */
+::-webkit-scrollbar { width: 13px; height: 13px; }
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+/* inset the track top & bottom so the thumb doesn't run edge-to-edge */
+::-webkit-scrollbar-track { background: transparent; margin: 6px 0; }
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb); border-radius: 999px;
+  border: 3px solid transparent; background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* ---- top bar ---- */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding: 1rem 1.5rem; position: relative;
+}
+.topbar::after {
+  content: ""; position: absolute; left: 1.5rem; right: 1.5rem; bottom: 0;
+  height: 0.5px; background: var(--line-soft);
+}
+.brand h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; }
+.brand h1 span { color: var(--accent); }
+.topbar-right { display: flex; align-items: center; gap: 0.75rem; }
+
+.badge {
+  font-size: 0.72rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 4px 10px; border-radius: 20px; border: 0.5px solid var(--line);
+  color: var(--text-dim); background: var(--panel-2); white-space: nowrap;
+}
+/* both states wear the playing tint (--ui-hue = bank color, or the selected
+   accent when bank tinting is off): connected is filled, learning is an outline */
+.badge.offline {
+  color: hsl(var(--ui-hue, 245) 50% 70%);
+  border-color: hsl(var(--ui-hue, 245) 45% 52% / 0.55);
+}
+.badge.connected {
+  color: hsl(var(--ui-hue, 245) 75% 82%);
+  border-color: hsl(var(--ui-hue, 245) 55% 45%);
+  background: hsl(var(--ui-hue, 245) 55% 22%);
+}
+[data-theme="light"] .badge.offline {
+  color: hsl(var(--ui-hue, 245) 55% 36%);
+  border-color: hsl(var(--ui-hue, 245) 45% 55% / 0.6);
+}
+[data-theme="light"] .badge.connected {
+  color: hsl(var(--ui-hue, 245) 70% 24%);
+  border-color: hsl(var(--ui-hue, 245) 55% 60%);
+  background: hsl(var(--ui-hue, 245) 70% 92%);
+}
+
+.ghost-btn {
+  background: none; border: 0.5px solid var(--line); color: var(--text-dim);
+  border-radius: var(--radius-sm); width: 1.9429rem; height: 1.9429rem; cursor: pointer; font-size: 1rem;   /* 34px at the default 17.5px root — rem so text scaling grows the box */
+}
+.ghost-btn:hover { color: var(--text); border-color: var(--accent-line); }
+
+/* ---- top-level view switch (Play | Customize), centred in the top bar ---- */
+.view-switch { display: flex; gap: 8px; margin-inline: auto; }
+.view-btn {
+  font-family: var(--font); font-size: 0.9rem; font-weight: 700; letter-spacing: 0.01em;
+  color: var(--text-faint); background: transparent;
+  border: 1px solid transparent; border-radius: 999px;
+  padding: 8px 22px; cursor: pointer;
+  transition: color .12s ease, background .12s ease, border-color .12s ease;
+}
+.view-btn:hover { color: var(--text-dim); }
+.view-btn.active { color: var(--accent); background: var(--accent-bg); border-color: var(--accent-line); }
+@media (max-width: 620px) { .topbar { flex-wrap: wrap; } }
+
+/* ---- domain switch (Harp / Chord / Global), above the tabs ---- */
+.domain-switch {
+  display: flex; gap: 6px;
+  padding: 0.8rem 1rem 0; background: var(--panel);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.domain-btn {
+  font-family: var(--font); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.01em;
+  color: var(--text-faint); background: transparent;
+  border: 1px solid transparent; border-radius: 999px;
+  padding: 6px 15px; cursor: pointer;
+  transition: color .12s ease, background .12s ease, border-color .12s ease;
+}
+.domain-btn:hover { color: var(--text-dim); }
+.domain-btn.active { color: var(--accent); background: var(--accent-bg); border-color: var(--accent-line); }
+
+/* ---- tabs (inside the middle panel, sticky) ---- */
+.tabs {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 0.85rem 1rem; position: sticky; top: 0; z-index: 3;
+  background: var(--panel);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.tabs::after {
+  content: ""; position: absolute; left: 1rem; right: 1rem; bottom: 0;
+  height: 0.5px; background: var(--line-soft);
+}
+.tab {
+  font-family: var(--font); font-size: 0.82rem; font-weight: 600;
+  color: var(--text-dim); background: var(--panel-2);
+  border: 0.5px solid var(--line); border-radius: 999px;
+  padding: 7px 15px; cursor: pointer; transition: transform .08s ease, box-shadow .12s ease, color .12s ease;
+  box-shadow: var(--shadow-sm);
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  color: var(--accent); background: var(--accent-bg);
+  border-color: var(--accent-line);
+  box-shadow: var(--shadow-raise);
+  transform: translateY(-1px);
+}
+
+/* ---- three-panel layout ---- */
+.layout {
+  display: grid; grid-template-columns: 1fr; gap: 0.85rem;
+  padding: 0.6rem; max-width: var(--maxw); margin: 0 auto; width: 100%;
+}
+.panel {
+  background: var(--panel);
+  border-radius: var(--radius); box-shadow: var(--shadow), var(--inset-hi);
+}
+.left-panel { padding: 1.25rem; }
+.middle-panel { padding: 0; display: flex; flex-direction: column; }
+.right-panel { padding: 1rem 1.15rem 1.4rem; container-type: inline-size; }
+#middle-content { padding: 0.5rem 1.1rem 1.3rem; }
+/* Play view: a slim tail — the deep breathing-room padding tipped borderline
+   window heights into a scrollbar whose only travel was that padding (worse
+   with Larger controls adding a few px to every row) */
+.layout.devicemap #middle-content { padding-bottom: 0.3rem; }
+
+/* wide screens: three columns inside the viewport. Panels are only as tall as
+   their content (align-items:start, no stretch), but capped at the available
+   height — so a long panel scrolls *inside its own box*, not the whole page. */
+@media (min-width: 901px) {
+  body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { flex: 0 0 auto; }
+  .layout {
+    /* compact density: the middle (graphs, rhythm grid, device mirror) gets the
+       extra room; verbose widens the right panel for its inline explanations */
+    grid-template-columns: 18.6286rem minmax(0, 1.2fr) minmax(0, 1fr);   /* 326px at default root size */
+    grid-template-rows: minmax(0, 1fr);
+    align-items: start;
+    flex: 1 1 auto; min-height: 0;
+  }
+  body.density-verbose .layout { grid-template-columns: 18.6286rem minmax(0, 1fr) minmax(0, 1.48fr); }
+  /* Play is the headline view: its middle (the mirror + rhythm grid) gets the
+     most room of any view. The chord pads stop growing past their classic size
+     so the wider column doesn't add height (and a vertical scrollbar) */
+  .layout.devicemap, .layout.about { grid-template-columns: 18.6286rem minmax(0, 1.5fr) minmax(0, 1fr); }
+  /* grid + harp read as one unit: a tight gap between them, filling the
+     panel's width (square pads size themselves from the columns) */
+  .layout.devicemap .dm-board { gap: 0.8rem; }
+  .panel { max-height: 100%; }
+  .left-panel, .right-panel { overflow-y: auto; }
+  .middle-panel { overflow: hidden; }
+  #middle-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  /* Overview: the middle panel spans the freed right-panel column */
+  .layout.overview #middle { grid-column: 2 / 4; }
+}
+
+/* ---- Overview dashboard (both voices side by side) ---- */
+.layout.overview #tabs, .layout.about #tabs { display: none; }
+.layout.overview #right { display: none; }
+.overview-dash { display: none; }
+.layout.overview .overview-dash {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; align-items: start;
+}
+/* roll-everything sits at the right end of the domain-switch row, Overview only */
+.overview-roll { display: none; }
+.layout.overview #domain-switch .overview-roll { display: inline-block; margin-left: auto; }
+.overview-col-title {
+  font-size: 0.9rem; font-weight: 700; color: var(--text-strong);
+  margin: 0.2rem 0 0.6rem;
+}
+@media (max-width: 620px) {
+  .layout.overview .overview-dash { grid-template-columns: 1fr; }
+}
+
+/* ---- "Play" view: live minichord mirror (3-panel: keyboard+rhythm middle, settings right) ---- */
+.layout.devicemap #tabs { display: none; }
+.layout.devicemap #domain-switch { display: none; }   /* domains belong to Customize */
+
+/* ---- About view: left panel keeps its device/preset content; the narrative
+   cards stack in the middle panel (sized exactly like Play's middle, 1.5fr) and
+   the help/community cards fill the right panel ---- */
+.about-root, .about-side { display: none; }
+.layout.about .about-root { display: block; }
+.layout.about .about-side { display: block; }
+.layout.about #domain-switch { display: none; }
+.about-card {
+  margin: 0 0 0.9rem; padding: 0.9rem 1.15rem 1rem;
+  background: var(--panel-2); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm), var(--inset-hi);
+  font-size: 0.86rem; line-height: 1.65; color: var(--text-dim); font-weight: 500;
+}
+.about-card h3 {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-faint); margin: 0 0 0.5rem;
+}
+.about-card p { margin: 0 0 0.6rem; }
+.about-card ul { list-style: none; margin: 0; padding: 0; }
+.about-card li { margin-bottom: 0.55rem; }
+.about-card p:last-child, .about-card li:last-child { margin-bottom: 0; }
+.about-card b { color: var(--text-strong); }
+.about-card a { color: var(--accent); font-weight: 700; text-decoration: none; }
+.about-card a:hover { text-decoration: underline; }
+.devicemap-root, .play-rhythm-wrap, .play-settings, .play-sep, .play-mirror-head, .play-triggers { display: none; }
+.layout.devicemap .devicemap-root,
+.layout.devicemap .play-rhythm-wrap,
+.layout.devicemap .play-settings,
+.layout.devicemap .play-mirror-head,
+.layout.devicemap .play-triggers,
+.layout.devicemap .play-sep { display: block; }
+.play-mirror-head { margin: 0.4rem 0 0.5rem; }
+/* mirror heading + the MIDI record button share the row */
+.layout.devicemap .play-mirror-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.play-mirror-head .panel-label { margin: 0; }
+.rec-wrap { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; }
+.rec-btn { flex: 0 0 auto; }
+/* stays compact under Larger controls — the taller pill made the whole Play
+   panel overflow into a scrollbar for a few px of button padding */
+body.controls-large .rec-btn { padding: 4px 12px; }
+.rec-btn.recording { color: #e25555; border-color: rgba(226, 85, 85, 0.55); }
+.rec-btn.recording:hover { color: #e25555; }
+/* Play's settings: two independent columns (cards dealt alternating), each
+   stacking and flexing to its own content — no row alignment, no holes */
+.play-settings-cols { display: flex; gap: 0.75rem; align-items: flex-start; }
+.play-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.play-col .detail-card { margin-bottom: 0; }
+/* verbose (and very narrow screens): one full-width stack — the inline
+   explanation columns need the whole panel width */
+@media (max-width: 540px) { .play-settings-cols { flex-direction: column; } .play-col { width: 100%; } }
+.play-rhythm-wrap { margin-top: 0.3rem; }
+/* step grid + its scalar settings side by side, split ~66% grid / 33% card,
+   TOP-aligned — the blurb spans the full width above the row, and both panels
+   carry the graph-card margins so their top edges meet. Heights are free to
+   differ: anchoring bottoms made the card ride up and down as prefs changed
+   which panel was taller. (Verbose never reaches Play — the class is gated.) */
+.play-rhythm-row { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
+.play-rhythm-main { flex: 2 1 380px; min-width: 330px; display: flex; flex-direction: column; }
+.play-rhythm-side {
+  flex: 1 1 200px; min-width: 215px; margin: 0.6rem 0 0.4rem;   /* matches .graph-card — tops align */
+  display: flex; flex-direction: column;
+}
+/* larger text: the side-by-side rhythm row runs out of room — at xl the
+   settings card drops below the step grid (stretch: a column at flex-start
+   would shrink items to content width) */
+html[data-text="xl"] .play-rhythm-row { flex-direction: column; align-items: stretch; }
+html[data-text="xl"] .play-rhythm-main { flex: 0 0 auto; }
+html[data-text="xl"] .play-rhythm-side { flex: 0 0 auto; margin-top: 0.2rem; }
+
+.dm-caption {
+  font-size: 0.82rem; color: var(--text-dim); line-height: 1.5;
+  margin: 0.2rem 0 0.6rem;
+  padding-right: 30px;   /* keep the caption clear of the pot-warning chip */
+}
+/* contextual note shown when a knob drives a harp-shaping parameter (harp is then inferred) */
+/* pot-warning chip: a small drawn ! that opens the shared popover with the
+   full explanation — takes no layout height of its own */
+.pot-warn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0; flex: 0 0 auto;
+  border-radius: 50%; background: var(--panel-2);
+  border: 1px solid var(--warm); color: var(--warm);
+  font-family: var(--font); font-size: 0.8rem; font-weight: 800; line-height: 1;
+  cursor: pointer; box-shadow: var(--shadow-sm);
+  transition: box-shadow .12s ease, transform .08s ease;
+}
+.pot-warn:hover { box-shadow: var(--shadow-raise); transform: translateY(-1px); }
+body.pot-warn-off .pot-warn:not(.gate-warn) { display: none !important; }   /* preference: knob warnings off (gate chips aren't knob warnings) */
+
+/* single-port mode: the mirror is disabled outright (it can't tell harp from
+   chords), with the fix offered right above it */
+.play-port-notice { display: none; }
+.layout.devicemap .play-port-notice.on {
+  display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap;
+  margin: 0.2rem 0 0.7rem; padding: 0.55rem 0.8rem;
+  background: var(--panel-2); border: 0.5px solid var(--warm); border-radius: var(--radius-sm);
+}
+.play-port-notice p { font-size: 0.78rem; color: var(--text-dim); line-height: 1.5; flex: 1 1 260px; margin: 0; }
+.play-port-notice .mini-btn { flex: 0 0 auto; }
+.devicemap-root.dm-disabled { opacity: 0.35; filter: grayscale(0.6); pointer-events: none; }
+/* the ! is drawn (stem + separated dot) — a font glyph smears at this size.
+   2px widths keep 50%−1px on a whole pixel, so it can't drift off-centre */
+.pot-warn::before {
+  content: ""; position: absolute; left: calc(50% - 1px); top: 4.5px;
+  width: 2px; height: 8px; border-radius: 2px;
+  background: currentColor;
+}
+.pot-warn::after {
+  content: ""; position: absolute; left: calc(50% - 1px); bottom: 4px;
+  width: 2px; height: 2px; border-radius: 50%;
+  background: currentColor;
+}
+.play-rhythm-head .pot-warn { position: relative; }   /* anchor the drawn marks (the mirror's copy is already absolute) */
+/* the mirror's copy floats in its top-right corner */
+.devicemap-root { position: relative; }
+.dm-pot-warn { position: absolute; top: 0; right: 0; }
+/* rhythm section: label + chip share the header row */
+.play-rhythm-head { display: flex; align-items: center; gap: 8px; }
+.play-rhythm-head .panel-label { margin-bottom: 0; }
+.play-rhythm-head .section-lock { margin-left: auto; }   /* upper-right, like the Roll everything corner */
+.dm-board {
+  display: flex; gap: 1.6rem; align-items: stretch;
+}
+.dm-left { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+
+.dm-sharp-row { display: flex; margin: 0 0 10px; }   /* sharp sits directly on top of the grid */
+.dm-sharp {
+  font-family: var(--font); font-size: 1rem; font-weight: 700;
+  color: var(--text-dim); background: var(--panel-2);
+  border: 0.5px solid var(--line); border-radius: 12px;
+  padding: 8px 18px; cursor: pointer; box-shadow: var(--shadow-sm);
+  transition: background var(--dm-chord-fade, .28s) ease, box-shadow var(--dm-chord-fade, .28s) ease, border-color var(--dm-chord-fade, .28s) ease, color .2s ease;
+}
+
+/* current chord/key readout, pinned to the top of the panel (current large in bank-hue,
+   previous faded to its left) — always shown so pressing keys never reflows the grid */
+.dm-key-readout {
+  /* minmax(0,…): plain 1fr has a min-content floor — a wide history would
+     push the centre column off-centre instead of clipping */
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: baseline;
+  width: 100%; min-height: 1.2em; line-height: 1; user-select: none;
+  padding: 0.45rem 0;   /* air above/below the big playing chord */
+}
+/* readout block: history row + big chord, its sounding voices, key/transpose
+   context — centred, splitting the free space above the sharp/grid cluster */
+.dm-ro-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 9px;
+  margin: auto 0 14px;   /* this auto + the sharp-row's auto split the free space → readout sits
+                            halfway between the ceiling and the sharp/grid cluster at the bottom */
+}
+.dm-ro { transform-origin: bottom center; }
+.dm-ro-oct { font-size: 0.58em; vertical-align: -0.18em; opacity: 0.7; font-weight: 700; margin: 0 0.04em 0 0.01em; }
+/* the history rack fills the left half, newest nearest the centre; the spacer
+   mirrors it on the right so the current chord never shifts */
+.dm-ro-hist {
+  display: flex; align-items: baseline; justify-content: flex-end; gap: 0.55rem;
+  min-width: 0; overflow: hidden; padding-right: 1.4rem;   /* breathing room before the big chord */
+}
+/* fixed-width slots: each history entry keeps its position as others change */
+.dm-ro-hist .dm-ro { flex: 0 0 5rem; text-align: center; overflow: hidden; white-space: nowrap; }
+.dm-ro-spacer { min-width: 0; }
+/* decay saturates: one step down from the most recent, then constant — older
+   entries never shrink/dim into unreadability, they just drop off the end */
+.dm-ro-prev3 { font-size: 1.35rem; font-weight: 600; color: var(--text-faint); opacity: 0.4; animation: dm-ro-soft .14s ease-out; }
+/* verbose's narrower middle can't fit the third history entry — drop it
+   (the !important overrides roSlot's inline display) */
+body.density-verbose .dm-ro-prev3 { display: none !important; }
+.dm-ro-prev2 { font-size: 1.35rem; font-weight: 600; color: var(--text-faint); opacity: 0.4; animation: dm-ro-soft .14s ease-out; }
+.dm-ro-prev { font-size: 1.55rem; font-weight: 600; color: var(--text-dim); opacity: 0.55; animation: dm-ro-soft .14s ease-out; }
+.dm-ro-cur {
+  font-size: 2.8rem; font-weight: 800; color: hsl(var(--dm-hue, 210) 70% 58%);
+  animation: dm-ro-pop .16s ease-out;   /* gentle settle, never dips dark */
+  /* FIXED centre slot: the chord's text centres inside it (overflow spills
+     evenly both ways), so neither it nor the history ever shifts position */
+  width: 9.5rem; text-align: center; white-space: nowrap;
+}
+.dm-ro-notes {
+  font-size: 1.3rem; font-weight: 700; color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.dm-ro-sep { color: var(--text-faint); margin: 0 0.45em; font-weight: 600; }
+.dm-ro-ctx {
+  font-size: 0.64rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--text-faint);
+}
+/* start from partial opacity (not 0) so nothing flashes to the dark background */
+@keyframes dm-ro-pop  { 0% { transform: scale(.96); opacity: .55; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes dm-ro-soft { 0% { transform: scale(.97); } 100% { transform: scale(1); } }
+
+.dm-grid {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px;
+}
+.dm-chord {
+  font-family: var(--font); font-size: 1.17rem; font-weight: 600;
+  color: var(--text); background: var(--panel-2);
+  border: 0.5px solid var(--line); border-radius: 12px;
+  aspect-ratio: 1 / 1; min-height: 48px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-sm);
+  transition: background var(--dm-chord-fade, .28s) ease, box-shadow var(--dm-chord-fade, .28s) ease, border-color var(--dm-chord-fade, .28s) ease, color .2s ease, transform .06s ease;
+}
+.dm-chord:hover, .dm-sharp:hover { color: var(--text); border-color: var(--accent-line); }
+.dm-chord:active { transform: translateY(1px); }
+
+.dm-harp {
+  flex: 0 0 94px; display: flex; flex-direction: column; gap: 5px;
+  background: var(--panel-2); border: 0.5px solid var(--line);
+  border-radius: 14px; padding: 8px; box-shadow: var(--shadow-sm);
+  position: relative;   /* anchors the desync badge floating above the panel */
+  transition: box-shadow var(--dm-harp-fade, 0.28s) ease;   /* the dm-hit glow's release fade (below) */
+}
+.dm-harp-label {
+  font-size: 0.64rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint); text-align: center; margin-bottom: 2px;
+}
+/* small badge ABOVE the harp panel: the chord the harp is ACTUALLY playing while it differs from
+   the chord section (the firmware desync race — a near-simultaneous combo leaves the chord voices
+   on the old chord while the harp follows the new one). Absolutely positioned over the panel's top
+   edge so showing/hiding it never shifts the strip's height. JS toggles style.display; no rule here. */
+.dm-harp-desync {
+  position: absolute; bottom: calc(100% + 4px); left: 0; right: 0;
+  font-size: 0.82rem; font-weight: 700; text-align: center;
+  color: hsl(var(--dm-hue, 210) 70% 60%);
+  background: var(--panel-2);
+  border: 0.5px dashed var(--accent-line); border-radius: 6px;
+  padding: 1px 4px;
+  transition: opacity .12s ease;   /* reappears near-instantly with the next note */
+}
+/* fades out with the harp strings when the last note releases; the desync
+   state survives, so the next harp note brings the badge straight back */
+.dm-harp-desync.faded { opacity: 0; pointer-events: none; transition: opacity var(--dm-harp-fade, .28s) ease; }
+.dm-string {
+  font-family: var(--font); font-size: 0.78rem; font-weight: 600;
+  color: var(--text-dim); background: var(--panel);
+  border: 0.5px solid var(--line); border-radius: 8px;
+  flex: 1 1 0; min-height: 30px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--dm-harp-fade, .28s) ease, box-shadow var(--dm-harp-fade, .28s) ease, border-color var(--dm-harp-fade, .28s) ease, color .2s ease;
+}
+.dm-string:hover { color: var(--text); border-color: var(--accent-line); }
+
+/* a soft glow on the harp panel while ANY harp note is sounding — a "detected" signal even for a note
+   we can't pin to a string. Mirrors the strings exactly: instant on, STAYS lit while notes are held,
+   and fades out over --dm-harp-fade (the base .dm-harp transition) only when the last note releases.
+   So the panel and the strings light and fade together, and it never strobes per note. */
+.dm-harp.dm-hit {
+  transition: none;
+  box-shadow: var(--shadow-sm), 0 0 0 1px hsl(var(--dm-hue, 210) 75% 58% / 0.6), 0 0 18px hsl(var(--dm-hue, 210) 85% 55% / 0.42);
+}
+
+/* lit = currently pressed. Attack is INSTANT (transition:none on the lit/slash
+   state); release fades out via the base element's transition above. */
+.dm-chord.lit, .dm-string.lit, .dm-sharp.lit, .dm-chord.slash { transition: none; }
+.dm-chord.lit, .dm-string.lit, .dm-sharp.lit {
+  color: #fff; font-weight: 700;
+  border-color: hsl(var(--dm-hue, 210) 70% 58%);
+  background: hsl(var(--dm-hue, 210) 65% 48% / 0.30);
+  box-shadow: 0 0 0 1px hsl(var(--dm-hue, 210) 70% 60%),
+              0 0 18px hsl(var(--dm-hue, 210) 85% 55% / 0.55);
+}
+/* slash = the alternate-bass column of a split / slash chord (hollow outline) */
+.dm-chord.slash {
+  border-color: hsl(var(--dm-hue, 210) 70% 58%);
+  box-shadow: inset 0 0 0 2px hsl(var(--dm-hue, 210) 70% 56%);
+}
+
+/* light mode: the bank color must not fight white panels — lit pads keep dark
+   text (white on a pale 30%-alpha tint is unreadable), and hue-tinted TEXT
+   drops to a deep shade so yellow/lime bank colors stay legible on white. */
+[data-theme="light"] .dm-chord.lit,
+[data-theme="light"] .dm-string.lit,
+[data-theme="light"] .dm-sharp.lit {
+  color: var(--text);
+  background: hsl(var(--dm-hue, 210) 70% 52% / 0.34);
+}
+[data-theme="light"] .dm-ro-cur { color: hsl(var(--dm-hue, 210) 85% 32%); }
+[data-theme="light"] .dm-harp-desync { color: hsl(var(--dm-hue, 210) 85% 34%); }
+
+@media (max-width: 900px) {
+  .dm-chord { min-height: 44px; }
+}
+
+/* ---- panel headings / cards ---- */
+.panel-label {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--text-faint); margin: 0 0 0.6rem;
+}
+/* randomize dice — desaturated so the emoji glyph doesn't shout; the group
+   dice rides the details panel-label, the section dice ends the tab strip */
+.dice-btn { filter: grayscale(1); padding: 2px 9px; line-height: 1.3; }
+.dice-btn:hover { filter: none; }
+.comp-right .panel-label { display: flex; align-items: center; gap: 8px; }
+.comp-right .panel-label .dice-btn { margin-left: auto; flex: 0 0 auto; }
+#tabs .tab-dice { margin-left: 6px; align-self: center; }
+.left-panel .panel-label:not(:first-child) { margin-top: 1.4rem; }
+
+.profile-card {
+  background: var(--panel-2);
+  border-radius: var(--radius-sm); padding: 0.9rem 1rem;
+  box-shadow: var(--shadow-sm), var(--inset-hi);
+}
+.profile-card.placeholder p { font-size: 0.8rem; color: var(--text-faint); line-height: 1.55; }
+.profile-mini-label {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--accent); margin-bottom: 0.35rem;
+}
+/* component "character" card: compact — the small badge and the few tag chips
+   share one row, with tight padding, so the card hugs its short content instead
+   of leaving a lot of empty space */
+.compact-profile { margin: 0.55rem 0 0.2rem; padding: 0.55rem 0.7rem; }
+.compact-profile .signature { display: inline-flex; vertical-align: middle; margin: 0 0.5rem 0.4rem 0; }
+.compact-profile .profile-tags { display: inline-flex; vertical-align: middle; margin-bottom: 0.4rem; }
+.compact-profile .prof-text { font-size: 0.78rem; line-height: 1.45; }
+
+/* ---- Sound Profiler read-outs ---- */
+.signature { margin-bottom: 0.7rem; }
+.sig-chip {
+  display: inline-block; font-size: 0.95rem; font-weight: 700; letter-spacing: 0.005em;
+  padding: 5px 15px; border-radius: 999px; box-shadow: var(--shadow-sm);
+  text-transform: lowercase;
+}
+/* material · vibe caption tucked under the signature chip */
+.theme-axes {
+  margin: -0.4rem 0 0.7rem; font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: lowercase; color: var(--text-dim);
+}
+/* flavor words are click-to-define; underline the axes ones for affordance,
+   keep the headline pill clean */
+.flavor-term { cursor: pointer; }
+.theme-axes .flavor-term { border-bottom: 1px dotted var(--text-faint); }
+.profile-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 0.7rem; }
+.tag-chip {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.01em; text-transform: lowercase;
+  padding: 3px 10px; border-radius: 999px;
+  color: var(--accent); background: var(--accent-bg);
+  box-shadow: var(--shadow-sm);
+}
+/* vibe color-coding (dark) — backgrounds kept clearly above the panel tone */
+.tag-warm    { background: #6e3f08; color: #FBD08C; }
+.tag-cool    { background: #0b5244; color: #AFE9D5; }
+.tag-cold    { background: #1d4778; color: #BBD7FB; }
+.tag-muted   { background: #7c3015; color: #F8CFBE; }
+.tag-purple  { background: #3a3192; color: #D8D5F8; }
+.tag-neutral { background: #43423d; color: #d2d0c7; }
+/* vibe color-coding (light) */
+[data-theme="light"] .tag-warm    { background: #FAEBCB; color: #8a5512; border-color: #e6c78a; }
+[data-theme="light"] .tag-cool    { background: #D4F0E6; color: #1c6b56; border-color: #9fd6c2; }
+[data-theme="light"] .tag-cold    { background: #DCE8FB; color: #2f5896; border-color: #aac4ec; }
+[data-theme="light"] .tag-muted   { background: #F8DCD0; color: #9c3f1f; border-color: #e6b29c; }
+[data-theme="light"] .tag-purple  { background: #E7E4FB; color: #4a40a8; border-color: #c2bdec; }
+[data-theme="light"] .tag-neutral { background: var(--panel-2); color: var(--text-dim); border-color: var(--line); }
+.meters { display: flex; flex-direction: column; gap: 0.45rem; margin-bottom: 0.8rem; }
+.meter { display: grid; grid-template-columns: 4.3429rem 1fr 1.4857rem; align-items: center; gap: 0.5rem; }   /* 76px/26px at default root */
+.meter-label { font-size: 0.72rem; font-weight: 500; color: var(--text-dim); }
+.meter-bar {
+  height: 6px; border-radius: 999px; background: var(--bg);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.25); overflow: hidden;
+}
+.meter-bar i {
+  display: block; height: 100%; border-radius: 999px;
+  background: var(--accent-line); transition: width .18s ease;
+}
+.meter-val {
+  font-size: 0.7rem; font-weight: 600; color: var(--text-faint);
+  text-align: right; font-variant-numeric: tabular-nums;
+}
+.profile-summary { font-size: 0.8rem; line-height: 1.55; color: var(--text-dim); font-weight: 500; }
+.prof-text { font-size: 0.8rem; line-height: 1.55; color: var(--text-dim); font-weight: 500; }
+
+/* ---- glossary: highlighted terms + popover ---- */
+.term {
+  cursor: pointer; font-style: normal; border-bottom: 1px dotted var(--text-faint); color: inherit;
+  transition: color .12s ease, border-color .12s ease;
+}
+.term:hover, .term:focus { color: var(--accent); border-bottom-color: var(--accent); }
+.tag-chip[data-term] { cursor: pointer; }
+#gloss-pop {
+  position: fixed; left: 0; top: 0; z-index: 200; max-width: 16rem; display: none;   /* 280px at default root */
+  background: var(--panel); border: 0.5px solid var(--line); border-radius: var(--radius-sm);
+  padding: 0.7rem 0.85rem; box-shadow: 0 5px 22px rgba(0,0,0,.32);
+  font-size: 0.78rem; line-height: 1.5; color: var(--text-dim); font-weight: 500;
+}
+#gloss-pop.open { display: block; }
+.gloss-back { display: inline-block; font-size: 0.7rem; color: var(--text-faint); cursor: pointer; margin-bottom: 5px; }
+.gloss-back:hover { color: var(--accent); }
+.gloss-term { font-weight: 700; color: var(--text-strong); margin-bottom: 3px; font-size: 0.82rem; }
+.gloss-long { margin-top: 5px; color: var(--text-faint); }
+.gloss-see { margin-top: 7px; font-size: 0.72rem; color: var(--text-faint); }
+.gloss-see a { color: var(--accent); cursor: pointer; }
+.gloss-see a:hover { text-decoration: underline; }
+
+/* ---- device / Web MIDI card ---- */
+.device-status { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; color: var(--text-dim); }
+.device-status.connected { color: #6fcfae; }
+.device-status .dot { width: 8px; height: 8px; border-radius: 50%; background: #6fcfae; box-shadow: 0 0 7px rgba(111,207,174,.6); }
+.device-status .dot.off { background: var(--text-faint); box-shadow: none; }
+/* the bank being edited, as a pill on the status row */
+.bank-badge {
+  margin-left: auto; font-size: 0.64rem; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap;
+  padding: 2px 9px; border-radius: 999px;
+  border: 0.5px solid var(--line); color: var(--text-dim); background: var(--panel-2);
+}
+.device-sub { font-size: 0.76rem; color: var(--text-faint); line-height: 1.5; margin: 0.55rem 0 0.75rem; }
+.device-warn { font-size: 0.74rem; color: var(--warm); line-height: 1.5; margin-top: 0.6rem; }
+.device-preset { font-size: 0.78rem; line-height: 1.5; margin: 0 0 0.75rem; padding: 0.45rem 0.6rem;
+  border-radius: 8px; background: var(--accent-bg); border: 1px solid var(--accent-line); color: var(--text-dim); }
+.device-preset.matched b { color: var(--accent); }
+.device-preset .preset-author { color: inherit; opacity: 0.85; }   /* faint grey washed out on the accent-tinted box */
+.device-preset .preset-desc { display: block; margin-top: 4px; font-style: italic; color: var(--text-faint); }
+.device-preset.custom, .device-preset.checking { background: transparent; border-color: var(--line); color: var(--text-faint); }
+.device-fw { font-size: 0.76rem; line-height: 1.5; margin: 0.8rem 0 0; }
+.device-fw.ok { color: var(--text-faint); }
+.device-fw.stale { color: var(--warm); font-weight: 600; }
+.device-fw a { color: var(--accent); white-space: nowrap; }
+.device-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+/* bank-color control: a swatch trigger that opens a small popup with the hue slider */
+.color-field { margin: 0 0 0.8rem; }
+.color-trigger {
+  display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 0.76rem;
+  color: var(--text-dim); cursor: pointer; background: var(--panel-2);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 5px 9px; box-shadow: var(--inset-hi);
+}
+.color-trigger:hover { border-color: var(--accent-line); }
+.color-swatch { width: 16px; height: 16px; border-radius: 50%; flex: 0 0 auto;
+  border: 1px solid var(--line); box-shadow: var(--inset-hi); }
+.color-popup {
+  display: none; position: fixed; z-index: 200; padding: 0.75rem 0.85rem; min-width: 10.8571rem;   /* 190px at default root */
+  background: var(--panel); border: 0.5px solid var(--line); border-radius: var(--radius-sm);
+  box-shadow: 0 5px 22px rgba(0,0,0,.32);
+}
+.color-field.open .color-popup { display: block; animation: fade .15s ease; }
+input[type="range"].hue-slider {
+  width: 100%; height: 8px;
+  background: linear-gradient(to right, hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%),
+    hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%));
+}
+input[type="range"].hue-slider::-webkit-slider-thumb { background: #fff; border: 1px solid rgba(0,0,0,.35); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+input[type="range"].hue-slider::-moz-range-thumb { background: #fff; border: 1px solid rgba(0,0,0,.35); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+/* LED brightness — lives inside the Bank color popup (both LED settings together) */
+.color-popup .led-bright-label { display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-dim); margin: 0.65rem 0 0.3rem; }
+input[type="range"].bright-slider { width: 100%; }
+.mini-btn.primary { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
+
+/* ---- preset browser: a dropdown card of rounded preset cards ---- */
+.preset-panel { position: relative; }
+
+/* the dropdown trigger (shows the loaded preset, tinted in its profile color) */
+.preset-trigger {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  width: 100%; font: inherit; font-size: 0.82rem; font-weight: 600; text-align: left;
+  padding: 0.5rem 0.7rem; cursor: pointer;
+  background: var(--panel-2); color: var(--text-strong);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  box-shadow: var(--inset-hi); transition: border-color .12s, color .12s;
+}
+.preset-trigger:hover { border-color: var(--accent-line); }
+.preset-trigger-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preset-caret { color: var(--text-faint); transition: transform .15s ease; flex: 0 0 auto; }
+.preset-panel.open .preset-caret { transform: rotate(180deg); }
+
+/* the dropped card — floats as a fixed overlay (positioned in JS) so opening it
+   never changes the panel's height; same surface as the glossary popover */
+.preset-dropdown {
+  display: none; position: fixed; z-index: 200; padding: 0.55rem;
+  background: var(--panel); border: 0.5px solid var(--line); border-radius: var(--radius-sm);
+  box-shadow: 0 5px 22px rgba(0,0,0,.32);
+}
+.preset-panel.open .preset-dropdown { display: block; animation: fade .15s ease; }
+
+.preset-scroll { display: flex; flex-direction: column; gap: 0.4rem; max-height: 46vh; overflow-y: auto; padding-right: 3px; }
+.preset-hint { font-size: 0.72rem; color: var(--text-faint); line-height: 1.45; margin: 0 0 0.2rem; }
+.preset-group-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--text-faint); margin: 0.45rem 0 0.1rem; }
+.preset-group-label:first-of-type { margin-top: 0.2rem; }
+
+.preset-item {
+  display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left; cursor: pointer;
+  background: var(--panel-2); border: 1px solid transparent; border-radius: var(--radius-sm);
+  padding: 0.45rem 0.6rem; box-shadow: var(--inset-hi); font: inherit;
+  transition: border-color .12s, background .12s;
+}
+.preset-item:hover { border-color: var(--accent-line); }
+.preset-item.active { border-color: var(--accent-line); background: var(--accent-bg); }
+.preset-item.active .preset-name { color: var(--accent); }
+.preset-name { font-size: 0.82rem; font-weight: 700; color: var(--text-strong); }
+.preset-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.preset-by { font-size: 0.7rem; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.preset-profile { font-size: 0.66rem; font-weight: 700; text-transform: lowercase; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+
+/* loaded preset's description (moved here from the device card) */
+.preset-active-desc { font-size: 0.74rem; font-style: italic; color: var(--text-faint); line-height: 1.5; margin: 0.5rem 0 0; }
+/* save / load / reset actions */
+.preset-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 0.6rem; }
+/* the left panel stacks five of these — tighter pills keep it to ~2 rows */
+.preset-actions .mini-btn, .device-actions .mini-btn { padding: 2.5px 9px; font-size: 0.7rem; }
+/* compact density: one row of short words (full label in the tooltip) */
+.preset-actions .icon-btn { min-width: 2rem; }
+
+/* save popup: a card (like the other popups) with a small form */
+.save-popup {
+  display: none; position: fixed; z-index: 200; width: 13.1429rem; padding: 0.7rem 0.8rem;   /* 230px at default root */
+  background: var(--panel); border: 0.5px solid var(--line); border-radius: var(--radius-sm);
+  box-shadow: 0 5px 22px rgba(0,0,0,.32);
+}
+.save-popup.open { display: block; animation: fade .15s ease; overflow-y: auto; }
+.save-field {
+  width: 100%; font: inherit; font-size: 0.8rem; box-sizing: border-box; margin-bottom: 6px;
+  padding: 6px 9px; color: var(--text); background: var(--panel-2);
+  border: 0.5px solid var(--line); border-radius: var(--radius-sm); outline: none;
+}
+.save-field:focus { border-color: var(--accent-line); }
+/* number fields lose the native spinner buttons (they clash with the app's
+   look) — typing and arrow keys still work */
+input[type="number"].save-field { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"].save-field::-webkit-inner-spin-button,
+input[type="number"].save-field::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+/* numeric readouts are clickable — they swap to a type-in field for exact values */
+.value-editable { cursor: text; }
+.value-editable:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
+.param-value-edit { width: 4.4rem; max-width: 100%; margin: 0; padding: 3px 7px; font-size: 0.78rem; }
+.save-desc { resize: vertical; min-height: 2.2em; line-height: 1.4; }
+.save-error { font-size: 0.72rem; color: var(--warm); margin: 0 0 6px; min-height: 0; }
+.save-error.note { color: var(--text-dim); }   /* informational heads-up, not a failure */
+.save-error:empty { display: none; }
+.save-actions { display: flex; justify-content: flex-end; gap: 6px; }
+
+/* ---- segmented "tape-deck" buttons: one pressed in, the others released ---- */
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.seg-btn {
+  font-family: var(--font); font-size: 0.74rem; font-weight: 600;
+  color: var(--text-dim); background: var(--panel-2);
+  border: 0.5px solid var(--line); border-radius: var(--radius-sm);
+  padding: 4px 10px; cursor: pointer; box-shadow: var(--shadow-sm);
+  transition: color .12s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+.seg-btn:hover { color: var(--text); border-color: var(--accent-line); }
+.seg-btn.on {
+  color: var(--accent); background: var(--accent-bg); border-color: var(--accent-line);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.25);   /* pressed-in, like a latched tape key */
+}
+/* segmented row as a param control: fill the control column, even button widths */
+.param-control .param-seg { width: 100%; }
+.param-seg .seg-btn { flex: 1 1 auto; text-align: center; min-width: 30px; padding: 4px 6px; }
+/* many-option sets (the 12 key signatures) become a tidy button grid */
+.param-seg.seg-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+/* ---- preferences popover (gear button) ---- */
+.prefs-popup {
+  display: none; position: fixed; z-index: 200; width: 17.1429rem; max-width: 92vw; padding: 0.8rem 0.95rem 0.95rem;   /* 300px at default root */
+  background: var(--panel); border: 0.5px solid var(--line); border-radius: var(--radius-sm);
+  box-shadow: 0 5px 22px rgba(0,0,0,.32);
+}
+.prefs-popup.open { display: block; animation: fade .15s ease; overflow-y: auto; }
+/* the Preferences list grew past the viewport — two columns, title spanning
+   both. prefs-main ONLY: the a11y and hotkey popups share .prefs-popup */
+.prefs-popup.prefs-main { width: 31rem; }
+.prefs-popup.prefs-main.open { display: grid; grid-template-columns: 1fr 1fr; column-gap: 1.3rem; align-content: start; }
+.prefs-popup.prefs-main .prefs-title { grid-column: 1 / -1; }
+.prefs-popup.prefs-main .pref-row:first-of-type { border-top: 0.5px solid var(--line-soft); }   /* grid rows sit side by side — keep the rules even */
+@media (max-width: 740px) {
+  .prefs-popup.prefs-main { width: 17.1429rem; }
+  .prefs-popup.prefs-main.open { display: block; }
+  .prefs-popup.prefs-main .pref-row:first-of-type { border-top: none; }
+}
+.prefs-title { font-size: 0.82rem; font-weight: 700; color: var(--text-strong); margin-bottom: 0.35rem; }
+/* one block per setting: name, a one-line hint, then its buttons — separated
+   by the usual dim rules so each setting reads as its own little section */
+.pref-row { padding: 0.6rem 0 0.65rem; border-top: 0.5px solid var(--line-soft); }
+.pref-row:first-of-type { border-top: none; }
+.pref-label { font-size: 0.78rem; font-weight: 700; color: var(--text-strong); margin-bottom: 1px; }
+.pref-hint { font-size: 0.7rem; font-weight: 500; color: var(--text-faint); line-height: 1.45; margin: 0 0 0.45rem; }
+
+/* accent-color swatches (preferences + welcome) */
+.hue-row { display: flex; gap: 7px; flex-wrap: wrap; }
+.hue-swatch {
+  width: 22px; height: 22px; border-radius: 50%; padding: 0; cursor: pointer;
+  border: 2px solid var(--panel-2); box-shadow: var(--shadow-sm);
+}
+.hue-swatch:hover { transform: scale(1.1); }
+.hue-swatch.on { border-color: var(--text-strong); transform: scale(1.1); }
+/* the custom-hue swatch: rainbow ring, opens a hue-slider color-popup */
+.hue-swatch.rainbow {
+  background: conic-gradient(hsl(0 80% 60%), hsl(60 80% 60%), hsl(120 80% 60%),
+    hsl(180 80% 60%), hsl(240 80% 60%), hsl(300 80% 60%), hsl(0 80% 60%));
+}
+.accent-custom { margin: 0; display: inline-flex; position: relative; }   /* .color-field's stack margin doesn't apply in the swatch row */
+/* anchored to the swatch's RIGHT edge, growing leftward — the natural flow
+   position would run the popup off the screen at the popover's right side */
+.accent-custom .color-popup { min-width: 13rem; position: absolute; right: 0; top: calc(100% + 6px); }
+
+/* ---- keyboard shortcuts: ⌨ editor popover + "?" cheat-sheet overlay ---- */
+/* welcome-card width; the list shows in FULL — no internal scroll (the popup
+   itself still scrolls via anchorPopup's max-height on very short screens) */
+.hk-popup { width: 26.2857rem; }
+.hk-list { display: flex; flex-direction: column; gap: 2px; padding-right: 3px; }
+.hk-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.hk-label {
+  flex: 1 1 auto; min-width: 0; font-size: 0.76rem; font-weight: 600; color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* the key, drawn as a keycap (thicker bottom edge) */
+.hk-chip {
+  flex: 0 0 auto; min-width: 2.2rem; text-align: center; cursor: pointer;
+  font-family: var(--font); font-size: 0.7rem; font-weight: 700; font-style: normal; line-height: 1.4;
+  color: var(--text-strong); background: var(--panel-2);
+  border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px;
+  padding: 2px 8px; box-shadow: var(--shadow-sm);
+}
+.hk-chip.off { color: var(--text-faint); font-weight: 600; }
+.hk-chip.capturing { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
+button.hk-chip:hover { border-color: var(--accent-line); color: var(--accent); }
+.hk-clear {
+  flex: 0 0 auto; background: none; border: none; padding: 0 2px; cursor: pointer;
+  font-family: var(--font); font-size: 0.9rem; line-height: 1; color: var(--text-faint);
+}
+.hk-clear:hover { color: var(--warm); }
+.hk-foot { display: flex; justify-content: flex-end; gap: 6px; padding-top: 0.6rem; }
+.hk-popup .save-error { margin: 0 0 4px; }   /* conflict message reuses the save-form error style */
+
+.hk-sheet {
+  display: none; position: fixed; inset: 0; z-index: 230;   /* above popups (200), below the welcome overlay (240) */
+  background: rgba(8, 8, 16, 0.5);
+  align-items: center; justify-content: center;
+}
+.hk-sheet.open { display: flex; animation: fade .18s ease; }
+.hk-sheet-card {
+  width: min(44rem, 94vw); max-height: 88vh; overflow-y: auto;
+  background: var(--panel); border: 0.5px solid var(--line);
+  border-radius: var(--radius-sm); box-shadow: 0 14px 44px rgba(0, 0, 0, .45);
+  padding: 1.15rem 1.3rem 1.2rem;
+}
+.hk-sheet-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.3rem 1.4rem; margin: 0.4rem 0 0.6rem; align-items: start;
+}
+.hk-sheet kbd.hk-chip { cursor: default; }
+.hk-sheet-close { display: block; margin-left: auto; }
+
+/* ---- custom triggers: ⚡ arm panel (Play right column) + editor overlay ---- */
+.mirror-actions { display: inline-flex; gap: 6px; }
+.dm-arm { white-space: nowrap; }
+.hist-btn { padding: 3px 10px; font-size: 0.95rem; line-height: 1.2; }
+.hist-btn:disabled { opacity: 0.35; cursor: default; pointer-events: none; }
+/* undo/redo ride the left panel's Device header — same baseline, no extra row */
+.left-head-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 0.6rem; }
+.left-head-row .panel-label { margin-bottom: 0; }
+.dm-arm.armed { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
+/* fires flash the trigger's own row in the Play card (trig-row-fire) — the
+   arm button itself stays still; pulsing both read as double-flashing */
+
+.trig-sheet {
+  display: none; position: fixed; inset: 0; z-index: 230;   /* above popups (200), below welcome (240) */
+  background: rgba(8, 8, 16, 0.5);
+  align-items: center; justify-content: center;
+}
+.trig-sheet.open { display: flex; animation: fade .18s ease; }
+.trig-sheet-card {
+  /* FIXED size — the sheet never resizes as content changes; inner areas scroll */
+  width: min(66rem, 96vw); height: min(52rem, 90vh);
+  display: flex; flex-direction: column;
+  background: var(--panel); border: 0.5px solid var(--line);
+  border-radius: var(--radius-sm); box-shadow: 0 14px 44px rgba(0, 0, 0, .45);
+  padding: 1.3rem 1.5rem 1.35rem;
+  transition: width .25s ease, height .25s ease;   /* the empty↔full size change */
+}
+/* …except while EMPTY: the card is compact (fixed rem height — `auto` can't
+   transition) and grows to the full frame for the first editor */
+.trig-sheet-card.empty { width: min(34rem, 92vw); height: min(17rem, 90vh); }
+.trig-sheet-card.empty .trig-list { flex: 0 0 auto; }
+.trig-sheet-card.empty .trig-list .empty-note { text-align: center; padding: 1rem 0 0.6rem; }
+.trig-sheet-card.empty .trig-foot { margin-top: auto; }   /* slack sits above the foot */
+/* editing hides + Add / Import / Export: one editor at a time, and a mid-edit
+   click would silently discard the draft; Export also hides while empty */
+.trig-sheet-card.editing .trig-add,
+.trig-sheet-card.editing .trig-import,
+.trig-sheet-card.editing .trig-export,
+.trig-sheet-card.empty .trig-export { display: none; }
+.trig-foot-left { display: flex; gap: 9px; }
+/* while the trigger editor is open, the explanation popovers float ABOVE it
+   (clickable setting names in the action card); glossary stays on top so
+   terms inside an explanation still open over it */
+body.trig-sheet-open #param-pop { z-index: 245; }
+body.trig-sheet-open #gloss-pop { z-index: 250; }
+/* the big modal earns bigger type than the compact popovers it borrows from */
+.trig-sheet-card .prefs-title { font-size: 1.05rem; }
+.trig-sheet-card > .pref-hint, .trig-sheet-card .trig-editor .pref-hint { font-size: 0.78rem; line-height: 1.55; }
+/* capture mode: the sheet melts away so the mirror underneath is clickable;
+   only the explainer toast stays interactive */
+.trig-sheet.capturing { background: transparent; pointer-events: none; }
+.trig-sheet.capturing .trig-sheet-card { opacity: 0; pointer-events: none; }
+.trig-capture-toast { display: none; }
+.trig-sheet.capturing .trig-capture-toast {
+  display: flex; align-items: center; gap: 12px; pointer-events: auto;
+  position: fixed; top: 0.75rem; left: 50%; transform: translateX(-50%); z-index: 235;
+  max-width: min(38rem, 92vw);
+  background: var(--panel); border: 1px solid var(--accent-line); border-radius: var(--radius-sm);
+  box-shadow: 0 5px 22px rgba(0, 0, 0, .32);
+  padding: 0.55rem 0.9rem; font-size: 0.8rem; font-weight: 600; color: var(--text);
+}
+/* the list owns all leftover height, so an open editor runs full height */
+.trig-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin: 0.6rem 0; padding-right: 3px; }
+.trig-row {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  background: var(--panel-2); border-radius: var(--radius-sm); box-shadow: var(--inset-hi);
+}
+.trig-row.off .trig-when, .trig-row.off .trig-do { opacity: 0.45; }
+.trig-on { flex: 0 0 auto; padding: 3px 10px; }
+.trig-on.active { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
+.trig-when { flex: 0 0 auto; max-width: 24rem; font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trig-do {
+  flex: 1 1 auto; min-width: 0; text-align: left; cursor: pointer;
+  font: inherit; font-size: 0.82rem; font-weight: 600; color: var(--text-dim);
+  background: none; border: none; padding: 2px 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.trig-do:hover { color: var(--accent); }
+.trig-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 0.4rem; }
+
+/* inline edit panel (one open at a time, replaces its row): two columns —
+   pickers/capture on the left, the growing action card on the right. A fixed
+   minimum height keeps the sheet from resizing jarringly as configs change. */
+.trig-editor {
+  background: var(--panel-2); border-radius: var(--radius-sm); box-shadow: var(--inset-hi);
+  padding: 0.7rem 0.8rem 0.8rem; min-height: 24rem; flex: 1 0 auto;
+  display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr auto;
+  gap: 0.5rem 1.3rem; align-items: stretch;
+}
+/* rows are EXPLICIT: the error strip is display:none while empty, and
+   auto-placement would then shift the columns into the top auto row and drop
+   the foot into the stretchy 1fr row (Save/Cancel floating mid-sheet) */
+.trig-editor > .save-error { grid-column: 1 / -1; grid-row: 1; }
+.trig-ed-left { grid-row: 2; grid-column: 1; }
+.trig-ed-right { grid-row: 2; grid-column: 2; }
+.trig-ed-left, .trig-ed-right { display: flex; flex-direction: column; gap: 0.55rem; min-width: 0; min-height: 0; }
+/* narrow: one column — flex stacks the children, the foot keeps the bottom */
+@media (max-width: 880px) {
+  .trig-editor { display: flex; flex-direction: column; }
+  .trig-editor-foot { margin-top: auto; }
+}
+/* the two add-flows are plain label + buttons stacks (they used to be
+   bordered, height-filling panels — read as heavy boxes) */
+.trig-add-block {
+  flex: 0 0 auto; display: flex; flex-direction: column; gap: 0.45rem; align-items: flex-start;
+  margin-top: 0.45rem;
+}
+.trig-add-block .trig-add-lab { margin: 0; }
+/* the action list: each added setting is its OWN mini-card — inverted surface
+   plus an accent rail so they read apart from the standard detail cards. The
+   LIST scrolls when it outgrows the view — the pickers on the left stay put. */
+.trig-act-card {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 3px;
+  display: flex; flex-direction: column; gap: 9px;
+}
+.trig-act-row {
+  flex: 0 0 auto; padding: 0.75rem 0.9rem 0.85rem;
+  background: var(--panel); border-left: 3px solid var(--accent-line);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-sm), var(--inset-hi);
+}
+/* the Set-to/Step mode seg rides the head row's free space, beside the ×
+   (the name's flex-grow pushes both to the right edge) */
+.trig-act-head { display: flex; align-items: center; gap: 8px; }
+.trig-act-name { flex: 1 1 auto; min-width: 0; font-size: 0.85rem; font-weight: 700; color: var(--text-strong); }
+.trig-act-control { display: flex; align-items: center; gap: 0.7rem; margin-top: 8px; flex-wrap: wrap; }
+.trig-act-control input[type="range"] { flex: 1 1 8rem; }
+.trig-cfg { display: flex; flex-direction: column; gap: 0.45rem; align-items: flex-start; }
+.trig-cfg .card-select { width: 100%; max-width: 26rem; }
+.trig-cfg .card-select-trigger { width: 100%; }
+.trig-value-row { display: flex; align-items: center; gap: 0.7rem; width: 100%; max-width: 26rem; }
+.trig-value-row input[type="range"] { flex: 1 1 auto; }
+.trig-timer-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.trig-every { width: 5rem; margin-bottom: 0; }
+/* "stop after [n] fires" + "fire [y] then rest [x]": labels hug their fields
+   (.hk-label's flex-grow would shove the input to the far side) */
+.trig-limit-row { margin-top: 8px; }
+.trig-limit-row .hk-label, .trig-alt-row .hk-label { flex: 0 0 auto; }
+/* preset-walk list: the ordered presets a trigger steps through, one per fire */
+.trig-walk-list { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
+.trig-walk-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  font-size: 0.76rem; font-weight: 600; color: var(--text-dim);
+  background: var(--panel); border: 0.5px solid var(--line-soft); border-radius: var(--radius-sm);
+  padding: 3px 4px 3px 9px;
+}
+/* step-action travel ends ("between [90] and [140]") share the control row */
+.trig-ends { display: inline-flex; align-items: center; gap: 6px; }
+.trig-ends-lab { font-size: 0.72rem; font-weight: 600; color: var(--text-dim); }
+/* the foot spans BOTH editor columns on the bottom row — without the explicit
+   row it auto-places into row 1 the moment the (display:none) error strip
+   vacates it, and Save/Cancel land on top of the editor */
+.trig-editor-foot { grid-row: 3; grid-column: 1 / -1; display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 0.3rem; }
+/* the trigger-under-edit's event chips (any one of them fires it) */
+.trig-ev-list { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.trig-ev-wrap { display: inline-flex; align-items: center; gap: 2px; }
+span.hk-chip.trig-ev { cursor: default; }
+.trig-add-lab { font-weight: 700; color: var(--text-dim); margin: 0.35rem 0 0; }
+/* the editor's preset picker mirrors the main browser's dropdown */
+.trig-preset-wrap { position: relative; width: 100%; max-width: 30rem; }
+.trig-preset-wrap .preset-trigger { width: 100%; }
+.trig-preset-pop { z-index: 250; width: min(28rem, 90vw); }
+
+/* the Play screen's Triggers panel: h2 section below Note settings, Edit… and
+   ⚡ arm on the label row, active rules listed in the card. Events render as
+   hk-chips (the editor's own vocabulary); rows follow the .param rhythm. */
+.play-triggers { margin-top: 0.9rem; }
+.play-trig-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 0.45rem; }
+.play-trig-head .panel-label { margin-bottom: 0; }
+.trig-active-list { display: flex; flex-direction: column; padding: 0.15rem 0 0.35rem; }
+/* each rule row: [on/off pill][body button — opens its editor][× delete].
+   Off rows stay listed, dimmed (the pill re-enables in place). */
+.trig-active-row {
+  display: flex; align-items: center; gap: 7px; min-width: 0;
+  font-size: 0.76rem;
+  border-top: 0.5px solid var(--line-soft);
+  border-radius: var(--radius-sm); padding: 0.3rem 0.4rem;
+  transition: background .12s ease;
+}
+.trig-active-row:first-child { border-top: none; }
+.trig-active-row:hover { background: var(--panel); }   /* subtle surface lift */
+.trig-active-row .trig-on { flex: 0 0 auto; padding: 2px 8px; font-size: 0.68rem; }
+.trig-active-row .hk-clear { flex: 0 0 auto; }
+.trig-active-row.off .trig-row-body { opacity: 0.45; }   /* mirrors the sheet's off rows */
+.trig-row-body {
+  flex: 1 1 auto; display: flex; align-items: center; gap: 7px; min-width: 0;
+  font: inherit; text-align: left; color: inherit; cursor: pointer;
+  background: none; border: none; border-radius: var(--radius-sm); padding: 0.2rem 0;
+}
+.trig-row-body:hover .trig-active-ev { color: var(--accent); border-color: var(--accent-line); }   /* mirrors button.hk-chip:hover */
+.trig-row-body:hover .trig-active-do { color: var(--text-strong); }
+.trig-active-when { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px 5px; flex: 0 1 auto; min-width: 0; }
+.trig-active-ev { white-space: nowrap; }
+.trig-active-or { flex: 0 0 auto; font-size: 0.66rem; font-weight: 600; color: var(--text-faint); }
+.trig-active-arrow { flex: 0 0 auto; color: var(--text-faint); }
+.trig-active-do {
+  flex: 1 1 auto; min-width: 0; font-weight: 500; color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: color .12s ease;
+}
+/* live countdown pill on armed timer rows (empty while disarmed → hidden) */
+.trig-countdown {
+  flex: 0 0 auto; font-size: 0.68rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--accent); background: var(--accent-bg);
+  border: 0.5px solid var(--accent-line); border-radius: 999px; padding: 1px 8px;
+}
+.trig-countdown:empty { display: none; }
+/* armed = the whole card is live: accent ring, arrows light up */
+.play-trig-card { transition: box-shadow .12s ease; }
+.play-trig-card.armed { box-shadow: 0 0 0 1px var(--accent-line), var(--shadow-sm), var(--inset-hi); }
+.play-trig-card.armed .trig-active-arrow { color: var(--accent); }
+/* a fired rule flashes its own row (re-fire restarts via remove/reflow/re-add).
+   Background only — an outset ring overlapped the neighbouring rows when
+   adjacent triggers fired on the same step */
+.trig-active-row.fired { animation: trig-row-fire .45s ease; }
+@keyframes trig-row-fire {
+  0% { background-color: var(--accent-bg); }
+  100% { background-color: transparent; }
+}
+/* the card's empty note (the pinned card's .pin-hint rule never reached here) */
+.trig-empty { font-size: 0.74rem; margin: 0; padding: 0.45rem 0.4rem 0.5rem; }
+
+/* ---- first-visit welcome modal (pref: welcome) ---- */
+.welcome-overlay {
+  position: fixed; inset: 0; z-index: 240;
+  background: rgba(8, 8, 16, 0.5);
+  display: flex; align-items: center; justify-content: center;
+  animation: fade .18s ease;
+}
+.welcome-card {
+  width: min(26.2857rem, 92vw); max-height: 88vh; overflow-y: auto;   /* 460px at default root */
+  background: var(--panel); border: 0.5px solid var(--line);
+  border-radius: var(--radius-sm); box-shadow: 0 14px 44px rgba(0, 0, 0, .45);
+  padding: 1.15rem 1.3rem 1.2rem;
+}
+.welcome-title { font-size: 1.05rem; font-weight: 800; color: var(--text-strong); margin: 0 0 0.4rem; }
+.welcome-title span { color: var(--accent); }
+.welcome-blurb { font-size: 0.82rem; font-weight: 500; color: var(--text-dim); line-height: 1.55; margin: 0 0 0.6rem; }
+.welcome-list { list-style: none; margin: 0 0 0.5rem; padding: 0; font-size: 0.78rem; font-weight: 500; color: var(--text-dim); line-height: 1.55; }
+.welcome-list li { margin-bottom: 0.45rem; padding-left: 0.95rem; position: relative; }
+.welcome-list li::before { content: "•"; position: absolute; left: 0.15rem; color: var(--accent); }
+.welcome-list b { color: var(--text-strong); }
+.welcome-go { display: block; width: 100%; margin-top: 0.9rem; text-align: center; }
+/* locked until Beginner/Advanced is picked */
+.welcome-card .pref-row.locked { opacity: 0.35; pointer-events: none; }
+.welcome-go:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+
+/* glossary highlighting off: wrapped terms read as plain text */
+body.gloss-off dfn.term {
+  border-bottom: none; cursor: inherit; pointer-events: none; color: inherit;
+}
+
+.settings-block { display: flex; flex-direction: column; gap: 0.7rem; align-items: flex-start; }
+.settings-hint { font-size: 0.74rem; color: var(--text-faint); line-height: 1.5; margin-top: 0.1rem; }
+.empty-note { font-size: 0.8rem; color: var(--text-faint); line-height: 1.55; }
+
+/* ---- component sections (show only the active group) ---- */
+.comp-mid, .comp-right { display: none; }
+.comp-mid.active, .comp-right.active { display: block; animation: fade .18s ease; }
+/* compact density: detail cards deal into TWO explicit columns, split by
+   balanceDetailCols (contiguous break, ties prefer the LEFT column — CSS
+   multicol balancing underfilled the left and crammed the rest right); the
+   verbose manual-style read and narrow panels keep the single tall stack */
+.detail-cols { display: flex; gap: 0.75rem; align-items: flex-start; }
+.detail-col { flex: 1 1 0; min-width: 0; }
+.detail-col .detail-card { margin-bottom: 0.75rem; }
+.detail-col .detail-card:last-child { margin-bottom: 0.75rem; }   /* columns keep their stack gap */
+body.density-verbose .detail-cols { display: block; }
+@container (max-width: 38rem) { .detail-cols { display: block; } }
+@keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+.group-head { padding: 0.4rem 0 0.5rem; display: flex; align-items: flex-start; gap: 0.75rem; }
+.group-head-text { flex: 1 1 auto; min-width: 0; }
+.section-reset { flex: 0 0 auto; margin-top: 2px; white-space: nowrap; }
+.group-title { font-size: 1.05rem; font-weight: 700; color: var(--text-strong); }
+.group-blurb { font-size: 0.8rem; color: var(--text-faint); margin-top: 4px; line-height: 1.5; }
+
+/* headline control in the middle panel */
+.param.compact { grid-template-columns: 1fr; gap: 0; padding: 0.5rem 0 0.7rem; border-top: none; }
+
+/* ---- graph card ---- */
+.graph-card {
+  margin: 0.6rem 0 0.4rem;
+  background: var(--panel-2);
+  border-radius: var(--radius-sm); padding: 0.75rem 0.85rem 0.6rem;
+  box-shadow: var(--shadow-sm), var(--inset-hi);
+}
+.graph-title {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-faint); margin: 0 0 0.5rem;
+}
+.graph-canvas {
+  display: block; width: 100%; height: 168px;
+}
+/* explainer block for graph-less tabs (e.g. the knobs guide) */
+.group-note {
+  margin: 0.6rem 0 0.4rem; padding: 0.75rem 0.95rem 0.8rem;
+  background: var(--panel-2); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm), var(--inset-hi);
+  font-size: 0.8rem; line-height: 1.6; color: var(--text-dim); font-weight: 500;
+}
+.group-note h3 {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-faint); margin: 0 0 0.5rem;
+}
+.group-note ul { list-style: none; margin: 0; padding: 0; }
+.group-note li { margin-bottom: 0.55rem; }
+.group-note li:last-child { margin-bottom: 0; }
+.group-note b { color: var(--text-strong); }
+
+/* secondary graphs share a row in compact density (the primary stays big);
+   the verbose manual read keeps every graph full width */
+.graph-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.graph-row .graph-card { flex: 1 1 200px; min-width: 0; }
+body.density-verbose .graph-row { display: block; }
+
+/* ---- rhythm step grid (container styling comes from .graph-card) ---- */
+.rhythm-row { display: flex; align-items: center; gap: 3px; margin-bottom: 3px; }
+.rhythm-rowlabel {
+  flex: 0 0 30px; text-align: right; padding-right: 5px;
+  font-size: 0.62rem; color: var(--text-faint); font-weight: 700;
+}
+.rhythm-cell {
+  flex: 1 1 0; min-width: 0; height: 19px; padding: 0;
+  border: 0.5px solid var(--line-soft); border-radius: 4px;
+  background: var(--panel);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.14);
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease, box-shadow .12s ease, opacity .12s ease, transform .05s ease;
+}
+.rhythm-cell:hover { border-color: var(--accent-line); background: var(--panel-2); }
+.rhythm-cell:active { transform: translateY(0.5px); }
+.rhythm-cell.on {
+  background: hsl(var(--dm-hue,210) 62% 50%); border-color: hsl(var(--dm-hue,210) 70% 60%);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255,255,255,.14);
+}
+.rhythm-cell.outside { opacity: 0.3; box-shadow: none; }
+/* live playhead: the currently-playing step's column (active voice cells glow brightest) */
+.rhythm-cell.playhead { border-color: hsl(var(--dm-hue,210) 75% 62%); }
+.rhythm-cell.playhead:not(.on) { background: hsl(var(--dm-hue,210) 55% 50% / 0.16); }
+.rhythm-cell.playhead.on {
+  background: hsl(var(--dm-hue,210) 72% 56%);
+  box-shadow: 0 0 0 1px hsl(var(--dm-hue,210) 80% 64%), 0 0 12px hsl(var(--dm-hue,210) 85% 58% / 0.65);
+}
+.rhythm-cell.beat-gap, .rhythm-stepnum.beat-gap { margin-left: 8px; }
+.rhythm-foot { margin-bottom: 0; margin-top: 1px; }
+.rhythm-stepnum {
+  flex: 1 1 0; min-width: 0; text-align: center;
+  font-size: 0.6rem; color: var(--text-faint);
+}
+.rhythm-stepnum.beat { color: var(--text-dim); font-weight: 700; }
+.rhythm-legend { font-size: 0.66rem; color: var(--text-faint); line-height: 1.4; margin: 0 0 0.55rem; }
+
+/* step-pattern header: title left, pause toggle right */
+.rhythm-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rhythm-head .graph-title { margin: 0; }
+.rhythm-pause {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; padding: 0; border-radius: 50%;   /* round, so ⏸/▶ isn't a YouTube square */
+  font-size: 0.78rem; line-height: 1; cursor: pointer;
+  color: var(--text-dim); background: var(--panel-2);
+  border: 0.5px solid var(--line);
+  box-shadow: var(--shadow-sm); transition: color .15s ease, border-color .15s ease;
+}
+.rhythm-pause:hover { color: var(--text); border-color: var(--accent-line); }
+/* the ⏸ / ▶ marks are DRAWN — the unicode glyphs sit off-centre in the small
+   circle (font-dependent metrics; same reasoning as the pot-warn "!") */
+.rhythm-pause::before {
+  content: ""; display: block; box-sizing: border-box;
+  width: 8px; height: 10px;
+  border-left: 3px solid currentColor; border-right: 3px solid currentColor;
+}
+.rhythm-pause.paused {
+  color: hsl(var(--dm-hue, 210) 70% 58%); border-color: hsl(var(--dm-hue, 210) 70% 50%);
+  padding-left: 3px;   /* optically center the ▶ triangle (its mass sits left) */
+}
+.rhythm-pause.paused::before {
+  width: 0; height: 0;
+  border: solid transparent; border-width: 6px 0 6px 9px; border-left-color: currentColor;
+}
+[data-theme="light"] .rhythm-pause.paused { color: hsl(var(--dm-hue, 210) 85% 34%); }
+/* divider between the live device mirror and the rhythm section in the Play view */
+.play-sep { border: none; border-top: 1px solid var(--line); margin: 1rem 0 0.2rem; }
+.graph-toolbar {
+  display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+.mini-btn {
+  font-family: var(--font); font-size: 0.74rem; font-weight: 500;
+  color: var(--text-dim); background: var(--panel); border: 0.5px solid var(--line);
+  border-radius: 999px; padding: 4px 12px; cursor: pointer; box-shadow: var(--shadow-sm);
+  white-space: nowrap;   /* a pill that wraps turns into a tall oval */
+  transition: color .12s ease, border-color .12s ease, background .12s ease;
+}
+.mini-btn:hover { color: var(--accent); border-color: var(--accent-line); }
+.mini-btn:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+.mini-btn:disabled:hover { color: var(--text-dim); border-color: var(--line); }
+.preset-reset-all { width: 100%; margin-top: 0.55rem; }
+.mini-btn.flashed { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
+/* the Compare-to-reference toggle: colored (like other active controls) when on */
+.ghost-toggle.active { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
+
+.graph-caption {
+  font-size: 0.74rem; color: var(--text-faint); line-height: 1.45;
+  margin-top: 0.6rem; max-width: 70ch;
+}
+
+/* ---- detail cards (one per sub-component) ---- */
+.detail-card {
+  background: var(--panel-2);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.55rem 0.4rem;
+  margin-bottom: 0.75rem;
+  box-shadow: var(--shadow-sm), var(--inset-hi);
+}
+.detail-card:last-child { margin-bottom: 0; }
+.detail-card-title {
+  font-size: 0.8rem; font-weight: 700; letter-spacing: 0.02em;
+  color: var(--text-strong); margin: 0;
+  padding: 0.6rem 0.4rem 0.1rem;
+}
+/* title row: the card title + (on gated cards) the inert-warning chip — the
+   chip's slot is always reserved so it can appear without moving anything */
+.detail-card-head { display: flex; align-items: center; gap: 8px; padding: 0.6rem 0.4rem 0.1rem; }
+.detail-card-head .detail-card-title { padding: 0; }
+/* gate chips ride the card title: grayed out (informational, not an amber
+   alarm), a notch smaller than the knob chip with a slightly bolder !, and
+   nudged up to sit on the title's centre line */
+.gate-warn {
+  position: relative; top: -1px;   /* position also anchors the drawn ! */
+  width: 18px; height: 18px;
+  border-color: var(--text-faint); color: var(--text-dim);
+}
+/* bar and dot share the same width + left so subpixel snapping can't shear them apart */
+.gate-warn::before { top: 2.5px; height: 8px; width: 2.5px; left: calc(50% - 1.25px); }
+.gate-warn::after { bottom: 2.5px; width: 2.5px; height: 2.5px; left: calc(50% - 1.25px); }
+.detail-card > .gate-warn { margin: 0.4rem 0 0 0.4rem; }   /* untitled gated card: chip stands alone */
+
+/* ---- parameters ----
+   Compact density (default): a single column — name + control + value + the
+   live value hint; the full explanation lives in the ⓘ popover (#param-pop).
+   Verbose density (body.density-verbose): restores the inline explanation
+   column beside each control, like a printed manual. */
+.param-list { padding: 0 0.4rem; }
+.param {
+  display: grid; grid-template-columns: 1fr;
+  gap: 0.6rem; align-items: start;
+  padding: 0.55rem 0.4rem; border-top: 0.5px solid var(--line-soft);
+}
+.param:first-child { border-top: none; }
+.param-explain, .param .row-tip { display: none; }
+
+body.density-verbose .param:not(.compact) {
+  padding: 0.8rem 0.4rem;   /* the manual read keeps its air */
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 460px);
+  gap: 1.5rem;
+}
+body.density-verbose .param:not(.compact) .param-explain { display: block; }
+body.density-verbose .param:not(.compact) .row-tip { display: block; }
+
+.param-main { padding-top: 0.15rem; }
+.param-row { display: grid; grid-template-columns: 7.5429rem 1fr 3.6571rem; align-items: center; gap: 0.7rem; }   /* 132px/64px at default root — rem so names don't wrap when text scales */
+
+.param-name { font-size: 0.85rem; color: var(--text); display: flex; align-items: baseline; gap: 5px; min-width: 0; }
+/* a name with an explanation is clickable — quiet until hovered */
+.param-name-text.has-info { cursor: pointer; transition: color .12s ease; }
+.param-name-text.has-info:hover { color: var(--accent); }
+/* pin-to-Play toggle — invisible until the row is hovered, solid when pinned */
+.param-pin {
+  flex: 0 0 auto; align-self: center; background: none; border: none; padding: 0 2px;
+  cursor: pointer; font-size: 0.72rem; line-height: 1;
+  opacity: 0; filter: grayscale(1);
+  transition: opacity .12s ease, filter .12s ease;
+}
+.param:hover .param-pin, .param-pin:focus-visible { opacity: 0.55; }
+.param-pin.pinned { opacity: 0.9; filter: none; }
+.param:hover .param-pin.pinned { opacity: 1; }
+/* lock-against-randomize toggle — same reveal as the pin; the padlock is
+   drawn in currentColor so it follows the theme (emoji glyphs render black) */
+.param-lock {
+  position: relative; flex: 0 0 auto; align-self: center;
+  width: 16px; height: 14px; background: none; border: none; padding: 0;
+  cursor: pointer; color: var(--text-faint);
+  opacity: 0; transition: opacity .12s ease;
+}
+.param-lock::before {   /* shackle */
+  content: ""; position: absolute; left: 50%; transform: translateX(-50%);
+  top: 0; width: 8px; height: 7px;
+  border: 1.6px solid currentColor; border-bottom: none;
+  border-radius: 5px 5px 0 0;
+}
+.param-lock::after {    /* body */
+  content: ""; position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: 0; width: 12px; height: 8px;
+  background: currentColor; border-radius: 2.5px;
+}
+.param:hover .param-lock, .param-lock:focus-visible { opacity: 0.55; }
+.param-lock.locked { opacity: 0.9; color: var(--accent); }
+.param:hover .param-lock.locked { opacity: 1; }
+/* section-wide lock (the rhythm padlock): always visible, not hover-revealed,
+   and a notch bigger than the row padlocks (it guards a whole section) */
+.section-lock { opacity: 0.45; width: 20px; height: 18px; }
+.section-lock::before { width: 10px; height: 9px; }
+.section-lock::after { width: 15px; height: 10px; }
+.section-lock:hover, .section-lock:focus-visible { opacity: 0.8; }
+.section-lock.locked { opacity: 0.9; }
+.section-lock.locked:hover { opacity: 1; }
+/* unpin × inside the Play pinned card */
+.param-unpin {
+  flex: 0 0 auto; align-self: center; background: none; border: none; padding: 0 4px;
+  cursor: pointer; font-family: var(--font); font-size: 0.95rem; line-height: 1;
+  color: var(--text-faint); transition: color .12s ease;
+}
+.param-unpin:hover { color: var(--warm); }
+.pin-crumb { font-size: 0.68rem; color: var(--text-faint); margin-top: 3px; }
+.play-pinned .pin-hint { font-size: 0.74rem; padding: 0.2rem 0.4rem 0.4rem; }
+.param-control { display: flex; align-items: center; }
+
+/* live, value-specific description under the control — verbose density only
+   (compact keeps rows to one line; the ⓘ popover carries the detail) */
+.value-desc {
+  display: none;
+  grid-column: 1 / -1;            /* align to the left, under the name column */
+  margin-top: 0.45rem; font-weight: 500;
+  font-size: 0.78rem; line-height: 1.45; color: var(--text-dim);
+}
+body.density-verbose .value-desc { display: block; }
+/* per-parameter firmware warning (device too old for this control) */
+.fw-warning {
+  grid-column: 1 / -1; margin-top: 0.4rem;
+  font-size: 0.74rem; line-height: 1.45; font-weight: 600; color: var(--warm);
+}
+.fw-warning span { margin-right: 2px; }
+
+/* sliders: a subtle inset track + a panel-surface knob with an accent rim,
+   matching the pill/card aesthetic (accent only on the rim, not a loud fill) */
+input[type="range"] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 6px;
+  background: var(--line); border-radius: 999px; cursor: pointer;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.2);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--panel-2); border: 1.5px solid var(--accent-line); cursor: pointer;
+  box-shadow: var(--shadow-sm); transition: border-color .12s ease;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 15px; height: 15px; border-radius: 50%; background: var(--panel-2);
+  border: 1.5px solid var(--accent-line); cursor: pointer; box-shadow: var(--shadow-sm);
+}
+/* hover brightens the rim — but not on the rainbow hue slider (keeps its white knob) */
+input[type="range"]:not(.hue-slider):hover::-webkit-slider-thumb { border-color: var(--accent); }
+input[type="range"]:not(.hue-slider):hover::-moz-range-thumb { border-color: var(--accent); }
+
+select {
+  width: 100%; background: var(--panel-2); color: var(--text);
+  border: 0.5px solid var(--line); border-radius: var(--radius-sm); padding: 6px 9px;
+  font-family: var(--font); font-size: 0.82rem; cursor: pointer; box-shadow: var(--shadow-sm);
+}
+
+/* ---- card-style dropdown for enum params (matches the preset dropdown) ---- */
+.card-select { position: relative; min-width: 0; max-width: 100%; }   /* flex min-width:auto would let long labels ("Barry Harris (keymaster)") poke out of the card */
+.card-select-trigger {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  width: 100%; font: inherit; font-size: 0.82rem; font-weight: 600; text-align: left;
+  padding: 6px 11px; cursor: pointer;
+  background: var(--panel-2); color: var(--text-strong);
+  border: 0.5px solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm);
+  transition: border-color .12s;
+}
+.card-select-trigger:hover { border-color: var(--accent-line); }
+.card-select-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* crumb-form labels (knob targets): name + faint home path, pinned-row style —
+   used by both the selected value and the dropdown's option rows */
+.cs-name, .cs-crumb { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-crumb { font-size: 0.68rem; font-weight: 500; color: var(--text-faint); margin-top: 1px; }
+.card-select-caret { color: var(--text-faint); flex: 0 0 auto; transition: transform .15s ease; }
+.card-select.open .card-select-caret { transform: rotate(180deg); }
+.card-select-popup {
+  display: none; position: fixed; z-index: 200; padding: 0.4rem;
+  background: var(--panel); border: 0.5px solid var(--line); border-radius: var(--radius-sm);
+  box-shadow: 0 5px 22px rgba(0,0,0,.32);
+}
+.card-select.open .card-select-popup { display: flex; flex-direction: column; animation: fade .15s ease; }
+.card-select-list { display: flex; flex-direction: column; gap: 3px; flex: 1 1 auto; min-height: 0; max-height: 46vh; overflow-y: auto; padding-right: 2px; }
+/* section header inside a dropdown's list (e.g. the knob-target domains) */
+.card-select-group-label {
+  flex: 0 0 auto; font-size: 0.62rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--text-faint); padding: 7px 10px 2px;
+}
+.card-select-option {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 0 0 auto;   /* overflow:hidden zeroes the flex minimum — without this the column SQUASHES options instead of scrolling */
+  width: 100%; text-align: left; cursor: pointer; font: inherit; font-size: 0.8rem; font-weight: 600;
+  color: var(--text-dim); background: var(--panel-2); border: 1px solid transparent;
+  border-radius: var(--radius-sm); padding: 6px 10px; box-shadow: var(--inset-hi);
+  transition: border-color .12s, background .12s, color .12s;
+}
+.card-select-option:hover { border-color: var(--accent-line); }
+.card-select-option.selected { border-color: var(--accent-line); background: var(--accent-bg); color: var(--accent); }
+
+.param-value {
+  font-size: 0.83rem; color: var(--text-dim); text-align: right;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.param-value .unit { color: var(--text-faint); font-size: 0.72rem; margin-left: 2px; }
+
+/* ---- per-parameter explanation popover (compact density's ⓘ) ---- */
+#param-pop {
+  position: fixed; left: 0; top: 0; z-index: 190;   /* below #gloss-pop (200): terms inside open on top */
+  max-width: min(24rem, 92vw); display: none;   /* 420px at default root */
+  background: var(--panel); border: 0.5px solid var(--line); border-radius: var(--radius-sm);
+  padding: 0.8rem 0.95rem; box-shadow: 0 5px 22px rgba(0,0,0,.32);
+  font-size: 0.8rem; line-height: 1.55; font-weight: 500;
+}
+#param-pop.open { display: block; animation: fade .15s ease; }
+.param-pop-name { font-weight: 700; color: var(--text-strong); font-size: 0.86rem; }
+.param-pop-crumb { font-size: 0.7rem; color: var(--text-faint); margin: 1px 0 0.5rem; }
+.param-pop-name + .ex-def { margin-top: 0.5rem; }
+#param-pop .row-tip, #param-pop .fw-warning { display: block; margin-top: 0.55rem; }
+
+/* ---- explanation column (inline in verbose density) ---- */
+.param-explain {
+  border-left: 0.5px solid var(--line-soft); padding-left: 1.2rem;
+  font-size: 0.82rem; line-height: 1.6; font-weight: 500;
+}
+.ex-def { color: var(--text); margin-bottom: 0.45rem; }
+.ex-does { color: var(--text-dim); margin-bottom: 0; }
+.ex-does-lead { margin-bottom: 0.4rem; }
+
+/* contrast list (e.g. Low — … / High — …) */
+.does-list { list-style: none; margin: 0; padding: 0; }
+.does-list li { color: var(--text-dim); line-height: 1.5; margin-bottom: 0.3rem; }
+.does-list li:last-child { margin-bottom: 0; }
+.does-list b { color: var(--text-strong); font-weight: 700; }
+
+/* tip rendered under the value description, in the control column */
+.row-tip {
+  grid-column: 1 / -1; margin-top: 0.4rem; font-weight: 500;
+  font-size: 0.78rem; line-height: 1.5; color: var(--text-faint);
+}
+.row-tip span {
+  display: inline-block; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.07em;
+  font-weight: 700; color: var(--accent); margin-right: 5px;
+}
+
+/* collapse verbose's control|explanation split when the work panel itself gets narrow */
+@container (max-width: 780px) {
+  body.density-verbose .param:not(.compact) { grid-template-columns: 1fr; gap: 0.6rem; }
+  body.density-verbose .param:not(.compact) .param-explain {
+    border-left: none; border-top: 0.5px solid var(--line-soft); padding-left: 0; padding-top: 0.6rem;
+  }
+}
+
+/* ---- profile panel ---- */
+.profile-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.75rem; }
+.profile-placeholder p { font-size: 0.82rem; color: var(--text-dim); margin-bottom: 0.6rem; }
+.muted { color: var(--text-faint) !important; }
+
+/* ============================================================================
+ * Accessibility preference overrides (the ♿ popup) — kept together at the end
+ * so they win by source order. Every block is opt-in: with default prefs none
+ * of these selectors match and the app renders exactly as above.
+ * ========================================================================== */
+
+/* ---- text size (pref: textScale) — html[data-text] set by the FOUC guard +
+   applyTextScale; everything rem-based scales with the root font-size.
+   "m" (default) writes no attribute, leaving the 17.5px base untouched. ---- */
+html[data-text="s"] { font-size: 17.5px; }
+html[data-text="l"] { font-size: 21.25px; }
+html[data-text="xl"] { font-size: 23px; }
+
+/* larger text shifts the desktop column balance: the middle (graphs, mirror —
+   it shrinks gracefully) cedes room so the right panel's sliders and buttons
+   stay usable instead of clipping off screen */
+@media (min-width: 901px) {
+  /* small text is the INVERSE case: controls need less width, so the right
+     panel cedes share to the middle — without this, the rem-based left column
+     shrinking handed the right panel MORE pixels than at default */
+  html[data-text="s"] .layout { grid-template-columns: 18.6286rem minmax(0, 1.35fr) minmax(0, 0.95fr); }
+  html[data-text="s"] .layout.devicemap, html[data-text="s"] .layout.about { grid-template-columns: 18.6286rem minmax(0, 1.7fr) minmax(0, 0.95fr); }
+  html[data-text="s"] body.density-verbose .layout { grid-template-columns: 18.6286rem minmax(0, 1.1fr) minmax(0, 1.42fr); }
+  html[data-text="l"] .layout { grid-template-columns: 18.6286rem minmax(0, 1fr) minmax(0, 1.2fr); }
+  html[data-text="l"] .layout.devicemap, html[data-text="l"] .layout.about { grid-template-columns: 18.6286rem minmax(0, 1.3fr) minmax(0, 1.1fr); }
+  html[data-text="l"] body.density-verbose .layout { grid-template-columns: 18.6286rem minmax(0, 1fr) minmax(0, 1.4fr); }
+  html[data-text="xl"] .layout { grid-template-columns: 18.6286rem minmax(0, 0.85fr) minmax(0, 1.35fr); }
+  html[data-text="xl"] .layout.devicemap, html[data-text="xl"] .layout.about { grid-template-columns: 18.6286rem minmax(0, 1.15fr) minmax(0, 1.25fr); }
+  html[data-text="xl"] body.density-verbose .layout { grid-template-columns: 18.6286rem minmax(0, 0.95fr) minmax(0, 1.5fr); }
+}
+
+/* ---- reduce motion (pref: motion) — html.motion-off set by applyMotion (the
+   pref, or "auto" + the OS prefers-reduced-motion setting). Durations collapse
+   to near-zero rather than `none` so transitionend/animationend still fire;
+   !important beats the inline --dm-*-fade durations on the device mirror. ---- */
+html.motion-off *,
+html.motion-off *::before,
+html.motion-off *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+/* trigger-fire row flashes are suppressed OUTRIGHT, not just shortened — rapid
+   re-fires would strobe single-frame flashes (the live region announces them) */
+html.motion-off .trig-active-row.fired { animation: none !important; }
+
+/* ---- high contrast (pref: contrast) — html[data-contrast="high"], composes
+   with both themes: brighter secondary text, stronger separators, active
+   states marked by shape (underline / ring) as well as color. ---- */
+[data-contrast="high"] {
+  --text-faint: #b3b1a7;
+  --text-dim: #cfcdc3;
+  --line: #5a5852;
+  --line-soft: #4c4a44;
+}
+[data-contrast="high"][data-theme="light"] {
+  --text-faint: #54524a;
+  --text-dim: #3d3c35;
+  --line: #8f8d82;
+  --line-soft: #a4a297;
+}
+/* panel/card separation: a 1px ring via box-shadow (no layout shift) */
+[data-contrast="high"] .panel,
+[data-contrast="high"] .detail-card,
+[data-contrast="high"] .graph-card,
+[data-contrast="high"] .profile-card,
+[data-contrast="high"] .prefs-popup,
+[data-contrast="high"] .preset-dropdown,
+[data-contrast="high"] .hk-sheet-card,
+[data-contrast="high"] .trig-sheet-card,
+[data-contrast="high"] .trig-row,
+[data-contrast="high"] .trig-editor,
+[data-contrast="high"] .trig-act-row,
+[data-contrast="high"] .welcome-card {
+  box-shadow: 0 0 0 1px var(--line), var(--shadow);
+}
+/* selected tab/view/section: shape + color, not color alone */
+[data-contrast="high"] .view-btn.active,
+[data-contrast="high"] .domain-btn.active,
+[data-contrast="high"] .tab.active {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+[data-contrast="high"] .seg-btn.on { box-shadow: inset 0 0 0 2px var(--accent-line); }
+/* armed triggers card: the detail-card ring above would eat the accent ring
+   (equal specificity, later in file) — armed reads as a THICKER accent ring */
+[data-contrast="high"] .play-trig-card.armed { box-shadow: 0 0 0 2px var(--accent-line), var(--shadow); }
+[data-contrast="high"] :focus-visible { outline-width: 3px; outline-offset: 3px; }
+
+/* ---- larger controls (pref: bigControls) — body.controls-large: bigger hit
+   targets for motor-impairment and touch use. ---- */
+body.controls-large input[type="range"] { height: 10px; }
+body.controls-large input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; }
+body.controls-large input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; }
+/* scrollbars grab-able too — the base 11px bar nets a ~5px thumb after its
+   transparent inset (html:has covers the page's own bar, which belongs to
+   the root element, not a body descendant) */
+body.controls-large ::-webkit-scrollbar,
+html:has(body.controls-large)::-webkit-scrollbar { width: 17px; height: 17px; }
+body.controls-large ::-webkit-scrollbar-thumb,
+html:has(body.controls-large)::-webkit-scrollbar-thumb { border-width: 4px; }
+body.controls-large .ghost-btn { width: 2.5rem; height: 2.5rem; font-size: 1.15rem; }
+body.controls-large .mini-btn { padding: 8px 16px; }
+body.controls-large .seg-btn { padding: 8px 14px; }
+/* param-control segs are width-constrained (esp. the 12-key grid) — wide side
+   padding overflows the cells and shoves the label right; grow height only */
+body.controls-large .param-seg .seg-btn { padding: 8px 6px; }
+body.controls-large .tab { padding: 10px 18px; }
+body.controls-large .view-btn { padding: 10px 24px; }
+body.controls-large .domain-btn { padding: 8px 16px; }
+body.controls-large .hue-swatch { width: 30px; height: 30px; }
+body.controls-large .rhythm-cell { height: 28px; }
+body.controls-large .param-pin { font-size: 0.95rem; padding: 2px 5px; }
+body.controls-large .param-lock { width: 20px; height: 18px; }
+body.controls-large .param-lock::before { width: 10px; height: 9px; }
+body.controls-large .param-lock::after { width: 15px; height: 10px; }
+body.controls-large .param-unpin { font-size: 1.2rem; padding: 2px 7px; }
+body.controls-large .card-select-option,
+body.controls-large .preset-item { padding: 10px 12px; }
+body.controls-large .card-select-trigger,
+body.controls-large .preset-trigger { padding: 0.7rem 0.8rem; }
+/* the drawn ! re-centres in the bigger pot-warn chip */
+body.controls-large .pot-warn { width: 30px; height: 30px; }
+body.controls-large .pot-warn::before { top: 7px; height: 11px; }
+body.controls-large .pot-warn::after { bottom: 6px; }
+/* gate chips stay a notch smaller than the knob chips */
+body.controls-large .gate-warn { width: 24px; height: 24px; }
+body.controls-large .gate-warn::before { top: 3.5px; height: 11px; }
+body.controls-large .gate-warn::after { bottom: 3.5px; }
+/* hotkey + trigger editors follow the bigger targets too */
+body.controls-large .hk-chip { font-size: 0.78rem; padding: 4px 12px; min-width: 2.6rem; }
+body.controls-large .hk-clear { font-size: 1.15rem; padding: 0 6px; }
+body.controls-large .hk-label { font-size: 0.85rem; }
+body.controls-large .trig-on { padding: 6px 14px; }
+body.controls-large .trig-do { font-size: 0.85rem; padding: 4px 6px; }
+body.controls-large .trig-active-row { font-size: 0.85rem; padding: 0.65rem 0.4rem; }
+body.controls-large .save-field { padding: 9px 12px; font-size: 0.9rem; }
+body.controls-large .trig-every { width: 6.2rem; }

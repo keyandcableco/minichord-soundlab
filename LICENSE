@@ -1,0 +1,29 @@
+minichord Sound Lab
+Copyright (c) 2026 the minichord Sound Lab contributors
+
+This work is licensed under the Creative Commons
+Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0).
+
+You are free to:
+
+  Share — copy and redistribute the material in any medium or format
+  Adapt — remix, transform, and build upon the material
+
+Under the following terms:
+
+  Attribution — You must give appropriate credit, provide a link to the
+  license, and indicate if changes were made.
+
+  NonCommercial — You may not use the material for commercial purposes.
+
+To view a copy of this license, visit:
+https://creativecommons.org/licenses/by-nc/4.0/
+
+----------------------------------------------------------------------
+
+Sound Lab is an unofficial companion app for the minichord, an
+open-source instrument by Benjamin Poilvé (https://minichord.com/,
+https://github.com/BenjaminPoilve/minichord). The minichord's hardware
+is licensed CC BY-NC 4.0 and its firmware under the 3-clause BSD
+license by its author; this repository contains neither — it documents
+and talks to them.
