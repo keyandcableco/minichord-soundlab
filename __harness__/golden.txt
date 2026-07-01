@@ -1,4 +1,4 @@
-[Play] device-map engine play-engine-2026-06-09-r58-desync-momentum
+[Play] device-map engine play-engine-2026-07-01-r60-sharp-enharmonic
 [Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
 [Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
 ================ S1 connect + resting seed (default patch) ================
@@ -896,7 +896,7 @@
 [Play] MIDI  chord  OFF  76 E5  (+0ms)
 [Play] HARP shown top→bot: #11:C7  #10:A6  #9:F6  #8:C6  #7:A5  #6:F5  #5:C5  #4:A4  #3:F4  #2:C4  #1:A3  #0:F3
 [Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=1(E) type=major +sharp
-[Play] ▶ DETECTED: F [col5 rows0 SHARP]   (live: F4 A4 C5 F5)
+[Play] ▶ DETECTED: E# [col5 rows0 SHARP]   (live: F4 A4 C5 F5)
   · # added (want col E + sharp, NOT F natural) | lit: button.lit:♯  button.lit:E
 [Play] MIDI  chord  OFF  65 F4  (+30ms)
 [Play] MIDI  chord  OFF  69 A4  (+0ms)
@@ -928,7 +928,7 @@
 [Play] MIDI  chord  OFF  77 F5  (+0ms)
 [Play] HARP shown top→bot: #11:B6  #10:G#6  #9:E6  #8:B5  #7:G#5  #6:E5  #5:B4  #4:G#4  #3:E4  #2:B3  #1:G#3  #0:E3
 [Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 flat-btn | held: button=6(F) type=major +sharp
-[Play] ▶ DETECTED: E [col0 rows0 SHARP]   (live: E4 G#4 B4 E5)
+[Play] ▶ DETECTED: F♭ [col0 rows0 SHARP]   (live: E4 G#4 B4 E5)
   · # added in flat mode (want col F + sharp, NOT E) | lit: button.lit:♭  button.lit:F
 [Play] MIDI  chord  OFF  64 E4  (+30ms)
 [Play] MIDI  chord  OFF  68 G#4  (+0ms)
@@ -939,7 +939,89 @@
 [Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=major +sharp
 [Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
 [Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S39 FRESH enharmonic press prefers the NATURAL: E then a fresh F reads F, never E# ================
+  input E=64,68,71,76 F=65,69,72,77
+[Play] MIDI  chord  ON   64 E4  (+0ms)
+[Play] ▶ DETECTED: —   (live: E4)
+[Play] MIDI  chord  ON   68 G#4  (+0ms)
+[Play] MIDI  chord  ON   71 B4  (+0ms)
+[Play] MIDI  chord  ON   76 E5  (+0ms)
+[Play] HARP shown top→bot: #11:B6  #10:G#6  #9:E6  #8:B5  #7:G#5  #6:E5  #5:B4  #4:G#4  #3:E4  #2:B3  #1:G#3  #0:E3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=1(E) type=major
+[Play] ▶ DETECTED: E [col5 rows0]   (live: E4 G#4 B4 E5)
+  · E held | lit: button.lit:E
+[Play] MIDI  chord  OFF  64 E4  (+40ms)
+[Play] MIDI  chord  OFF  68 G#4  (+0ms)
+[Play] MIDI  chord  OFF  71 B4  (+0ms)
+[Play] MIDI  chord  OFF  76 E5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] MIDI  chord  ON   65 F4  (+200ms)
+[Play] MIDI  chord  ON   69 A4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] MIDI  chord  ON   77 F5  (+0ms)
+[Play] HARP shown top→bot: #11:C7  #10:A6  #9:F6  #8:C6  #7:A5  #6:F5  #5:C5  #4:A4  #3:F4  #2:C4  #1:A3  #0:F3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=6(F) type=major
+[Play] ▶ DETECTED: F [col0 rows0]   (live: F4 A4 C5 F5)
+  · fresh F (want col F natural, NOT E#) | lit: button.lit:F
+[Play] MIDI  chord  OFF  65 F4  (+40ms)
+[Play] MIDI  chord  OFF  69 A4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] MIDI  chord  OFF  77 F5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S40 SHARP HELD across fresh presses: A# → E# → B# all read sharp, spelled by their own root ================
+  input A#=70,74,77,82 E#=65,69,72,77 B#=72,76,79,84
+[Play] MIDI  chord  ON   70 A#4  (+0ms)
+[Play] ▶ DETECTED: —   (live: A#4)
+[Play] MIDI  chord  ON   74 D5  (+0ms)
+[Play] MIDI  chord  ON   77 F5  (+0ms)
+[Play] MIDI  chord  ON   82 A#5  (+0ms)
+[Play] HARP shown top→bot: #11:F7  #10:D7  #9:A#6  #8:F6  #7:D6  #6:A#5  #5:F5  #4:D5  #3:A#4  #2:F4  #1:D4  #0:A#3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=2(A) type=major +sharp
+[Play] ▶ DETECTED: A# [col4 rows0 SHARP]   (live: A#4 D5 F5 A#5)
+  · A# (seeds lastSharp) | lit: button.lit:♯  button.lit:A
+[Play] MIDI  chord  OFF  70 A#4  (+40ms)
+[Play] MIDI  chord  OFF  74 D5  (+0ms)
+[Play] MIDI  chord  OFF  77 F5  (+0ms)
+[Play] MIDI  chord  OFF  82 A#5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] MIDI  chord  ON   65 F4  (+200ms)
+[Play] MIDI  chord  ON   69 A4  (+0ms)
+[Play] MIDI  chord  ON   72 C5  (+0ms)
+[Play] MIDI  chord  ON   77 F5  (+0ms)
+[Play] HARP shown top→bot: #11:C7  #10:A6  #9:F6  #8:C6  #7:A5  #6:F5  #5:C5  #4:A4  #3:F4  #2:C4  #1:A3  #0:F3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=1(E) type=major +sharp
+[Play] ▶ DETECTED: E# [col5 rows0 SHARP]   (live: F4 A4 C5 F5)
+  · fresh E# (sharp held → E#, not F) | lit: button.lit:♯  button.lit:E
+[Play] MIDI  chord  OFF  65 F4  (+40ms)
+[Play] MIDI  chord  OFF  69 A4  (+0ms)
+[Play] MIDI  chord  OFF  72 C5  (+0ms)
+[Play] MIDI  chord  OFF  77 F5  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] MIDI  chord  ON   72 C5  (+200ms)
+[Play] MIDI  chord  ON   76 E5  (+0ms)
+[Play] MIDI  chord  ON   79 G5  (+0ms)
+[Play] MIDI  chord  ON   84 C6  (+0ms)
+[Play] HARP shown top→bot: #11:G7  #10:E7  #9:C7  #8:G6  #7:E6  #6:C6  #5:G5  #4:E5  #3:C5  #2:G4  #1:E4  #0:C4
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major +sharp
+[Play] ▶ DETECTED: B# [col6 rows0 SHARP]   (live: C5 E5 G5 C6)
+  · fresh B# (sharp held → B#, not C) | lit: button.lit:♯  button.lit:B
+[Play] MIDI  chord  OFF  72 C5  (+40ms)
+[Play] MIDI  chord  OFF  76 E5  (+0ms)
+[Play] MIDI  chord  OFF  79 G5  (+0ms)
+[Play] MIDI  chord  OFF  84 C6  (+0ms)
+[Play] ▶ DETECTED: —   (live: none)
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
+================ S41 RHYTHM sharp chord: an F# (sharp+F) arpeggio identifies as F#, not Bmaj7/Dmaj7/Daug ================
+  rhythm step0 pitches=66 -> null
+  rhythm step1 pitches=66,70 -> 3/minor SHARP d0
+  rhythm step2 pitches=66,70,73 -> 6/major SHARP d0
+  rhythm step3 pitches=66,70,73,78 -> 6/major SHARP d0
+[Play] HARP shown top→bot: #11:F#7  #10:D#7  #9:B6  #8:F#6  #7:D#6  #6:B5  #5:F#5  #4:D#5  #3:B4  #2:F#4  #1:D#4  #0:B3
+[Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=0 slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn | held: button=0(B) type=major
 ================ S13 disconnect clears ================
   · disconnected | lit: —
 
-[devicemap VERSION] play-engine-2026-06-09-r58-desync-momentum
+[devicemap VERSION] play-engine-2026-07-01-r60-sharp-enharmonic

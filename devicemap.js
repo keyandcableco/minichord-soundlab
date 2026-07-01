@@ -367,9 +367,14 @@
   function buildRhythmBases(s) {
     const rows = shuffleRows(s.potTargets, 120, s.chordShuf, CHORD_SHUF.length);
     const out = [];
+    // both natural AND sharp voicings, mirroring buildChordLookup: the sharp button raises every
+    // chord voice a semitone, so an F#-chord arpeggio (F+sharp) is only reachable as a sharp base.
+    // Natural FIRST so it stays the default reading of an enharmonic collision (C ≡ B#+sharp).
     for (let b = 0; b < 7; b++) for (const type in CHORD) {
       const press = pressOf(type, s.barry);
-      for (const row of rows) out.push({ b, type, press, row, notes: voiceSet(b, CHORD[type], s, { row }) });
+      for (const row of rows) for (const sharp of [false, true]) {
+        out.push({ b, type, press, row, sharp, notes: voiceSet(b, CHORD[type], s, { row, sharp }) });
+      }
     }
     return out;
   }
@@ -405,6 +410,11 @@
     let lastCol = null;       // column of the last matched chord (disambiguates E#/F, B#/C)
     let lastSharp = false;    // was the last matched chord a sharp chord? (gates E#/B#)
     let lastOnNote = null;    // most recent chord note-on (identifies the chord being played)
+    // this chord began from SILENCE (nothing held, nothing in the lookback pool) → it's a fresh
+    // press, not a sharp added to a live chord. A fresh enharmonic collision (E#≡F, B#≡C) must
+    // read as the NATURAL, never inherit the previous chord's sharp/column context. Cleared once a
+    // chord commits; a sharp ADDED to a still-live chord (F→F#, E→E#) never goes cold, so it keeps it.
+    let freshChord = true;
 
     // optional observers (the trigger system), fired at every `held` adoption
     // and on harp lights. Callback-only and silent: the golden harness creates
@@ -965,7 +975,11 @@
       // sharp spellings are allowed right after a sharp chord, OR on the column
       // already held. Pressing # while holding F must read as the sharp button
       // (F♭/F#), never relabel to the neighboring natural column (E)
-      const sharpAllowed = c => lastSharp || (lastCol != null && colOf(c.button) === lastCol);
+      // lastSharp = the sharp button is still held across chords → the next enharmonic press is sharp
+      // too (A#→E#→B# all read sharp, consistently). The same-column hold, by contrast, is only for a
+      // sharp ADDED to a live chord (E held → E#); a FRESH natural press must NOT inherit it (E then a
+      // fresh F reads F, not E#). So gate only the column clause on freshChord.
+      const sharpAllowed = c => lastSharp || (!freshChord && lastCol != null && colOf(c.button) === lastCol);
       // available notes = held (required) + recently dropped (optional, to complete a chord)
       const avail = new Map();
       heldNotes.forEach((c, n) => avail.set(n, c));
@@ -999,6 +1013,7 @@
     function applyChord(r) {
       // commit r ({c,counts}) as the shown chord (r=null keeps the current one for the fade)
       if (r) {
+        freshChord = false;   // a chord is committed/shown; further reads are edits, not fresh presses
         if (!curChord || !sameChord(curChord, r.c)) {
           curChord = r.c; lastCol = colOf(r.c.button); lastSharp = r.c.sharp;
 
@@ -1035,7 +1050,11 @@
       // Fold it into the shown octave digit (a ±12 shift never moves the pitch class)
       const rm = MIDI_BASE + tr + rootButton(s, button) + (off || 0) + (sharp ? (s.flat ? -1 : 1) : 0) + (s.chordOctSemis || 0);
       const oct = Math.floor(rm / 12) - 1;
-      let str = names[(((rm % 12) + 12) % 12)] + '<sub class="dm-ro-oct">' + oct + "</sub>" + (TYPE_NAME[type] != null ? TYPE_NAME[type] : type);
+      // spell the root by the BUTTON's own natural name + the accidental (E#, B#), so the label matches
+      // the lit chord column, instead of collapsing to the enharmonic natural (E#→F, B#→C).
+      const natPc = (((rm - (sharp ? (s.flat ? -1 : 1) : 0)) % 12) + 12) % 12;
+      const rootName = names[natPc] + (sharp ? (s.flat ? "♭" : "#") : "");
+      let str = rootName + '<sub class="dm-ro-oct">' + oct + "</sub>" + (TYPE_NAME[type] != null ? TYPE_NAME[type] : type);
 
       // the slash bass must shift with the same transpose as the root. Otherwise, with
       // transpose on, D/G reads as D with the wrong bass name while the root stays correct
@@ -1164,8 +1183,10 @@
     }
     function describeChord(c) {
       const names = (s.key >= 6 || s.flat) ? NOTE_FLAT : NOTE_SHARP;
-      const rootPc = (((rootButton(s, c.button) + (c.sharp ? (s.flat ? -1 : 1) : 0)) % 12) + 12) % 12;
-      let str = names[rootPc] + (TYPE_NAME[c.type] != null ? TYPE_NAME[c.type] : c.type);
+      // spell by the button's natural name + accidental (E#, B#), matching the lit column
+      const natPc = (((rootButton(s, c.button)) % 12) + 12) % 12;
+      const rootName = names[natPc] + (c.sharp ? (s.flat ? "♭" : "#") : "");
+      let str = rootName + (TYPE_NAME[c.type] != null ? TYPE_NAME[c.type] : c.type);
       if (c.slash) str += "/" + names[(((rootButton(s, c.slash.button) % 12) + 12) % 12)];
       return str + ` [col${colOf(c.button)} rows${typeRows(c.type).join("")}${c.sharp ? " SHARP" : ""}${c.slash ? " slash@col" + colOf(c.slash.button) : ""}]`;
     }
@@ -1190,6 +1211,8 @@
       }, HELD_TTL));
     }
     function chordNoteOn(note) {
+      // cold start (nothing held, nothing in lookback) → this is a fresh chord, not a live edit
+      if (!heldNotes.size && !dropped.size) freshChord = true;
       const d = dropped.get(note); if (d) { clearTimeout(d.timer); dropped.delete(note); }
       heldNotes.set(note, (heldNotes.get(note) || 0) + 1);
       armWatchdog(note);             // refresh the stale-note guard on every (re)trigger of this note
@@ -1428,7 +1451,7 @@
       harp.classList.remove("dm-hit");
       heldNotes.clear(); harpLit.clear(); activeHarp.clear();
       recentHarp.length = 0; effHarpShuf = s.harpShuf; effChromatic = s.chromatic; effChordTranspose = s.transpose;
-      curChord = null; curCounts = null; previewSel = null; lastCol = null; lastSharp = false; lastOnNote = null; lastHarpPos = null; lastHarpT = 0; harpDir = 0;
+      curChord = null; curCounts = null; previewSel = null; lastCol = null; lastSharp = false; lastOnNote = null; lastHarpPos = null; lastHarpT = 0; harpDir = 0; freshChord = true;
       harpHeld = null; harpDesync.style.display = "none";   // clear() never relabels, hide the badge explicitly
       clearChordLit();
       resetReadout();
@@ -1505,7 +1528,7 @@
       // scan the precomputed bases (button × type × reachable voicing, incl. a pot-driven addr-120
       // voicing, so a pot-shifted arpeggio identifies like the grid), shifting each by Δ on the fly.
       let best = null, bestB = -1, bestType = null, bestOff = 0, bestRow = s.chordShuf, bestScore = null;
-      let bestCov = -1, bestExact = -1, bestHc = 0, bestSeq = 0;
+      let bestCov = -1, bestExact = -1, bestHc = 0, bestSeq = 0, bestSharp = false;
       let prevRes = null;   // the previous chord's own fit this round, for sticky hysteresis
       let domBest = null;   // lex-best among candidates that PLACE the triggering onset (dominance rival)
       // a slash result's notes are never generated by this loop (it scans PLAIN chords; the slash
@@ -1517,7 +1540,12 @@
         const base = cand.notes, press = cand.press;
         for (let off = dMin; off <= dMax; off++) {
           const notes = off ? base.map(n => n + off) : base;
-          const isPrev = (prevKey && notes.join(",") === prevKey)
+          // twins are note-identical — Δ-twins (F7 Δ−3 ≡ D7 Δ0) and now SHARP-twins (E#≡F, B#≡C).
+          // A bare notes match would let the wrong spelling claim the sticky hold (E then F reading
+          // as E#). Anchor the prev identity to its actual button + sharp: keep the natural F unless
+          // the sharp was genuinely the previous read. (Slash prev still matches its PLAIN PARENT.)
+          const isPrev = (prevKey && notes.join(",") === prevKey
+                            && cand.b === prev.button && cand.sharp === !!prev.sharp)
             || (prevSlash && cand.b === prev.button && cand.type === prev.type && off === (prev.transposeOffset || 0) && cand.row === prev.row);
 
           // diagnostic-tone gate: a COLORED quality (7/maj7/m7/dim/aug/m6) may only be NAMED while its
@@ -1540,10 +1568,13 @@
           // rank by the shared lexLess (smaller wins). POSITIONAL (pattern known): position (seq) is
           // authoritative → seq → coverage → octave-exact → presses → |Δ| → prev. FUZZY (no pattern):
           // coverage leads, seq only breaks ties. Negate maximised terms; ties keep first.
+          // final term prefers the NATURAL reading on an exact tie, so a real sharp chord (better
+          // coverage) still wins but a natural chord that ties its sharp enharmonic (C ≡ B#) keeps
+          // the natural name. Mirrors matchChord's `c.sharp ? 1 : 0` tiebreak.
           const score = positional
-            ? [-seq, -cov, -exact, press, Math.abs(off), isPrev ? 0 : 1]
-            : [-cov, -exact, -seq, press, Math.abs(off), isPrev ? 0 : 1];
-          if (!best || lexLess(score, bestScore)) { best = notes; bestScore = score; bestB = cand.b; bestType = cand.type; bestOff = off; bestRow = cand.row; bestCov = cov; bestExact = exact; bestHc = hc; bestSeq = seq; }
+            ? [-seq, -cov, -exact, press, Math.abs(off), isPrev ? 0 : 1, cand.sharp ? 1 : 0]
+            : [-cov, -exact, -seq, press, Math.abs(off), isPrev ? 0 : 1, cand.sharp ? 1 : 0];
+          if (!best || lexLess(score, bestScore)) { best = notes; bestScore = score; bestB = cand.b; bestType = cand.type; bestOff = off; bestRow = cand.row; bestCov = cov; bestExact = exact; bestHc = hc; bestSeq = seq; bestSharp = cand.sharp; }
 
           // dominance rival: lex-best among candidates that PLACE the anchor onset (at its burst
           // multiplicity). Extra last term: on a full tie keep the previous chord's ROOT. Dominance
@@ -1551,12 +1582,12 @@
           // enumeration order (G7 vs F6).
           if (trig != null && set.has(trig) && countIn(notes, trig) >= (burstM.get(trig) || 1)) {
             const dScore = score.concat(prev && cand.b === prev.button ? 0 : 1);
-            if (!domBest || lexLess(dScore, domBest.dScore)) domBest = { notes, button: cand.b, type: cand.type, off, row: cand.row, cov, exact, hc, seq, dScore };
+            if (!domBest || lexLess(dScore, domBest.dScore)) domBest = { notes, button: cand.b, type: cand.type, off, row: cand.row, cov, exact, hc, seq, sharp: cand.sharp, dScore };
           }
 
           // Δ-twins are note-identical (F7 Δ−3 ≡ D7 Δ0), so "last match wins" would hand the sticky
           // hold a far-shifted twin's button/grid cell; keep the prev fit nearest Δ=0 instead
-          if (isPrev && (!prevRes || Math.abs(off) < Math.abs(prevRes.off))) prevRes = { notes, button: cand.b, type: cand.type, off, row: cand.row, cov, exact, hc, seq };
+          if (isPrev && (!prevRes || Math.abs(off) < Math.abs(prevRes.off))) prevRes = { notes, button: cand.b, type: cand.type, off, row: cand.row, cov, exact, hc, seq, sharp: cand.sharp };
         }
       }
 
@@ -1573,7 +1604,7 @@
       const dominated = !positional && trig != null && prevRes && best
         && domBest && domBest.exact >= want.length - 1;
       if (dominated) {
-        best = domBest.notes; bestB = domBest.button; bestType = domBest.type; bestOff = domBest.off; bestRow = domBest.row; bestCov = domBest.cov; bestExact = domBest.exact; bestHc = domBest.hc;
+        best = domBest.notes; bestB = domBest.button; bestType = domBest.type; bestOff = domBest.off; bestRow = domBest.row; bestCov = domBest.cov; bestExact = domBest.exact; bestHc = domBest.hc; bestSharp = domBest.sharp;
       }
 
       // STICKINESS (FUZZY mode only): keep the previous chord unless a rival clearly beats it (by > STICK
@@ -1581,7 +1612,7 @@
       // (D vs Bm). Skipped when POSITIONAL (the fired-voice verdict is authoritative and momentary)
       // and when DOMINATED (above): a chord that can't place the newest onset has no sticky claim on it.
       else if (!positional && prevRes && best && (bestCov - prevRes.cov) <= STICK_MARGIN && (bestExact - prevRes.exact) <= STICK_MARGIN && (bestSeq - prevRes.seq) <= STICK_MARGIN) {
-        best = prevRes.notes; bestB = prevRes.button; bestType = prevRes.type; bestOff = prevRes.off; bestRow = prevRes.row; bestExact = prevRes.exact; bestHc = prevRes.hc;
+        best = prevRes.notes; bestB = prevRes.button; bestType = prevRes.type; bestOff = prevRes.off; bestRow = prevRes.row; bestExact = prevRes.exact; bestHc = prevRes.hc; bestSharp = prevRes.sharp;
       }
 
       // accept only a clean fit. The bucket notes must fit (≤1 stray) and we need ≥2 pieces of evidence
@@ -1608,14 +1639,14 @@
         let slashViol = mviol(best);                                                  // occurrences it can't voice
         for (let sb = 0; sb < 7; sb++) {
           if (sb === bestB) continue;
-          const sn = voiceSet(bestB, CHORD[bestType], s, { row: bestRow, slash: { button: sb } }).map(n => n + bestOff);
+          const sn = voiceSet(bestB, CHORD[bestType], s, { row: bestRow, sharp: bestSharp, slash: { button: sb } }).map(n => n + bestOff);
           const set = new Set(sn);
           let ex = 0; for (const p of want) if (set.has(p)) ex++;
           const v = mviol(sn);
           if (ex > slashExact || (ex === slashExact && v < slashViol)) { slashExact = ex; slashViol = v; bestSlash = sb; best = sn; }
         }
       }
-      return { notes: best, button: bestB, type: bestType, transposeOffset: bestOff, slashButton: bestSlash, row: bestRow };
+      return { notes: best, button: bestB, type: bestType, transposeOffset: bestOff, slashButton: bestSlash, row: bestRow, sharp: bestSharp };
     }
 
     // the rhythm controller calls this when its playhead locks/unlocks: while locked the grid shows
@@ -1647,7 +1678,8 @@
     // the rhythm controller passes the chord it fingerprinted (button + type + Δ + slash). harp > rhythm:
     // while a harp note is recent the harp owns the readout, tint AND held. The rhythm stands down so
     // it can't change the key out from under a strum. (The harp drives the tint from setHarpLit.)
-    function showRhythmChord(button, type, off, slashButton) {
+    function showRhythmChord(button, type, off, slashButton, sharp) {
+      sharp = !!sharp;
       if (button == null || type == null) { tintGrid(null); return; }   // keep the last readout shown
       // trace what the rhythm playhead decided and whether we apply it, logged on change so we can see
       // a missed slash / a chord the harp-priority swallows. (harp owns the readout for HARP_PRIORITY_MS
@@ -1669,10 +1701,10 @@
       // (a real chord change), OR to ADD a slash the harp can't detect (the bass fits the plain voicing).
       if (harpBtn != null && button === harpBtn && slashButton == null) return;
       if (slashButton == null) harpBtn = null;
-      if (rhythmActive) setReadoutChord(button, type, off, slashButton, false);
+      if (rhythmActive) setReadoutChord(button, type, off, slashButton, sharp);
       tintGrid(button, type, slashButton);
       if (rhythmActive) {   // keep the harp strings in tandem with the arpeggio's chord
-        held = { button, type, sharp: false, slash: slashButton != null ? { button: slashButton } : null };
+        held = { button, type, sharp, slash: slashButton != null ? { button: slashButton } : null };
         harpHeld = null;    // a rhythm-applied chord is a fresh full context; any desync is over
         relabelHarp();
         emitChord("inferred");
@@ -1686,7 +1718,7 @@
     return { el: root, rebuild, onNote, setConnected, identifyChord, setRhythmActive, showRhythmChord };
   }
 
-  const VERSION = "play-engine-2026-06-09-r58-desync-momentum";
+  const VERSION = "play-engine-2026-07-01-r60-sharp-enharmonic";
   // boot banner unless diagnostics are silenced; the version is always on window.DeviceMap.version
   try { if (logOn()) console.info("[Play] device-map engine", VERSION); } catch (e) {}
 

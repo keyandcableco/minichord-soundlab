@@ -588,7 +588,7 @@
       return m;
     }
     // push the fingerprinted chord onto the chord grid as a soft "slash" tint (a little visual)
-    function showChord() { if (deviceMap && deviceMap.showRhythmChord) deviceMap.showRhythmChord(voices ? voices.button : null, voices ? voices.type : null, voices ? voices.transposeOffset : 0, voices ? voices.slashButton : null); }
+    function showChord() { if (deviceMap && deviceMap.showRhythmChord) deviceMap.showRhythmChord(voices ? voices.button : null, voices ? voices.type : null, voices ? voices.transposeOffset : 0, voices ? voices.slashButton : null, voices ? voices.sharp : false); }
 
     // a pot can silently drive a rhythm setting (BPM 187 / cycle 188 / shuffle 190, or a pattern step
     // 220-235); the dump then reports the stored value, not what's playing (see

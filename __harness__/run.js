@@ -505,6 +505,37 @@ const scenarios = [
     releaseChord(Fb);
     ctx.patch[31] = 0; dm.rebuild();
   }],
+  ["S39 FRESH enharmonic press prefers the NATURAL: E then a fresh F reads F, never E#", () => {
+    // E is natural (lastSharp stays false); a fresh F after it must read F on F's column, not
+    // inherit E's column as E#. The sharp inheritance is only for a # ADDED to a live chord (S37).
+    const E = chordNotes(1, "major", ctx.patch), F = chordNotes(6, "major", ctx.patch);
+    lines.push("  input E=" + E + " F=" + F);
+    pressChord(E, 40); step("E held"); releaseChord(E);        // fully released (> LOOKBACK) → fresh next
+    pressChord(F, 40); step("fresh F (want col F natural, NOT E#)"); releaseChord(F);
+  }],
+  ["S40 SHARP HELD across fresh presses: A# → E# → B# all read sharp, spelled by their own root", () => {
+    // an unambiguous sharp (A#) seeds lastSharp; while the sharp button stays held each fresh press
+    // reads sharp too — E# (not F) and B# (not C) — and the label spells the button's own root, not
+    // the enharmonic natural, so it matches the lit column.
+    const As = chordNotes(2, "major", ctx.patch, { sharp: true });
+    const Es = chordNotes(1, "major", ctx.patch, { sharp: true });
+    const Bs = chordNotes(0, "major", ctx.patch, { sharp: true });
+    lines.push("  input A#=" + As + " E#=" + Es + " B#=" + Bs);
+    pressChord(As, 40); step("A# (seeds lastSharp)"); releaseChord(As);
+    pressChord(Es, 40); step("fresh E# (sharp held → E#, not F)"); releaseChord(Es);
+    pressChord(Bs, 40); step("fresh B# (sharp held → B#, not C)"); releaseChord(Bs);
+  }],
+  ["S41 RHYTHM sharp chord: an F# (sharp+F) arpeggio identifies as F#, not Bmaj7/Dmaj7/Daug", () => {
+    // the rhythm bases now include sharp voicings, so a sharp-button chord resolves to its true
+    // root+sharp instead of flipping among un-sharped enharmonic covers of the same notes.
+    const fis = chordNotes(6, "major", ctx.patch, { sharp: true });   // F# major voices
+    let prev = null;
+    [[fis[0]], [fis[0], fis[1]], [fis[0], fis[1], fis[2]], fis].forEach((pit, i) => {
+      const r = dm.identifyChord(pit, prev); prev = r;
+      lines.push(`  rhythm step${i} pitches=${pit} -> ${r ? `${r.button}/${r.type}${r.sharp ? " SHARP" : ""} d${r.transposeOffset}` : "null"}`);
+      advance(40);
+    });
+  }],
   ["S13 disconnect clears", () => { dm.setConnected(false); step("disconnected"); }],
 ];
 
