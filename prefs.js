@@ -26,6 +26,7 @@ window.Prefs = (function () {
     pins:      { def: [],        ok: v => Array.isArray(v) && v.every(Number.isInteger) },
     locks:     { def: [],        ok: v => Array.isArray(v) && v.every(Number.isInteger) },   // addrs shielded from randomize
     rhythmLock: { def: true,     ok: v => typeof v === "boolean" },   // ONE lock for the whole rhythm section (pattern + settings), on by default
+    deviceCollapsed: { def: false, ok: v => typeof v === "boolean" },   // hide the left (device/presets/profile) panel to give the other columns room
     randomStyle: { def: "safe",  ok: v => v === "safe" || v === "true" },   // safe = preset-weighted rolls, true = uniform full-range
     /* accessibility (the ♿ popup): defaults reproduce the standard rendering */
     textScale: { def: "m",       ok: v => ["s", "m", "l", "xl"].includes(v) },

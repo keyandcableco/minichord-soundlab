@@ -13,6 +13,7 @@
           && matchMedia("(prefers-color-scheme: light)").matches)) de.setAttribute("data-theme", "light");
       if (["s", "l", "xl"].indexOf(p.textScale) >= 0) de.setAttribute("data-text", p.textScale);
       if (p.contrast === "high") de.setAttribute("data-contrast", "high");
+      if (p.deviceCollapsed === true) de.classList.add("device-collapsed");
       if (p.motion === "on" || (p.motion !== "off" && window.matchMedia
           && matchMedia("(prefers-reduced-motion: reduce)").matches)) de.classList.add("motion-off");
     } catch (e) {}
@@ -35,6 +36,8 @@
       <span id="mode-badge" class="badge offline" title="No minichord connected: explore and learn, plug one in over USB to sync">
         learning mode
       </span>
+      <!-- undo/redo of settings changes — lives in the top bar so the device panel can collapse -->
+      <span class="mirror-actions" id="hist-actions"></span>
       <button id="a11y-btn" type="button" class="ghost-btn" title="Accessibility options" aria-label="Accessibility options" aria-haspopup="true" aria-expanded="false">♿&#xFE0E;</button>
       <button id="hotkeys-btn" type="button" class="ghost-btn" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" aria-haspopup="true" aria-expanded="false">⌨&#xFE0E;</button>
       <button id="prefs-btn" type="button" class="ghost-btn" title="Preferences" aria-label="Preferences" aria-haspopup="true" aria-expanded="false">⚙</button>
@@ -44,11 +47,12 @@
   <main class="layout">
     <!-- LEFT: global — overall profile + patch settings -->
     <aside id="left" class="panel left-panel" aria-label="Device, presets and overall sound">
-      <div class="left-head-row">
-        <h2 class="panel-label">Device</h2>
-        <!-- undo/redo live here — the left panel is visible in every view -->
-        <span class="mirror-actions" id="hist-actions"></span>
+      <!-- collapse this panel to a thin rail, handing its width to the other columns.
+           Its own top-left row so it holds the same spot when the panel becomes a rail. -->
+      <div class="left-toggle-row">
+        <button id="device-toggle" type="button" class="device-collapse-btn" title="Hide the device panel" aria-label="Hide the device panel" aria-pressed="false">&#xAB;</button>
       </div>
+      <h2 class="panel-label">Device</h2>
       <div id="device-card" class="profile-card">
         <!-- connection UI injected by soundlab.js -->
       </div>

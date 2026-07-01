@@ -2267,6 +2267,12 @@
     // collect every row back into card A (keeps append order), then re-split
     Array.from(pinListB.children).forEach(r => pinnedListEl.appendChild(r));
     pinCardB.style.display = "none";
+    // single column (the container query stacked the two columns): there's no second
+    // column to balance against, so keep every pin in ONE card, no continuation stub
+    if (getComputedStyle(playColsEls[0].parentNode).display !== "flex") {
+      playColsEls[1].appendChild(pinCardA);   // sits last in the stacked order
+      return;
+    }
     const rows = Array.from(pinnedListEl.children);
     const baseH = col => Array.from(col.children)
       .filter(el => el !== pinCardA && el !== pinCardB)
@@ -2674,6 +2680,41 @@
   }
   applyBigControls(Prefs.get("bigControls"));
   Prefs.subscribe("bigControls", applyBigControls);
+
+  // collapsible left (device / presets / profile) panel: a topbar toggle hides it
+  // and zeroes its grid track (--left-col), handing the ~360px to the other columns.
+  // The FOUC guard pre-applies the class from the saved pref; this keeps it live.
+  const deviceToggleBtn = document.getElementById("device-toggle");
+  let leftAnimTimer = null;
+  function applyDeviceCollapsed(on) {
+    const de = document.documentElement;
+    // animate the column resize on real toggles only — not the initial load
+    // (anim-ready gates that) and not under reduced motion
+    if (de.classList.contains("anim-ready") && !de.classList.contains("motion-off")) {
+      de.classList.add("left-animating");
+      clearTimeout(leftAnimTimer);
+      leftAnimTimer = setTimeout(() => de.classList.remove("left-animating"), 360);
+    }
+    de.classList.toggle("device-collapsed", !!on);
+    if (deviceToggleBtn) {
+      deviceToggleBtn.textContent = on ? "»" : "«";   // » show / « hide
+      deviceToggleBtn.title = on ? "Show the device panel" : "Hide the device panel";
+      deviceToggleBtn.setAttribute("aria-label", deviceToggleBtn.title);
+      deviceToggleBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    // column widths shifted: repaint the graph and re-split the balanced cards,
+    // now and again once the width animation has settled
+    const settle = () => { drawActiveGraph(); balancePinnedCards(); balanceDetailCols(); };
+    settle();
+    setTimeout(settle, 360);
+  }
+  applyDeviceCollapsed(Prefs.get("deviceCollapsed"));
+  Prefs.subscribe("deviceCollapsed", applyDeviceCollapsed);
+  if (deviceToggleBtn) deviceToggleBtn.addEventListener("click",
+    () => Prefs.set("deviceCollapsed", !Prefs.get("deviceCollapsed")));
+  // enable the width transition only after first paint, so a saved-collapsed load
+  // doesn't animate the panel shut on arrival
+  requestAnimationFrame(() => document.documentElement.classList.add("anim-ready"));
 
   /* ---- segmented "tape-deck" button row ------------------------------------
    * A row of latching buttons with radio behaviour, pressing one releases the

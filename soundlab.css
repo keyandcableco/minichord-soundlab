@@ -163,7 +163,7 @@ html, body {
 
 /* ---- domain switch (Harp / Chord / Global), above the tabs ---- */
 .domain-switch {
-  display: flex; gap: 6px;
+  display: flex; flex-wrap: wrap; gap: 6px;
   padding: 0.8rem 1rem 0; background: var(--panel);
   border-radius: var(--radius) var(--radius) 0 0;
 }
@@ -221,34 +221,184 @@ html, body {
    with Larger controls adding a few px to every row) */
 .layout.devicemap #middle-content { padding-bottom: 0.3rem; }
 
+/* ---- collapsible device panel ------------------------------------------------
+   A toggle in the panel header shrinks #left to a thin rail on the left edge that
+   holds just the toggle; its grid track (--left-col) shrinks to the rail width,
+   handing ~360px to the other columns. --left-col is a registered property so the
+   width animates when toggled (suppressed on load and under reduce-motion). The
+   FOUC guard pre-applies the class so a saved collapse doesn't flash open. Because
+   the rail is tiny, the side-by-side + stacked breakpoints all drop by ~the old
+   panel width (see the media blocks below), so the freed room is used first. */
+@property --left-col { syntax: "<length>"; inherits: true; initial-value: 18.6286rem; }
+/* The width slide animates grid-template-columns directly (reliable across Chrome/
+   Firefox, unlike interpolating a @property var inside the grid). JS adds
+   .left-animating for the toggle's duration only, so view switches — which also
+   change the column ratios — don't animate. Reduce-motion drops it. */
+html.left-animating .layout { transition: grid-template-columns .34s cubic-bezier(.4, 0, .2, 1); }
+html.motion-off .layout { transition: none; }
+
+html.device-collapsed .layout { --left-col: 2.6rem; }
+html.device-collapsed #left { overflow: hidden; padding: 0.5rem; }
+/* collapsed: drop the panel's contents so the rail shrink-wraps the toggle (not a
+   full-height bar); the width slide above carries the animation */
+html.device-collapsed #left > *:not(.left-toggle-row) { display: none; }
+html.device-collapsed .left-toggle-row { margin: 0; }
+
+/* The toggle sits in its own left-aligned row ABOVE the Device title, so it lives in
+   the panel's top-left corner. A negative pull places it 0.5rem from the panel's
+   border in the expanded state; collapsed the panel's own 0.5rem padding does the
+   same — so the button holds the exact same screen spot across a collapse/expand
+   (a double-click lands on it both times and returns the same state). */
+.left-toggle-row { display: flex; margin: -0.75rem 0 0 -0.75rem; }
+.device-collapse-btn {
+  flex: 0 0 auto; width: 1.6rem; height: 1.6rem; padding: 0; cursor: pointer;
+  font-size: 0.95rem; line-height: 1;
+  color: var(--text-faint); background: var(--panel-2);
+  border: 0.5px solid var(--line); border-radius: var(--radius-sm);
+  transition: color .12s ease, border-color .12s ease;
+}
+.device-collapse-btn:hover { color: var(--text); border-color: var(--accent-line); }
+
+/* Responsive tiers: below 1024px everything is a single stacked column (the
+   default .layout grid). From 1024 to 1400 it's two columns, Device beside a
+   stack of the middle over the right panel (the whole page scrolls). At 1400+
+   it's the full three columns, each panel capped to the viewport and scrolling
+   inside its own box rather than the page. */
+
+/* 1024–1400: two columns. Device (left) beside the middle stacked over the right;
+   normal page flow so the taller stacked column scrolls with the page. */
+@media (min-width: 1024px) and (max-width: 1399.98px) {
+  .layout {
+    grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: start;
+  }
+  #left   { grid-column: 1; grid-row: 1 / 3; }
+  #middle { grid-column: 2; grid-row: 1; }
+  #right  { grid-column: 2; grid-row: 2; }
+  .layout.devicemap .dm-board { gap: 0.8rem; }
+  /* Overview hides the right panel, so the middle takes the whole second column */
+  .layout.overview #middle { grid-column: 2; grid-row: 1 / 3; }
+  .layout.overview #right { display: none; }
+}
+
 /* wide screens: three columns inside the viewport. Panels are only as tall as
    their content (align-items:start, no stretch), but capped at the available
    height — so a long panel scrolls *inside its own box*, not the whole page. */
-@media (min-width: 901px) {
+@media (min-width: 1400px) {
   body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
   .topbar { flex: 0 0 auto; }
   .layout {
     /* compact density: the middle (graphs, rhythm grid, device mirror) gets the
        extra room; verbose widens the right panel for its inline explanations */
-    grid-template-columns: 18.6286rem minmax(0, 1.2fr) minmax(0, 1fr);   /* 326px at default root size */
+    grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 1.2fr) minmax(0, 1fr);   /* 326px at default root size */
     grid-template-rows: minmax(0, 1fr);
     align-items: start;
     flex: 1 1 auto; min-height: 0;
   }
-  body.density-verbose .layout { grid-template-columns: 18.6286rem minmax(0, 1fr) minmax(0, 1.48fr); }
-  /* Play is the headline view: its middle (the mirror + rhythm grid) gets the
-     most room of any view. The chord pads stop growing past their classic size
-     so the wider column doesn't add height (and a vertical scrollbar) */
-  .layout.devicemap, .layout.about { grid-template-columns: 18.6286rem minmax(0, 1.5fr) minmax(0, 1fr); }
-  /* grid + harp read as one unit: a tight gap between them, filling the
-     panel's width (square pads size themselves from the columns) */
+  body.density-verbose .layout { grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 1fr) minmax(0, 1.48fr); }
+  .layout.about { grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 1.5fr) minmax(0, 1fr); }
+  /* Play: the mirror column shrink-wraps the chord+harp cluster and the right
+     column takes the rest, so a wider viewport (or a collapsed device panel)
+     stretches the settings, not the pads. The pads are capped in rem, so they
+     hold a comfortable size and only overflow into a scrollbar at larger text
+     sizes (where the whole layout is taller anyway). */
+  .layout.devicemap { grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 1.15fr) minmax(0, 1fr); }
+  /* grid + harp read as one unit: a tight gap between them, filling the panel's width */
   .layout.devicemap .dm-board { gap: 0.8rem; }
   .panel { max-height: 100%; }
   .left-panel, .right-panel { overflow-y: auto; }
   .middle-panel { overflow: hidden; }
   #middle-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  /* pin each panel to its own column so hiding #left (device-collapsed) doesn't
+     let the others auto-place into the wrong (zero-width) track */
+  #left { grid-column: 1; }
+  #middle { grid-column: 2; }
+  #right { grid-column: 3; }
   /* Overview: the middle panel spans the freed right-panel column */
   .layout.overview #middle { grid-column: 2 / 4; }
+
+  /* Play card fills the page height: stretch the middle panel, then share the spare
+     vertical space across the whole card — the chord/harp cluster AND the rhythm
+     step boxes each grow (with even margins), so no single part dominates. Growable
+     boxes keep min-height:auto (they only GROW into free space, never shrink below
+     their content) so a tight fit overflows into the #middle-content scrollbar rather
+     than painting over the next section. Rows are floored so the pads/cells never
+     collapse; a scrollbar appears only once the rhythm settings stack below the step
+     pattern (narrow width or Larger text). */
+  /* anchored to #middle-content (an id) so the display:flex wins over the later
+     `.layout.devicemap .devicemap-root { display:block }` rule — same class
+     specificity would otherwise let source order override it back to block. */
+  .layout.devicemap #middle { align-self: stretch; }
+  .layout.devicemap #middle-content { display: flex; flex-direction: column; }
+  .layout.devicemap #middle-content > .devicemap-root { flex: 1 1 auto; display: flex; flex-direction: column; }
+  .layout.devicemap #middle-content > .play-sep { flex: 0 0 auto; }
+  .layout.devicemap #middle-content > .play-rhythm-wrap { flex: 1 1 auto; display: flex; flex-direction: column; }
+  /* inner cluster CAN shrink (min-height:0) so the grid resolves a definite height
+     and its rows fill; the OUTER sections above keep min-height:auto so a tight fit
+     scrolls the card instead of the chords overflowing onto the rhythm */
+  .layout.devicemap #middle-content .dm-board { flex: 1 1 auto; min-height: 0; }
+  .layout.devicemap #middle-content .dm-left { flex: 1 1 auto; min-height: 0; }
+  .layout.devicemap #middle-content .dm-grid { flex: 1 1 auto; min-height: 0; grid-template-rows: repeat(3, minmax(3rem, 1fr)); }
+  .layout.devicemap #middle-content .dm-chord { aspect-ratio: auto; }
+  /* stretch ONLY the step-pattern column so its grid fills; the settings card keeps
+     its natural height (sliders at the top, no artificial gaps) */
+  .layout.devicemap #middle-content .play-rhythm-row { flex: 1 1 auto; }
+  .layout.devicemap #middle-content .play-rhythm-main { align-self: stretch; }
+  .layout.devicemap #middle-content .play-rhythm-main .rhythm-grid { flex: 1 1 auto; display: flex; flex-direction: column; }
+  .layout.devicemap #middle-content .play-rhythm-main .rhythm-row { flex: 1 1 auto; min-height: 1rem; }
+  .layout.devicemap #middle-content .play-rhythm-main .rhythm-foot { flex: 0 0 auto; }
+  .layout.devicemap #middle-content .play-rhythm-main .rhythm-cell { height: auto; align-self: stretch; }
+}
+
+/* collapsed: freed of the ~360px left column, middle + right stay side by side to a
+   much lower width. Side-by-side (rail | middle | right) from 1080; stacked below.
+   (≥1400 is already handled by the block above, with --left-col as the rail width.) */
+@media (min-width: 1080px) and (max-width: 1399.98px) {
+  html.device-collapsed body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  html.device-collapsed .topbar { flex: 0 0 auto; }
+  html.device-collapsed .layout {
+    grid-template-columns: var(--left-col) minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: start; flex: 1 1 auto; min-height: 0;
+  }
+  html.device-collapsed #left   { grid-column: 1; grid-row: 1; }
+  html.device-collapsed #middle { grid-column: 2; grid-row: 1; }
+  html.device-collapsed #right  { grid-column: 3; grid-row: 1; }
+  html.device-collapsed .panel { max-height: 100%; }
+  html.device-collapsed .right-panel { overflow-y: auto; }
+  html.device-collapsed .middle-panel { overflow: hidden; }
+  html.device-collapsed #middle-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  html.device-collapsed .layout.overview #middle { grid-column: 2 / 4; }
+  html.device-collapsed .layout.overview #right { display: none; }
+
+  /* Play card fill (same as the ≥1400 tier — this collapsed range is also height-capped) */
+  html.device-collapsed .layout.devicemap #middle { align-self: stretch; }
+  html.device-collapsed .layout.devicemap #middle-content { display: flex; flex-direction: column; }
+  html.device-collapsed .layout.devicemap .devicemap-root { flex: 1 1 auto; display: flex; flex-direction: column; }
+  html.device-collapsed .layout.devicemap .play-sep { flex: 0 0 auto; }
+  html.device-collapsed .layout.devicemap .play-rhythm-wrap { flex: 1 1 auto; display: flex; flex-direction: column; }
+  html.device-collapsed .layout.devicemap .dm-board { flex: 1 1 auto; min-height: 0; gap: 0.8rem; }
+  html.device-collapsed .layout.devicemap .dm-left { flex: 1 1 auto; min-height: 0; }
+  html.device-collapsed .layout.devicemap .dm-grid { flex: 1 1 auto; min-height: 0; grid-template-rows: repeat(3, minmax(3rem, 1fr)); }
+  html.device-collapsed .layout.devicemap .dm-chord { aspect-ratio: auto; }
+  html.device-collapsed .layout.devicemap .play-rhythm-row { flex: 1 1 auto; }
+  html.device-collapsed .layout.devicemap .play-rhythm-main { align-self: stretch; }
+  html.device-collapsed .layout.devicemap .play-rhythm-main .rhythm-grid { flex: 1 1 auto; display: flex; flex-direction: column; }
+  html.device-collapsed .layout.devicemap .play-rhythm-main .rhythm-row { flex: 1 1 auto; min-height: 1rem; }
+  html.device-collapsed .layout.devicemap .play-rhythm-main .rhythm-foot { flex: 0 0 auto; }
+  html.device-collapsed .layout.devicemap .play-rhythm-main .rhythm-cell { height: auto; align-self: stretch; }
+}
+@media (max-width: 1079.98px) {
+  html.device-collapsed .layout {
+    grid-template-columns: var(--left-col) minmax(0, 1fr);
+    grid-template-rows: auto auto; align-items: start;
+  }
+  html.device-collapsed #left   { grid-column: 1; grid-row: 1 / 3; }
+  html.device-collapsed #middle { grid-column: 2; grid-row: 1; }
+  html.device-collapsed #right  { grid-column: 2; grid-row: 2; }
+  html.device-collapsed .layout.overview #middle { grid-column: 2; grid-row: 1 / 3; }
+  html.device-collapsed .layout.overview #right { display: none; }
 }
 
 /* ---- Overview dashboard (both voices side by side) ---- */
@@ -304,7 +454,7 @@ html, body {
 .layout.devicemap .play-mirror-head,
 .layout.devicemap .play-triggers,
 .layout.devicemap .play-sep { display: block; }
-.play-mirror-head { margin: 0.4rem 0 0.5rem; }
+.play-mirror-head { margin: 0.25rem 0 0.3rem; }
 /* mirror heading + the MIDI record button share the row */
 .layout.devicemap .play-mirror-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .play-mirror-head .panel-label { margin: 0; }
@@ -320,9 +470,8 @@ body.controls-large .rec-btn { padding: 4px 12px; }
 .play-settings-cols { display: flex; gap: 0.75rem; align-items: flex-start; }
 .play-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 0.75rem; }
 .play-col .detail-card { margin-bottom: 0; }
-/* verbose (and very narrow screens): one full-width stack — the inline
-   explanation columns need the whole panel width */
-@media (max-width: 540px) { .play-settings-cols { flex-direction: column; } .play-col { width: 100%; } }
+/* a narrow right panel stacks the two columns into one full-width stack (shared
+   @container rule near .detail-cols) so the cards never overlap */
 .play-rhythm-wrap { margin-top: 0.3rem; }
 /* step grid + its scalar settings side by side, split ~66% grid / 33% card,
    TOP-aligned — the blurb spans the full width above the row, and both panels
@@ -332,7 +481,10 @@ body.controls-large .rec-btn { padding: 4px 12px; }
 .play-rhythm-row { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
 .play-rhythm-main { flex: 2 1 380px; min-width: 330px; display: flex; flex-direction: column; }
 .play-rhythm-side {
-  flex: 1 1 200px; min-width: 215px; margin: 0.6rem 0 0.4rem;   /* matches .graph-card — tops align */
+  /* needs ~300px for its label+control+value rows; when the row can't spare that
+     beside the step grid it wraps to its own full-width line under it (flex-wrap
+     above), so the values ("80 bpm", "16 steps") never clip */
+  flex: 1 1 320px; min-width: 300px; margin: 0.6rem 0 0.4rem;   /* matches .graph-card — tops align */
   display: flex; flex-direction: column;
 }
 /* larger text: the side-by-side rhythm row runs out of room — at xl the
@@ -396,7 +548,8 @@ body.pot-warn-off .pot-warn:not(.gate-warn) { display: none !important; }   /* p
 .dm-board {
   display: flex; gap: 1.6rem; align-items: stretch;
 }
-.dm-left { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+/* inline-size container so the chord-pad font can scale with the grid width (cqw) */
+.dm-left { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; container-type: inline-size; }
 
 .dm-sharp-row { display: flex; margin: 0 0 10px; }   /* sharp sits directly on top of the grid */
 .dm-sharp {
@@ -414,14 +567,14 @@ body.pot-warn-off .pot-warn:not(.gate-warn) { display: none !important; }   /* p
      push the centre column off-centre instead of clipping */
   display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: baseline;
   width: 100%; min-height: 1.2em; line-height: 1; user-select: none;
-  padding: 0.45rem 0;   /* air above/below the big playing chord */
+  padding: 0.25rem 0;   /* air above/below the big playing chord */
 }
 /* readout block: history row + big chord, its sounding voices, key/transpose
    context — centred, splitting the free space above the sharp/grid cluster */
 .dm-ro-wrap {
-  display: flex; flex-direction: column; align-items: center; gap: 9px;
-  margin: auto 0 14px;   /* this auto + the sharp-row's auto split the free space → readout sits
-                            halfway between the ceiling and the sharp/grid cluster at the bottom */
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  margin: auto 0 6px;   /* this auto + the sharp-row's auto split the free space → readout sits
+                           halfway between the ceiling and the sharp/grid cluster at the bottom */
 }
 .dm-ro { transform-origin: bottom center; }
 .dm-ro-oct { font-size: 0.58em; vertical-align: -0.18em; opacity: 0.7; font-weight: 700; margin: 0 0.04em 0 0.01em; }
@@ -466,10 +619,11 @@ body.density-verbose .dm-ro-prev3 { display: none !important; }
   display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px;
 }
 .dm-chord {
-  font-family: var(--font); font-size: 1.17rem; font-weight: 600;
+  /* scales with pad width (cqw of .dm-left) so labels never overflow the square; caps at the classic size on wide screens */
+  font-family: var(--font); font-size: clamp(0.7rem, 7cqw, 1.17rem); font-weight: 600;
   color: var(--text); background: var(--panel-2);
   border: 0.5px solid var(--line); border-radius: 12px;
-  aspect-ratio: 1 / 1; min-height: 48px; cursor: pointer;
+  aspect-ratio: 1 / 1; min-height: 48px; min-width: 0; cursor: pointer;   /* min-width:0 lets the pads shrink to fit a narrow column instead of overflowing under the harp */
   display: flex; align-items: center; justify-content: center;
   box-shadow: var(--shadow-sm);
   transition: background var(--dm-chord-fade, .28s) ease, box-shadow var(--dm-chord-fade, .28s) ease, border-color var(--dm-chord-fade, .28s) ease, color .2s ease, transform .06s ease;
@@ -551,7 +705,7 @@ body.density-verbose .dm-ro-prev3 { display: none !important; }
 [data-theme="light"] .dm-ro-cur { color: hsl(var(--dm-hue, 210) 85% 32%); }
 [data-theme="light"] .dm-harp-desync { color: hsl(var(--dm-hue, 210) 85% 34%); }
 
-@media (max-width: 900px) {
+@media (max-width: 1023px) {
   .dm-chord { min-height: 44px; }
 }
 
@@ -564,7 +718,9 @@ body.density-verbose .dm-ro-prev3 { display: none !important; }
    dice rides the details panel-label, the section dice ends the tab strip */
 .dice-btn { filter: grayscale(1); padding: 2px 9px; line-height: 1.3; }
 .dice-btn:hover { filter: none; }
-.comp-right .panel-label { display: flex; align-items: center; gap: 8px; }
+/* wrap so the trailing dice drops to its own line instead of the header text
+   wrapping underneath it when the right panel is narrow */
+.comp-right .panel-label { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .comp-right .panel-label .dice-btn { margin-left: auto; flex: 0 0 auto; }
 #tabs .tab-dice { margin-left: 6px; align-self: center; }
 .left-panel .panel-label:not(:first-child) { margin-top: 1.4rem; }
@@ -817,8 +973,10 @@ input[type="number"].save-field::-webkit-outer-spin-button { -webkit-appearance:
 /* segmented row as a param control: fill the control column, even button widths */
 .param-control .param-seg { width: 100%; }
 .param-seg .seg-btn { flex: 1 1 auto; text-align: center; min-width: 30px; padding: 4px 6px; }
-/* many-option sets (the 12 key signatures) become a tidy button grid */
-.param-seg.seg-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+/* many-option sets (the 12 key signatures) become a tidy button grid. auto-fit with
+   a real min keeps each chip at least readable-width and reflows into more rows when
+   the column narrows, instead of cramming 6 across until the labels overlap */
+.param-seg.seg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(2rem, 1fr)); gap: 4px; }
 
 /* ---- preferences popover (gear button) ---- */
 .prefs-popup {
@@ -917,9 +1075,9 @@ button.hk-chip:hover { border-color: var(--accent-line); color: var(--accent); }
 .dm-arm { white-space: nowrap; }
 .hist-btn { padding: 3px 10px; font-size: 0.95rem; line-height: 1.2; }
 .hist-btn:disabled { opacity: 0.35; cursor: default; pointer-events: none; }
-/* undo/redo ride the left panel's Device header — same baseline, no extra row */
-.left-head-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 0.6rem; }
-.left-head-row .panel-label { margin-bottom: 0; }
+/* the Device title follows the toggle row — half the usual section gap above it
+   (needs .left-panel to outweigh .left-panel .panel-label:not(:first-child)) */
+.left-panel .left-toggle-row + .panel-label { margin-top: 0.7rem; }
 .dm-arm.armed { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
 /* fires flash the trigger's own row in the Play card (trig-row-fire) — the
    arm button itself stays still; pulsing both read as double-flashing */
@@ -1182,7 +1340,10 @@ body.gloss-off dfn.term {
 .detail-col .detail-card { margin-bottom: 0.75rem; }
 .detail-col .detail-card:last-child { margin-bottom: 0.75rem; }   /* columns keep their stack gap */
 body.density-verbose .detail-cols { display: block; }
-@container (max-width: 38rem) { .detail-cols { display: block; } }
+@container (max-width: 38rem) {
+  .detail-cols, .play-settings-cols { display: block; }
+  .play-col { width: 100%; }
+}
 @keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 
 .group-head { padding: 0.4rem 0 0.5rem; display: flex; align-items: flex-start; gap: 0.75rem; }
@@ -1296,7 +1457,7 @@ body.density-verbose .graph-row { display: block; }
 }
 [data-theme="light"] .rhythm-pause.paused { color: hsl(var(--dm-hue, 210) 85% 34%); }
 /* divider between the live device mirror and the rhythm section in the Play view */
-.play-sep { border: none; border-top: 1px solid var(--line); margin: 1rem 0 0.2rem; }
+.play-sep { border: none; border-top: 1px solid var(--line); margin: 0.5rem 0 0.2rem; }
 .graph-toolbar {
   display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap;
   margin-top: 0.6rem;
@@ -1590,19 +1751,22 @@ html[data-text="xl"] { font-size: 23px; }
 /* larger text shifts the desktop column balance: the middle (graphs, mirror —
    it shrinks gracefully) cedes room so the right panel's sliders and buttons
    stay usable instead of clipping off screen */
-@media (min-width: 901px) {
+@media (min-width: 1400px) {
   /* small text is the INVERSE case: controls need less width, so the right
      panel cedes share to the middle — without this, the rem-based left column
      shrinking handed the right panel MORE pixels than at default */
-  html[data-text="s"] .layout { grid-template-columns: 18.6286rem minmax(0, 1.35fr) minmax(0, 0.95fr); }
-  html[data-text="s"] .layout.devicemap, html[data-text="s"] .layout.about { grid-template-columns: 18.6286rem minmax(0, 1.7fr) minmax(0, 0.95fr); }
-  html[data-text="s"] body.density-verbose .layout { grid-template-columns: 18.6286rem minmax(0, 1.1fr) minmax(0, 1.42fr); }
-  html[data-text="l"] .layout { grid-template-columns: 18.6286rem minmax(0, 1fr) minmax(0, 1.2fr); }
-  html[data-text="l"] .layout.devicemap, html[data-text="l"] .layout.about { grid-template-columns: 18.6286rem minmax(0, 1.3fr) minmax(0, 1.1fr); }
-  html[data-text="l"] body.density-verbose .layout { grid-template-columns: 18.6286rem minmax(0, 1fr) minmax(0, 1.4fr); }
-  html[data-text="xl"] .layout { grid-template-columns: 18.6286rem minmax(0, 0.85fr) minmax(0, 1.35fr); }
-  html[data-text="xl"] .layout.devicemap, html[data-text="xl"] .layout.about { grid-template-columns: 18.6286rem minmax(0, 1.15fr) minmax(0, 1.25fr); }
-  html[data-text="xl"] body.density-verbose .layout { grid-template-columns: 18.6286rem minmax(0, 0.95fr) minmax(0, 1.5fr); }
+  html[data-text="s"] .layout { grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 1.35fr) minmax(0, 0.95fr); }
+  html[data-text="s"] .layout.devicemap, html[data-text="s"] .layout.about { grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 1.7fr) minmax(0, 0.95fr); }
+  html[data-text="s"] body.density-verbose .layout { grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 1.1fr) minmax(0, 1.42fr); }
+  html[data-text="l"] .layout { grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 1fr) minmax(0, 1.2fr); }
+  html[data-text="l"] .layout.about { grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 1.3fr) minmax(0, 1.1fr); }
+  /* Play: bias more to the right so NOTE SETTINGS keeps growing past default — the
+     rem-based left column widens with the text and would otherwise net-shrink it */
+  html[data-text="l"] .layout.devicemap { grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 1.1fr) minmax(0, 1.1fr); }
+  html[data-text="l"] body.density-verbose .layout { grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 1fr) minmax(0, 1.4fr); }
+  html[data-text="xl"] .layout { grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 0.85fr) minmax(0, 1.35fr); }
+  html[data-text="xl"] .layout.devicemap, html[data-text="xl"] .layout.about { grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 1.15fr) minmax(0, 1.25fr); }
+  html[data-text="xl"] body.density-verbose .layout { grid-template-columns: var(--left-col, 18.6286rem) minmax(0, 0.95fr) minmax(0, 1.5fr); }
 }
 
 /* ---- reduce motion (pref: motion) — html.motion-off set by applyMotion (the
