@@ -635,6 +635,19 @@
       for (let s = 0; s < c; s++) { const pm = maskAt(s); if (pm && (mask & pm) === mask) { found = s; n++; } }
       return n === 1 ? found : -1;
     }
+    // popcount = voices firing on a step / distinct notes in a burst
+    function popcount(m) { let n = 0; while (m) { n += m & 1; m >>= 1; } return n; }
+    // the step whose voice COUNT is unique in the pattern, else -1 — a phase pin that needs NO
+    // chord id. A beat sounding a different NUMBER of notes than every other beat is distinctive
+    // even when the chord can't be named from a sparse stream and voiceMask() comes back empty
+    // (uniqueStep then can't see it). e.g. a lone root on every other step + one root+3rd beat:
+    // that 2-note beat is the only count-2 step, so it pins the phase however the chord reads.
+    function uniqueStepByCount(count) {
+      if (count <= 0) return -1;
+      const c = cyc(); let found = -1, n = 0;
+      for (let s = 0; s < c; s++) { const pm = maskAt(s); if (pm && popcount(pm) === count) { found = s; n++; } }
+      return n === 1 ? found : -1;
+    }
 
     // the first step that fires anything, used to anchor when the chord is UNKNOWN (a sparse pattern
     // like a lone root gives one pitch-class, not enough to name a chord, but the playhead can still
@@ -698,9 +711,27 @@
       // still lock on timing + step ACTIVITY: with mask 0, `(mask & pm) === mask` is true for any
       // active step, so onsets confirm against the pattern's onset grid regardless of pitch.
       const sm = stepMs(), c = cyc();
-      const uniq = uniqueStep(mask);   // distinctive note? (its voice fires at exactly one step)
+      // the step this burst DISTINCTIVELY marks: prefer the exact voice match, but ONLY for a
+      // multi-voice stab (popcount >= 2) — a single note under a mis-identified chord can map to
+      // the wrong voice bit and falsely "uniquely match" the distinguishing step, pinning every
+      // bare root there. Otherwise fall back to note COUNT, which is chord-independent, so a
+      // distinguishing beat still pins the phase when the chord can't be named from a sparse stream.
+      const uniq = popcount(mask) >= 2 ? uniqueStep(mask) : -1;
+      const pin = uniq >= 0 ? uniq : uniqueStepByCount(new Set(notes).size);
       const anchorFor = () => (mask ? findStep(mask) : firstActiveStep());   // mask 0 → first active step
       if (haveAnchor) {
+        // A DISTINCTIVE burst falls on exactly one step, so it pins the phase ABSOLUTELY — trust it
+        // OVER the timing guess. A repeating pattern that gains a distinguishing beat (or a mid-loop
+        // connect that first anchored on a repeating note) then snaps to the right column instead of
+        // confirming a stale phase. No-op when it already agrees; a corrective jump when it doesn't;
+        // either way the lock streak keeps building and a live lock is kept (just re-phased).
+        if (pin >= 0) {
+          const predicted = (((anchorStep + Math.round((t - anchorT) / sm)) % c) + c) % c;
+          anchorStep = pin; anchorT = t;
+          hits = predicted === pin ? hits + 1 : Math.max(hits, 1);
+          if (!locked && hits >= 3) { locked = true; if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(true); showChord(); }
+          return;
+        }
         // CONFIRM the phase by onset TIMING + step ACTIVITY (pitch-independent): does the predicted
         // step (±1, counting rests) actually fire a note? A voice match is preferred when the
         // fingerprint is reliable, but a note still confirms on timing alone, so a fingerprint
@@ -721,13 +752,12 @@
           if (!locked && hits >= 3) { locked = true; if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(true); showChord(); }
           return;
         }
-        if (uniq >= 0) { anchorStep = uniq; anchorT = t; if (!locked) hits = Math.max(hits, 1); return; }  // distinctive → resync
         if (locked) return;                                   // ambiguous mismatch while locked → ignore
         const s = anchorFor();                                // not locked → retry this note as anchor
         if (s >= 0) { anchorStep = s; anchorT = t; hits = 1; }
         return;
       }
-      const s = uniq >= 0 ? uniq : anchorFor();               // first anchor: prefer a distinctive note
+      const s = pin >= 0 ? pin : anchorFor();                 // first anchor: prefer a distinctive beat
       if (s >= 0) { haveAnchor = true; anchorStep = s; anchorT = t; hits = 1; }
     }
     function unlock() {
