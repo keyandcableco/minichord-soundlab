@@ -24,6 +24,9 @@ window.Prefs = (function () {
     welcome:   { def: true,      ok: v => typeof v === "boolean" },
     lastView:  { def: "play",    ok: v => typeof v === "string" },
     pins:      { def: [],        ok: v => Array.isArray(v) && v.every(Number.isInteger) },
+    // names the player has given their own banks. The device has no room for
+    // these, so they live here: twelve slots, "" meaning unnamed.
+    bankNames: { def: [],        ok: v => Array.isArray(v) && v.length <= 12 && v.every(x => typeof x === "string") },
     locks:     { def: [],        ok: v => Array.isArray(v) && v.every(Number.isInteger) },   // addrs shielded from randomize
     rhythmLock: { def: true,     ok: v => typeof v === "boolean" },   // ONE lock for the whole rhythm section (pattern + settings), on by default
     deviceCollapsed: { def: false, ok: v => typeof v === "boolean" },   // hide the left (device/presets/profile) panel to give the other columns room
