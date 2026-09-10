@@ -826,8 +826,7 @@ body.density-verbose .dm-ro-prev3 { display: none !important; }
 .device-status .dot { width: 8px; height: 8px; border-radius: 50%; background: #6fcfae; box-shadow: 0 0 7px rgba(111,207,174,.6); }
 .device-status .dot.off { background: var(--text-faint); box-shadow: none; }
 /* the bank being edited, as a pill on the status row */
-.bank-badge {
-  margin-left: auto; font-size: 0.64rem; font-weight: 700;
+.bank-badge { font-size: 0.64rem; font-weight: 700;
   letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap;
   padding: 2px 9px; border-radius: 999px;
   border: 0.5px solid var(--line); color: var(--text-dim); background: var(--panel-2);
@@ -1877,3 +1876,93 @@ body.controls-large .trig-do { font-size: 0.85rem; padding: 4px 6px; }
 body.controls-large .trig-active-row { font-size: 0.85rem; padding: 0.65rem 0.4rem; }
 body.controls-large .save-field { padding: 9px 12px; font-size: 0.9rem; }
 body.controls-large .trig-every { width: 6.2rem; }
+
+/* ---- banks sheet: overview, reorder, bulk edit --------------------------
+   Same overlay shape as the shortcuts and trigger sheets. Cells are latching
+   chips like .seg-btn so the whole dialog reads as one family of control. */
+.bank-sheet {
+  display: none; position: fixed; inset: 0; z-index: 230;
+  background: rgba(8, 8, 16, 0.5);
+  align-items: center; justify-content: center;
+}
+
+.bank-sheet.open { display: flex; animation: fade .18s ease; }
+
+.bank-sheet-card {
+  width: min(44rem, 94vw); max-height: 88vh; overflow-y: auto;
+  background: var(--panel); border: 0.5px solid var(--line);
+  border-radius: var(--radius-sm); box-shadow: 0 14px 44px rgba(0, 0, 0, .45);
+  padding: 1.15rem 1.3rem 1.2rem;
+}
+
+.bank-sheet-intro { color: var(--text-dim); font-size: 0.8rem; margin: 0.2rem 0 0.8rem; }
+
+.bank-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 6px; margin-bottom: 1rem;
+}
+
+.bank-cell {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; cursor: grab;
+  background: var(--panel-2); border: 0.5px solid var(--line);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-sm);
+  font-size: 0.76rem; color: var(--text);
+}
+
+.bank-cell.dragging { opacity: 0.45; cursor: grabbing; }
+.bank-cell.over { border-color: var(--accent-line); background: var(--accent-bg); }
+.bank-cell.dirty { border-color: var(--accent-line); }
+.bank-cell.dirty .bank-num::after { content: "•"; color: var(--accent); margin-left: 2px; }
+
+.bank-swatch {
+  width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto;
+  border: 0.5px solid var(--line); background: var(--panel);
+}
+
+.bank-num { color: var(--text-dim); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+.bank-name {
+  flex: 1 1 auto; min-width: 0;
+  font-family: var(--font); font-size: 0.76rem;
+  color: var(--text-dim); background: transparent;
+  border: 0; border-bottom: 0.5px solid transparent; padding: 1px 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.bank-name.named { color: var(--text); }
+.bank-name::placeholder { color: var(--text-dim); opacity: 0.7; font-style: italic; }
+.bank-name:hover { border-bottom-color: var(--line); }
+.bank-name:focus { outline: none; border-bottom-color: var(--accent-line); color: var(--text); }
+
+.bank-bulk {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding-top: 0.8rem; border-top: 0.5px solid var(--line);
+}
+
+.bank-bulk h3 { width: 100%; margin: 0 0 0.2rem; font-size: 0.8rem; color: var(--text-dim); }
+.bank-bulk .save-field { max-width: 16rem; }
+
+.bank-sheet-actions {
+  display: flex; gap: 6px; justify-content: flex-end;
+  padding-top: 0.9rem; margin-top: 0.9rem; border-top: 0.5px solid var(--line);
+}
+/* ---- bank stepper -------------------------------------------------------
+   Prev/next around the bank badge. Only possible because the firmware gained
+   a load-bank command; the device was previously steppable only from its own
+   preset buttons. */
+.bank-stepper {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 3px;
+}
+
+.bank-step {
+  font-family: var(--font); font-size: 0.8rem; line-height: 1;
+  color: var(--text-dim); background: var(--panel-2);
+  border: 0.5px solid var(--line); border-radius: 999px;
+  width: 18px; height: 18px; padding: 0; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: color .12s ease, border-color .12s ease, background .12s ease;
+}
+
+.bank-step:hover { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
+.bank-step:disabled { opacity: 0.4; cursor: default; }
