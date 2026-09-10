@@ -163,6 +163,11 @@ class MiniChordController {
 
         this.active_bank_number = processedData.bankNumber;
 
+        // A faithful copy of the dump, taken before the pot and volume
+        // re-centring below overwrites addresses 2-6. Backups need what the
+        // bank actually holds, not the re-centred values.
+        processedData.rawParameters = processedData.parameters.slice();
+
         // Re-centre the pot pickup memory (addrs 4-6) and section volumes (2-3)
         // on every dump: a stale saved pot position would otherwise fight the
         // editor's values until the physical knob is moved. Mirrors the
@@ -203,6 +208,49 @@ class MiniChordController {
       if (!this.device) return false;
       this.device.send([0xF0, 0, 0, 0, 0, 0xF7]);
       return true;
+    }
+
+    // Ask the device to load a bank (firmware control_command case 4). The
+    // physical preset buttons are otherwise the only way to change bank, so
+    // without this a remote cannot walk the banks to read them.
+    loadBank(bankNumber) {
+      if (!this.device) return false;
+      this.device.send([0xF0, 0, 0, 4, bankNumber, 0xF7]);
+      return true;
+    }
+
+    // Load a bank and resolve with its stored parameters. Chains onto the
+    // existing callback for one dump rather than replacing it, so the editor
+    // still updates as the device walks the banks.
+    // `quiet` suppresses the normal data callback for this read. A bank walk
+    // would otherwise drive a full editor rebuild twelve times in a couple of
+    // seconds, which is slow and pointless: the caller refreshes once at the
+    // end.
+    readBank(bankNumber, timeoutMs, quiet) {
+      if (!this.device) return Promise.reject(new Error("not connected"));
+      return new Promise((resolve, reject) => {
+        const previous = this.onDataReceived;
+        let settled = false;
+        const timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          this.onDataReceived = previous;
+          reject(new Error("timed out reading bank " + bankNumber));
+        }, timeoutMs || 3000);
+        this.onDataReceived = data => {
+          if (previous && !quiet) previous(data);
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          this.onDataReceived = previous;
+          resolve(data.rawParameters || data.parameters);
+        };
+        // Loading a bank does not report anything back, so ask for the dump
+        // once the device has had time to read the bank out of flash and apply
+        // every parameter.
+        this.loadBank(bankNumber);
+        setTimeout(() => this.requestCurrentData(), 80);
+      });
     }
 
     // Reset memory

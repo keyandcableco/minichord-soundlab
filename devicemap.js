@@ -43,10 +43,16 @@
   // hardware button order is B, E, A, D, G, C, F (firmware enum Button = 0..6)
   const BASE_NOTES   = [11, 4, 9, 2, 7, 0, 5];   // semitone (rel. C) per button
   const MUSICAL_INDEX = [6, 2, 5, 1, 4, 0, 3];   // scale-degree per button (C=0..B=6)
-  const KEY_SIGNATURES = [0, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 6];
+  // 0-11 are the plain keys; 12-20 are the enharmonic ones the physical key
+  // change reaches, which need seven accidentals plus doubles
+  const KEY_SIGNATURES = [0, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 6, 6, 7, 7, 7, 7, 7, 7, 8, 7];
   // buttons made sharp / flat by N accidentals (values are firmware button indices)
-  const SHARP_BTNS = [[6], [6, 5], [6, 5, 4], [6, 5, 4, 3], [6, 5, 4, 3, 2], [6, 5, 4, 3, 2, 1]];
-  const FLAT_BTNS  = [[0], [0, 1], [0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5]];
+  const SHARP_BTNS = [[6], [6, 5], [6, 5, 4], [6, 5, 4, 3], [6, 5, 4, 3, 2], [6, 5, 4, 3, 2, 1], [6, 5, 4, 3, 2, 1, 0]];
+  const FLAT_BTNS  = [[0], [0, 1], [0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]];
+  // second sharp for G#, D#, A#, E#, B# (key 14-18)
+  const DBL_SHARP_BTNS = [[6], [6, 5], [6, 5, 4], [6, 5, 4, 3], [6, 5, 4, 3, 2]];
+  const KEY_SHARP_SET = new Set([0, 1, 2, 3, 4, 5, 12, 13]);   // keys spelled with sharps
+  const KEY_DBL_SHARP_LO = 14, KEY_DBL_SHARP_HI = 18, KEY_FB = 19;
   // voicing/shuffling: each entry encodes octave*10 + chord-note index
   const CHORD_SHUF = [
     [0, 1, 2, 3, 4, 5, 6],
@@ -202,7 +208,7 @@
   function readSettings(patch) {
     const g = (a, d) => { const v = patch ? patch[a] : null; return v == null ? d : v | 0; };
     return {
-      key:       Math.min(11, Math.max(0, g(35, 0))),   // chord key signature
+      key:       Math.min(20, Math.max(0, g(35, 0))),   // chord key signature
       transpose: g(30, 0),                              // semitones
       shift:     Math.min(6, Math.max(0, g(34, 0))),    // chord frame shift
       barry:     !!g(33, 0),                            // barry harris mode
@@ -242,8 +248,19 @@
     let note = BASE_NOTES[button];
     if (MUSICAL_INDEX[button] < s.shift) note += 12;
     const n = KEY_SIGNATURES[s.key];
-    if (s.key <= 5) { for (let i = 0; i < n; i++) if (button === SHARP_BTNS[n - 1][i]) note += 1; }
-    else            { for (let i = 0; i < n; i++) if (button === FLAT_BTNS[n - 1][i]) note -= 1; }
+    if (KEY_SHARP_SET.has(s.key)) {
+      for (let i = 0; i < n; i++) if (button === SHARP_BTNS[n - 1][i]) note += 1;
+    } else if (s.key >= KEY_DBL_SHARP_LO && s.key <= KEY_DBL_SHARP_HI) {
+      for (let i = 0; i < 7; i++) if (button === SHARP_BTNS[6][i]) note += 1;
+      const d = DBL_SHARP_BTNS[s.key - KEY_DBL_SHARP_LO];
+      for (let i = 0; i < d.length; i++) if (button === d[i]) note += 1;
+    } else {
+      for (let i = 0; i < n && i < 7; i++) {
+        if (s.key === KEY_FB && button === 0) continue;   // B double-flat, applied below
+        if (button === FLAT_BTNS[Math.min(n, 7) - 1][i]) note -= 1;
+      }
+      if (s.key === KEY_FB && button === 0) note -= 2;
+    }
     return note;
   }
 
@@ -297,7 +314,8 @@
 
   function pitchName(midi, s) {
     const pc = ((midi % 12) + 12) % 12;
-    return ((s.key >= 6 || s.flat) ? NOTE_FLAT : NOTE_SHARP)[pc];
+    const flatKey = (s.key >= 6 && s.key <= 11) || s.key >= KEY_FB;
+    return ((flatKey || s.flat) ? NOTE_FLAT : NOTE_SHARP)[pc];
   }
 
   // multiset key (keeps duplicates) so a doubled bass voice is distinguishable:

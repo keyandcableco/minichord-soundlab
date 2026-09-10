@@ -71,7 +71,10 @@
     return Number(v.toFixed(decimals));
   }
   function formatValue(p, v) {
-    const num = p.type === "int" ? v : roundTo(v, p.step);
+    // `display` lets a parameter show something other than its raw value, for
+    // cases where the wire format is not what a player thinks in (master tuning
+    // travels in tenths of a Hz, so 4400 reads as 440.0)
+    const num = p.display ? p.display(v) : (p.type === "int" ? v : roundTo(v, p.step));
     const unit = p.unit ? `<span class="unit">${p.unit}</span>` : "";
     return `${num}${unit}`;
   }
@@ -91,15 +94,19 @@
       const input = document.createElement("input");
       input.type = "number";
       input.className = "save-field param-value-edit";
-      input.min = String(p.min); input.max = String(p.max);
-      input.step = String(p.step || "any");
-      input.value = String(getValue());
+      // a displayed parameter is typed in the units the player sees, so the
+      // bounds and step shown to them are the displayed ones
+      input.min = String(p.display ? p.display(p.min) : p.min);
+      input.max = String(p.display ? p.display(p.max) : p.max);
+      input.step = String(p.displayStep || p.step || "any");
+      input.value = String(p.display ? p.display(getValue()) : getValue());
       input.setAttribute("aria-label", p.name);
       let done = false;
       const finish = ok => {
         if (done) return;
         done = true;
-        const n = Number(input.value);
+        const n0 = Number(input.value);
+        const n = (isFinite(n0) && p.toRaw) ? p.toRaw(n0) : n0;
         if (ok && input.value !== "" && isFinite(n)) {
           let v = Math.min(p.max, Math.max(p.min, n));
           v = p.type === "int" ? Math.round(v) : roundTo(v, p.step);
@@ -195,9 +202,9 @@
   // no single-setting cards: transpose lives with Scale & harmony, the chord
   // voicing with Chord behaviour
   const PLAY_SETTING_CARDS = [
-    { title: "Scale & harmony", addrs: [30, 35, 34, 33, 31] },
-    { title: "Chord behaviour", addrs: [23, 21, 22, 120] },
-    { title: "Harp", addrs: [99, 40, 98] },
+    { title: "Scale & harmony", addrs: [30, 35, 34, 33, 31, 255] },
+    { title: "Chord behaviour", addrs: [23, 21, 22, 120, 37, 38] },
+    { title: "Harp", addrs: [99, 40, 98, 36, 236] },
   ];
 
   // second-level navigation inside Customize: groups belong to a voice/section domain
@@ -1473,6 +1480,7 @@
     el.className = "param" + (opts.compact ? " compact" : "");
 
     const control = p.targetSelect ? selectControl(p, targetOptions(), { crumb: true })
+      : p.type === "degrees" ? degreesControl(p)
       : p.options ? (segWorthy(p) ? segControl(p) : selectControl(p)) : sliderControl(p);
 
     const main = document.createElement("div");
@@ -1672,6 +1680,44 @@
     if (labels.length > 8) seg.el.classList.add("seg-grid");   // e.g. the 12 key signatures
     seg.set(patch[p.addr]);
     return { el: seg.el, onChange: fn => { cb = fn; }, set: v => seg.set(v) };
+  }
+
+  // a set of chromatic degrees held as a bitmask in one parameter. Same
+  // {el, onChange, set} contract as the other controls, so renderParam and
+  // controls[] treat it like anything else. Value = the mask, bit 0 = root.
+  function degreesControl(p) {
+    let cb = () => {};
+    let mask = patch[p.addr] || 0;
+    const wrap = document.createElement("div");
+    wrap.className = "param-degrees";
+    const boxes = (p.degrees || []).map((label, bit) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "degree-btn";
+      b.textContent = label;
+      b.setAttribute("aria-pressed", "false");
+      b.title = "Degree " + label;
+      b.addEventListener("click", () => {
+        mask ^= (1 << bit);
+        paint();
+        cb(mask);
+      });
+      wrap.appendChild(b);
+      return b;
+    });
+    function paint() {
+      boxes.forEach((b, bit) => {
+        const on = (mask & (1 << bit)) !== 0;
+        b.classList.toggle("on", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+    }
+    paint();
+    return {
+      el: wrap,
+      onChange: fn => { cb = fn; },
+      set: v => { mask = v || 0; paint(); },
+    };
   }
 
   // a single enum dropdown may be open at a time (shared with outside-click/Esc)
@@ -5085,6 +5131,56 @@
     fileInput.addEventListener("change", () => { loadPresetFiles(fileInput.files); fileInput.value = ""; });
     loadBtn.addEventListener("click", () => fileInput.click());
 
+    // whole-device backup: every bank in one file, for swapping or restoring
+    const banksBtn = actionBtn("All banks\u2026", "All banks\u2026",
+      "All banks\u2026: see all twelve banks, reorder them, or set a value across every one at once");
+    banksBtn.addEventListener("click", openBankSheet);
+
+    const backupBtn = actionBtn("Back up all\u2026", "Back up every bank\u2026",
+      "Back up every bank\u2026: read all twelve banks off the minichord into one .json file");
+    backupBtn.addEventListener("click", async () => {
+      if (!controller || !controller.isConnected()) { announce("Connect a minichord first"); return; }
+      backupBtn.disabled = true;
+      try {
+        const data = await backupAllBanks((i, n) => announce("Reading bank " + (i + 1) + " of " + n));
+        downloadBackup(data);
+        announce("Backed up all twelve banks");
+      } catch (e) {
+        announce("Backup failed: " + e.message);
+      } finally { backupBtn.disabled = false; }
+    });
+
+    const restoreBtn = actionBtn("Restore all\u2026", "Restore every bank\u2026",
+      "Restore every bank\u2026: write a backup file back to all twelve banks, replacing what is on the minichord");
+    const restoreInput = document.createElement("input");
+    restoreInput.type = "file"; restoreInput.accept = ".json,application/json";
+    restoreInput.style.display = "none";
+    restoreInput.addEventListener("change", async () => {
+      const file = restoreInput.files && restoreInput.files[0];
+      restoreInput.value = "";
+      if (!file) return;
+      if (!controller || !controller.isConnected()) { announce("Connect a minichord first"); return; }
+      let data;
+      try { data = JSON.parse(await file.text()); }
+      catch (e) { announce("That file isn't valid JSON"); return; }
+      if (!data.minichord_backup) { announce("That isn't a minichord backup file"); return; }
+      const fw = patch[7];
+      const note = (data.firmware_version != null && fw != null && data.firmware_version !== fw)
+        ? "\n\nThe backup was made on firmware v" + data.firmware_version +
+          " and this minichord reports v" + fw + ". Settings may have moved between versions."
+        : "";
+      if (!confirm("Replace all twelve banks on the minichord with this backup?" + note)) return;
+      restoreBtn.disabled = true;
+      try {
+        await restoreAllBanks(data, (i, n) => announce("Writing bank " + (i + 1) + " of " + n));
+        announce("Restored all twelve banks");
+        if (controller.requestCurrentData) controller.requestCurrentData();
+      } catch (e) {
+        announce("Restore failed: " + e.message);
+      } finally { restoreBtn.disabled = false; }
+    });
+    restoreBtn.addEventListener("click", () => restoreInput.click());
+
     const resetAll = actionBtn("Reset", "Reset to preset", "Reset to preset: revert every control to the loaded preset");
     resetAll.addEventListener("click", () => {
       const addrs = [];
@@ -5111,7 +5207,7 @@
       } else togglePastePopup(pasteBtn);   // Firefox: no readText, paste into a box instead
     });
 
-    actions.append(saveBtn, loadBtn, fileInput, resetAll, copyBtn, pasteBtn);
+    actions.append(saveBtn, loadBtn, fileInput, banksBtn, backupBtn, restoreBtn, restoreInput, resetAll, copyBtn, pasteBtn);
     syncPresetActionLabels(actions);
 
     const savePopup = buildSavePopup();   // hidden until "Save current as preset…"
@@ -5156,6 +5252,442 @@
     a.href = URL.createObjectURL(blob);
     let fn = name.replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "") || "preset";
     a.download = fn.endsWith(".json") ? fn : fn + ".json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  /* ---- bank workspace -----------------------------------------------------
+   * Reading twelve banks walks the device audibly through every preset, so it
+   * happens once on demand and is then cached. Reordering and bulk edits stage
+   * against the cache; Apply writes back only the banks that actually changed,
+   * because every write is a flash erase.                                     */
+  const bankState = {
+    slots: null,        // [{ values, dirty }] in slot order, or null when unread
+    read: false,
+    busy: false,
+  };
+
+  // bank names are player-typed and end up inside innerHTML strings
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  }
+
+  function bankNamesGet() {
+    const raw = (window.Prefs && window.Prefs.get("bankNames")) || [];
+    const out = [];
+    for (let i = 0; i < 12; i++) out.push(typeof raw[i] === "string" ? raw[i] : "");
+    return out;
+  }
+  function bankNamesSet(names) {
+    if (window.Prefs) window.Prefs.set("bankNames", names.slice(0, 12));
+    // the device card names the current slot, so it has to follow a rename
+    if (controller && controller.isConnected()) updateConnectionUI(true);
+  }
+
+  function bankSlotLabel(values) {
+    if (!window.PresetMatch || !values) return null;
+    const m = window.PresetMatch.identify(values, presetLeewayAddrs());
+    if (!m || !m.preset) return null;
+    return m.preset.name + (m.edited ? " (edited)" : "");
+  }
+
+  function bankSlotHue(values) {
+    const h = values && values[20];
+    return (h == null) ? null : h;
+  }
+
+  async function readAllBanks(onProgress) {
+    if (!controller || !controller.isConnected()) throw new Error("no minichord connected");
+    const startingBank = controller.getDeviceInfo().activeBankNumber;
+    const slots = [];
+    const names = bankNamesGet();
+    for (let b = 0; b < 12; b++) {
+      if (onProgress) onProgress(b, 12);
+      const values = await controller.readBank(b, 3000, true);
+      slots.push({ values: Array.from(values, v => (v == null ? 0 : v)), dirty: false, name: names[b] });
+    }
+    if (startingBank >= 0) await controller.readBank(startingBank, 3000, true);
+    bankState.slots = slots;
+    bankState.read = true;
+    return slots;
+  }
+
+  // Move a slot and mark everything whose position changed, since a moved bank
+  // has to be rewritten wherever it landed.
+  function moveBankSlot(from, to) {
+    if (!bankState.slots || from === to) return;
+    const slots = bankState.slots;
+    const [moved] = slots.splice(from, 1);
+    slots.splice(to, 0, moved);
+    const lo = Math.min(from, to), hi = Math.max(from, to);
+    for (let i = lo; i <= hi; i++) slots[i].dirty = true;
+    bankNamesSet(slots.map(sl => sl.name || ""));   // the name belongs to the bank, not the slot
+  }
+
+  // Set one address across a chosen set of slots.
+  function bulkSetParameter(addr, value, slotIndices) {
+    if (!bankState.slots) return 0;
+    let changed = 0;
+    slotIndices.forEach(i => {
+      const slot = bankState.slots[i];
+      if (!slot || slot.values[addr] === value) return;
+      slot.values[addr] = value;
+      slot.dirty = true;
+      changed++;
+    });
+    return changed;
+  }
+
+  // Write staged slots back. Only dirty ones are touched: a flash erase per
+  // bank is slow, and rewriting an unchanged bank buys nothing.
+  async function applyBankChanges(onProgress) {
+    if (!controller || !controller.isConnected()) throw new Error("no minichord connected");
+    if (!bankState.slots) return 0;
+    const dirty = [];
+    bankState.slots.forEach((slot, i) => { if (slot.dirty) dirty.push(i); });
+    if (!dirty.length) return 0;
+    const startingBank = controller.getDeviceInfo().activeBankNumber;
+    for (let n = 0; n < dirty.length; n++) {
+      const i = dirty[n];
+      if (onProgress) onProgress(n, dirty.length);
+      const values = bankState.slots[i].values;
+      controller.loadBank(i);
+      await new Promise(r => setTimeout(r, 60));
+      for (let a = 2; a < values.length; a++) {
+        if (values[a] == null) continue;
+        controller.sendParameter(a, values[a]);
+        if ((a & 31) === 0) await new Promise(r => setTimeout(r, 1));
+      }
+      await new Promise(r => setTimeout(r, 40));
+      controller.saveCurrentSettings(i);
+      await new Promise(r => setTimeout(r, 120));
+      bankState.slots[i].dirty = false;
+    }
+    if (startingBank >= 0) controller.loadBank(startingBank);
+    return dirty.length;
+  }
+
+  /* ---- bank sheet: overview, reorder, bulk edit --------------------------- */
+  let bankSheetEl = null, bankSheetPrevFocus = null;
+
+  function buildBankSheet() {
+    const overlay = document.createElement("div");
+    overlay.className = "bank-sheet";
+    const card = document.createElement("div");
+    card.className = "bank-sheet-card";
+    card.setAttribute("role", "dialog");
+    card.setAttribute("aria-modal", "true");
+    card.setAttribute("aria-label", "Banks");
+    card.addEventListener("click", e => e.stopPropagation());
+    overlay.appendChild(card);
+    overlay.addEventListener("click", e => { if (e.target === overlay) closeBankSheet(); });
+    overlay.addEventListener("keydown", e => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeBankSheet(); }
+    });
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function renderBankSheet() {
+    const card = bankSheetEl.querySelector(".bank-sheet-card");
+    card.innerHTML = "";
+
+    const h = document.createElement("h2");
+    h.textContent = "Banks";
+    card.appendChild(h);
+
+    const intro = document.createElement("p");
+    intro.className = "bank-sheet-intro";
+    card.appendChild(intro);
+
+    const grid = document.createElement("div");
+    grid.className = "bank-grid";
+    card.appendChild(grid);
+
+    const actions = document.createElement("div");
+    actions.className = "bank-sheet-actions";
+    card.appendChild(actions);
+
+    const mkBtn = (label, title) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "mini-btn"; b.textContent = label; b.title = title;
+      return b;
+    };
+
+    if (!bankState.read) {
+      intro.textContent = "Reading the banks walks the minichord through all twelve presets, " +
+        "so it is done once, on request. Everything after that is staged here until you apply it.";
+      const readBtn = mkBtn("Read banks", "Read all twelve banks off the minichord");
+      readBtn.classList.add("primary");
+      readBtn.addEventListener("click", async () => {
+        if (!controller || !controller.isConnected()) { announce("Connect a minichord first"); return; }
+        readBtn.disabled = true;
+        try {
+          await readAllBanks((i, n) => { intro.textContent = "Reading bank " + (i + 1) + " of " + n + "\u2026"; });
+          renderBankSheet();
+        } catch (e) {
+          intro.textContent = "Couldn't read the banks: " + e.message;
+          readBtn.disabled = false;
+        }
+      });
+      actions.appendChild(readBtn);
+      return;
+    }
+
+    const dirtyCount = bankState.slots.filter(s => s.dirty).length;
+    intro.textContent = dirtyCount
+      ? dirtyCount + (dirtyCount === 1 ? " bank has" : " banks have") + " unsaved changes. " +
+        "Nothing is written to the minichord until you apply."
+      : "Drag a bank to move it. Changes are staged until you apply.";
+
+    bankState.slots.forEach((slot, i) => {
+      const cellEl = document.createElement("div");
+      cellEl.className = "bank-cell" + (slot.dirty ? " dirty" : "");
+      cellEl.draggable = true;
+      cellEl.dataset.index = String(i);
+
+      const hue = bankSlotHue(slot.values);
+      const swatch = document.createElement("span");
+      swatch.className = "bank-swatch";
+      if (hue != null) swatch.style.background = "hsl(" + hue + ", 70%, 55%)";
+      cellEl.appendChild(swatch);
+
+      const num = document.createElement("span");
+      num.className = "bank-num";
+      num.textContent = String(i + 1);
+      cellEl.appendChild(num);
+
+      const matched = bankSlotLabel(slot.values);
+      const name = document.createElement("input");
+      name.className = "bank-name" + (slot.name ? " named" : "");
+      name.type = "text";
+      name.value = slot.name || "";
+      name.placeholder = matched || "\u2014";
+      name.title = slot.name
+        ? "Your name for this bank"
+        : (matched ? "Matches \u201c" + matched + "\u201d in the preset library" : "Unnamed");
+      name.setAttribute("aria-label", "Name for bank " + (i + 1));
+      // typing in a name should not start a drag
+      name.addEventListener("mousedown", e => e.stopPropagation());
+      name.addEventListener("focus", () => { cellEl.draggable = false; });
+      name.addEventListener("blur", () => {
+        cellEl.draggable = true;
+        const v = name.value.trim().slice(0, 24);
+        if (v === (slot.name || "")) return;
+        slot.name = v;
+        name.classList.toggle("named", !!v);
+        bankNamesSet(bankState.slots.map(sl => sl.name || ""));
+      });
+      name.addEventListener("keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); name.blur(); }
+        if (e.key === "Escape") { e.preventDefault(); name.value = slot.name || ""; name.blur(); }
+        e.stopPropagation();
+      });
+      cellEl.appendChild(name);
+
+      cellEl.addEventListener("dragstart", e => {
+        e.dataTransfer.setData("text/plain", String(i));
+        cellEl.classList.add("dragging");
+      });
+      cellEl.addEventListener("dragend", () => cellEl.classList.remove("dragging"));
+      cellEl.addEventListener("dragover", e => { e.preventDefault(); cellEl.classList.add("over"); });
+      cellEl.addEventListener("dragleave", () => cellEl.classList.remove("over"));
+      cellEl.addEventListener("drop", e => {
+        e.preventDefault();
+        cellEl.classList.remove("over");
+        const from = parseInt(e.dataTransfer.getData("text/plain"), 10);
+        const to = parseInt(cellEl.dataset.index, 10);
+        if (!isNaN(from) && !isNaN(to)) { moveBankSlot(from, to); renderBankSheet(); }
+      });
+      grid.appendChild(cellEl);
+    });
+
+    // ---- bulk edit ----
+    const bulk = document.createElement("div");
+    bulk.className = "bank-bulk";
+    const bulkTitle = document.createElement("h3");
+    bulkTitle.textContent = "Set one setting across banks";
+    bulk.appendChild(bulkTitle);
+
+    const paramSel = document.createElement("select");
+    paramSel.className = "save-field";
+    const flat = [];
+    PARAM_GROUPS.forEach(g => g.params.forEach(p => flat.push(p)));
+    flat.sort((a, b) => a.name.localeCompare(b.name));
+    flat.forEach(p => {
+      const o = document.createElement("option");
+      o.value = String(p.addr);
+      o.textContent = p.name + (p.card ? "  \u00b7 " + p.card : "");
+      paramSel.appendChild(o);
+    });
+    bulk.appendChild(paramSel);
+
+    const valWrap = document.createElement("span");
+    valWrap.className = "bank-bulk-value";
+    bulk.appendChild(valWrap);
+
+    function renderValueField() {
+      valWrap.innerHTML = "";
+      const p = paramByAddr[parseInt(paramSel.value, 10)];
+      if (!p) return;
+      if (p.options) {
+        const sel = document.createElement("select");
+        sel.className = "save-field";
+        p.options.forEach((label, idx) => {
+          const o = document.createElement("option");
+          o.value = String(idx); o.textContent = label;
+          sel.appendChild(o);
+        });
+        valWrap.appendChild(sel);
+      } else {
+        const inp = document.createElement("input");
+        inp.type = "number"; inp.className = "save-field";
+        inp.min = String(p.min); inp.max = String(p.max);
+        inp.step = String(p.step || 1);
+        inp.value = String(p.def != null ? p.def : p.min);
+        valWrap.appendChild(inp);
+      }
+    }
+    paramSel.addEventListener("change", renderValueField);
+    renderValueField();
+
+    const applyAll = mkBtn("Set in all banks", "Stage this value in every bank");
+    applyAll.addEventListener("click", () => {
+      const p = paramByAddr[parseInt(paramSel.value, 10)];
+      const field = valWrap.querySelector("select, input");
+      if (!p || !field) return;
+      let v = Number(field.value);
+      if (p.type === "float" && !p.options) v = Math.round(v * FLOAT_MULT);
+      const n = bulkSetParameter(p.addr, v, bankState.slots.map((_, i) => i));
+      announce(n ? "Staged in " + n + (n === 1 ? " bank" : " banks") : "Every bank already has that value");
+      renderBankSheet();
+    });
+    bulk.appendChild(applyAll);
+    card.appendChild(bulk);
+
+    // ---- actions ----
+    const applyBtn = mkBtn("Apply", "Write the staged changes to the minichord");
+    applyBtn.classList.add("primary");
+    applyBtn.disabled = !dirtyCount;
+    applyBtn.addEventListener("click", async () => {
+      if (!confirm("Write " + dirtyCount + (dirtyCount === 1 ? " bank" : " banks") +
+                   " to the minichord? Back up first if you want a copy of what is there now.")) return;
+      applyBtn.disabled = true;
+      try {
+        const n = await applyBankChanges((i, t) => { intro.textContent = "Writing " + (i + 1) + " of " + t + "\u2026"; });
+        announce("Wrote " + n + (n === 1 ? " bank" : " banks"));
+        if (controller.requestCurrentData) controller.requestCurrentData();
+      } catch (e) {
+        announce("Couldn't write: " + e.message);
+      }
+      renderBankSheet();
+    });
+
+    const discardBtn = mkBtn("Discard", "Throw away the staged changes and read the banks again");
+    discardBtn.disabled = !dirtyCount;
+    discardBtn.addEventListener("click", () => {
+      bankState.slots = null; bankState.read = false;
+      renderBankSheet();
+    });
+
+    const closeBtn = mkBtn("Close", "Close");
+    closeBtn.className = "mini-btn bank-sheet-close";
+    closeBtn.addEventListener("click", closeBankSheet);
+
+    actions.append(applyBtn, discardBtn, closeBtn);
+  }
+
+  function openBankSheet() {
+    bankSheetPrevFocus = document.activeElement;
+    if (!bankSheetEl) bankSheetEl = buildBankSheet();
+    renderBankSheet();
+    bankSheetEl.classList.add("open");
+    if (window.Hotkeys) window.Hotkeys.setSuspended(true);
+  }
+  function closeBankSheet() {
+    if (!bankSheetEl || !bankSheetEl.classList.contains("open")) return;
+    bankSheetEl.classList.remove("open");
+    if (window.Hotkeys) window.Hotkeys.setSuspended(false);
+    if (bankSheetPrevFocus && bankSheetPrevFocus.focus) bankSheetPrevFocus.focus();
+    bankSheetPrevFocus = null;
+  }
+
+  /* ---- whole-device backup ------------------------------------------------
+   * A single file holding every bank, so an instrument can be restored or
+   * swapped wholesale. The device has no bulk transfer: the firmware exposes
+   * "load bank" and "report parameters", and the walk over all twelve banks
+   * happens here.
+   *
+   * The file records the firmware version it came from, because a restore into
+   * different firmware may be reading addresses that have since moved. Values
+   * are stored raw and an address-to-name map is written once at the top, so
+   * the file stays readable without repeating labels twelve times.            */
+  const BACKUP_FORMAT = 1;
+
+  function backupAddressNames() {
+    const map = {};
+    PARAM_GROUPS.forEach(g => g.params.forEach(p => {
+      map[p.addr] = (p.card ? p.card + " \u00b7 " : "") + p.name;
+    }));
+    return map;
+  }
+
+  async function backupAllBanks(onProgress) {
+    if (!controller || !controller.isConnected()) throw new Error("no minichord connected");
+    const startingBank = controller.getDeviceInfo().activeBankNumber;
+    const bnames = bankNamesGet();
+    const banks = [];
+    for (let b = 0; b < 12; b++) {
+      if (onProgress) onProgress(b, 12);
+      const values = await controller.readBank(b, 3000, true);
+      banks.push({ bank: b, name: bnames[b] || "", values: Array.from(values, v => (v == null ? 0 : v)) });
+    }
+    if (startingBank >= 0) await controller.readBank(startingBank, 3000, true);   // leave it where we found it
+    if (controller.requestCurrentData) controller.requestCurrentData();            // one refresh, after the walk
+    return {
+      minichord_backup: BACKUP_FORMAT,
+      created: new Date().toISOString(),
+      firmware_version: patch[7] != null ? patch[7] : null,
+      parameter_size: controller.getDeviceInfo().parameterSize,
+      address_names: backupAddressNames(),
+      banks,
+    };
+  }
+
+  async function restoreAllBanks(data, onProgress) {
+    if (!controller || !controller.isConnected()) throw new Error("no minichord connected");
+    if (!data || !Array.isArray(data.banks)) throw new Error("not a minichord backup file");
+    const startingBank = controller.getDeviceInfo().activeBankNumber;
+    const restoredNames = bankNamesGet();
+    for (let i = 0; i < data.banks.length; i++) {
+      const entry = data.banks[i];
+      if (entry.bank == null || !Array.isArray(entry.values)) continue;
+      if (typeof entry.name === "string") restoredNames[entry.bank] = entry.name;
+      if (onProgress) onProgress(i, data.banks.length);
+      controller.loadBank(entry.bank);
+      await new Promise(r => setTimeout(r, 60));
+      // addresses 0 and 1 are the file marker and the bank number, not settings
+      for (let a = 2; a < entry.values.length; a++) {
+        const v = entry.values[a];
+        if (v == null) continue;
+        controller.sendParameter(a, v);
+        if ((a & 31) === 0) await new Promise(r => setTimeout(r, 1));   // let the buffer drain
+      }
+      await new Promise(r => setTimeout(r, 40));
+      controller.saveCurrentSettings(entry.bank);
+      await new Promise(r => setTimeout(r, 120));                       // the write is to flash
+    }
+    bankNamesSet(restoredNames);
+    if (startingBank >= 0) controller.loadBank(startingBank);
+  }
+
+  function downloadBackup(data) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.download = "minichord-backup-" + stamp + ".json";
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
@@ -5464,8 +5996,19 @@
   // one line naming the preset in the slot (or flagging it as custom)
   function slotPresetHtml() {
     if (slotPreset === undefined) return "<p class=\"device-preset checking\">Identifying slot…</p>";
+    // a name the player gave this bank takes precedence: they know what it is
+    // better than a library fingerprint does
+    const bank = controller ? controller.active_bank_number : -1;
+    const given = (bank != null && bank >= 0) ? (bankNamesGet()[bank] || "") : "";
+    if (given) {
+      const also = slotPreset
+        ? `<span class="preset-author"> \u00b7 ${slotPreset.name}${slotPresetEdited ? " (edited)" : ""}</span>`
+        : "";
+      return `<p class="device-preset matched">This slot holds <b>${escapeHtml(given)}</b>${also}</p>`;
+    }
     if (slotPreset === null)
-      return "<p class=\"device-preset custom\">Custom or unrecognised patch. Not one of the shared presets.</p>";
+      return "<p class=\"device-preset custom\">Custom or unrecognised patch. Not one of the shared presets. " +
+        "You can name it in All banks\u2026</p>";
     return `<p class="device-preset matched">This slot holds <b>${slotPreset.name}</b>` +
       `<span class="preset-author"> by ${slotPreset.author}</span>${slotPresetEdited ? " (edited)" : ""}</p>`;
   }
@@ -5510,7 +6053,11 @@
     const ledPos = ledV <= LED_V_FLOOR ? 0 : Math.pow((ledV - LED_V_FLOOR) / (1 - LED_V_FLOOR), 1 / LED_GAMMA);
     deviceCard.innerHTML =
       "<div class=\"device-status connected\" id=\"dev-status\"><span class=\"dot\" id=\"dev-dot\"></span>minichord connected" +
-        `<span class="bank-badge">Bank ${bank}</span></div>` +
+        `<span class="bank-stepper">` +
+          `<button class="bank-step" id="dev-bank-prev" type="button" title="Previous bank" aria-label="Previous bank">\u2039</button>` +
+          `<span class="bank-badge">Bank ${bank}</span>` +
+          `<button class="bank-step" id="dev-bank-next" type="button" title="Next bank" aria-label="Next bank">\u203a</button>` +
+        `</span></div>` +
       "<p class=\"device-sub\">Live sync on. Moving a control updates the device.</p>" +
       slotPresetHtml() +
       "<div class=\"color-field\" id=\"dev-color-field\">" +
@@ -5529,6 +6076,22 @@
       "<button class=\"mini-btn\" id=\"dev-reset\" title=\"Restore this bank to its factory default preset\">Reset bank</button>" +
       "</div>" +
       firmwareHtml();
+    // Stepping banks from here is only possible because the firmware exposes a
+    // load-bank command; the device used to be steppable only from its own
+    // preset buttons. Loading a bank reports nothing back, so ask for the dump.
+    const stepBank = delta => {
+      if (!controller.isConnected()) return;
+      const cur = controller.active_bank_number;
+      if (cur == null || cur < 0) return;
+      const next = (cur + delta + 12) % 12;
+      if (!controller.loadBank(next)) return;
+      setTimeout(() => controller.requestCurrentData(), 80);
+    };
+    const bankPrev = document.getElementById("dev-bank-prev");
+    const bankNext = document.getElementById("dev-bank-next");
+    if (bankPrev) bankPrev.addEventListener("click", () => stepBank(-1));
+    if (bankNext) bankNext.addEventListener("click", () => stepBank(1));
+
     const save = document.getElementById("dev-save");
     const reload = document.getElementById("dev-reload");
     const reset = document.getElementById("dev-reset");
