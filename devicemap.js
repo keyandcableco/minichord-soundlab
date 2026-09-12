@@ -584,10 +584,8 @@
           const types = layoutOpts.map(L => L
             ? altSlotType(ALT_SLOT_BY_ROWS[combo.rows.join(",")] || 0, s)
             : resolveTable(combo.type, s.barry));
-          const type = types[0];
-          const table = CHORD[type];
+          const table = CHORD[types[0]];
           [[0, false], [sharpOffset, true]].forEach(([off, sharp]) => {
-            const cand = { button, type, sharp, slash: slash || null };   // the canonical chord descriptor
             // one note-set per voicing → the SAME (voicing-agnostic) candidate; sameChord dedups
             chordRows.forEach(vrow => {
              invOpts.forEach(iv => {
@@ -595,6 +593,10 @@
               const vs = (iv === s.inversion && sp === s.spacing) ? s : Object.assign({}, s, { inversion: iv, spacing: sp });
               types.forEach(ty => {
                 const tbl = CHORD[ty] || table;
+                // the candidate has to carry the type whose table produced these notes.
+                // Building it once from types[0] labelled every alternate-layout note
+                // set with its standard-layout counterpart, so a 7sus4 read as a 7.
+                const cand = { button, type: ty, sharp, slash: slash || null };
                 const notes = voiceSet(button, tbl, vs, { count: 4, slash, row: vrow, off });
                 const k = noteKey(notes);
                 if (!map.has(k)) map.set(k, [cand]);
