@@ -4847,6 +4847,13 @@
     if (p.addr === 32) controller.sendParameter(COLOR_ADDR, bankColor);
   }
 
+  // Master tuning (255) is DEVICE state, not preset state: the firmware keeps it
+  // in its own file and leaves it out of serialize()/deserialize(). Writing it
+  // from a preset pushes one bank's stored number into a device-wide setting,
+  // and in a 12-bank sweep it restarts the firmware's deferred flash write
+  // twelve times. Every bulk parameter loop below skips it.
+  const DEVICE_STATE_ADDRS = new Set([255]);
+
   // write a full preset into the device's current bank (live working state).
   // Mirrors minicontrol's "Try": push every stored parameter (raw ints, by
   // address), then ping address 0 so the device applies them and dumps the new
@@ -4855,6 +4862,7 @@
   function sendPresetToDevice(vals) {
     if (!controller || !controller.isConnected()) return false;
     for (let a = 2; a < vals.length && a < controller.parameter_size; a++) {
+      if (DEVICE_STATE_ADDRS.has(a)) continue;
       controller.sendParameter(a, vals[a]);
     }
     controller.sendParameter(0, 0);   // apply + request a fresh dump
@@ -5424,7 +5432,7 @@
       controller.loadBank(i);
       await new Promise(r => setTimeout(r, 60));
       for (let a = 2; a < values.length; a++) {
-        if (values[a] == null) continue;
+        if (values[a] == null || DEVICE_STATE_ADDRS.has(a)) continue;
         controller.sendParameter(a, values[a]);
         if ((a & 31) === 0) await new Promise(r => setTimeout(r, 1));
       }
@@ -5846,13 +5854,20 @@
       // addresses 0 and 1 are the file marker and the bank number, not settings
       for (let a = 2; a < entry.values.length; a++) {
         const v = entry.values[a];
-        if (v == null) continue;
+        if (v == null || DEVICE_STATE_ADDRS.has(a)) continue;
         controller.sendParameter(a, v);
         if ((a & 31) === 0) await new Promise(r => setTimeout(r, 1));   // let the buffer drain
       }
       await new Promise(r => setTimeout(r, 40));
       controller.saveCurrentSettings(entry.bank);
       await new Promise(r => setTimeout(r, 120));                       // the write is to flash
+    }
+    // A backup holds the tuning in every bank's dump, because the firmware
+    // substitutes the live value at address 255 when it dumps. Restore it ONCE,
+    // from the first bank that carries a plausible one, rather than per bank.
+    for (const entry of data.banks) {
+      const t = entry && entry.values ? entry.values[255] : null;
+      if (t != null && t >= 4320 && t <= 4460) { controller.sendParameter(255, t); break; }
     }
     bankNamesSet(restoredNames);
     if (startingBank >= 0) controller.loadBank(startingBank);
