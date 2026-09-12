@@ -295,9 +295,21 @@
          + rootButton(s, held.button) + table[level % 10] + sharp;
   }
 
+  // Note spelling follows the KEY SIGNATURE and nothing else.
+  //
+  // The sharp/flat modifier (addr 31) says which way the button moves a chord
+  // while it is HELD. It is not a spelling preference, so it must not respell
+  // the roots the key signature produced: in A major the G button is G#
+  // whether the modifier is set to sharp or to flat.
+  //
+  // The modifier's own alteration is shown separately, as the accidental
+  // appended to the root name in chordLabel (G becomes G# or G♭), which is
+  // where it belongs.
+  const noteNames = s => (s.key >= 6 ? NOTE_FLAT : NOTE_SHARP);
+
   function pitchName(midi, s) {
     const pc = ((midi % 12) + 12) % 12;
-    return ((s.key >= 6 || s.flat) ? NOTE_FLAT : NOTE_SHARP)[pc];
+    return noteNames(s)[pc];
   }
 
   // multiset key (keeps duplicates) so a doubled bass voice is distinguishable:
@@ -1041,7 +1053,7 @@
     // i.e. F₃7 not "F37") + type + slash bass. `type` should already be barry-resolved (e.g. maj_sixth);
     // `off` is the inferred live transpose Δ so the root stays correct when a pot has shifted transpose.
     function chordLabel(button, type, off, slashButton, sharp) {
-      const names = (s.key >= 6 || s.flat) ? NOTE_FLAT : NOTE_SHARP;
+      const names = noteNames(s);
 
       // use the PRESS-TIME (frozen) transpose, like chordVoiceNote; transpose only affects NEW notes,
       // so a chord already shown (current or in history) keeps the transpose it was detected at.
@@ -1090,7 +1102,7 @@
     function renderReadoutDetail(button, type, off, slashButton, sharp) {
       const table = CHORD[type];   // `type` is the resolved table NAME; voiceSet wants the interval array
       if (!table) { roNotesEl.innerHTML = ""; return; }
-      const names = (s.key >= 6 || s.flat) ? NOTE_FLAT : NOTE_SHARP;
+      const names = noteNames(s);
       const lbl = n => names[((n % 12) + 12) % 12] + '<sub class="dm-ro-oct">' + (Math.floor(n / 12) - 1) + "</sub>";
       const voices = voiceSet(button, table, s, {
         count: 4, off: off || 0, sharp: !!sharp,
@@ -1182,7 +1194,7 @@
       applyChord(r);
     }
     function describeChord(c) {
-      const names = (s.key >= 6 || s.flat) ? NOTE_FLAT : NOTE_SHARP;
+      const names = noteNames(s);
       // spell by the button's natural name + accidental (E#, B#), matching the lit column
       const natPc = (((rootButton(s, c.button)) % 12) + 12) % 12;
       const rootName = names[natPc] + (c.sharp ? (s.flat ? "♭" : "#") : "");
