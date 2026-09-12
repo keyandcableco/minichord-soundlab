@@ -71,7 +71,10 @@
     return Number(v.toFixed(decimals));
   }
   function formatValue(p, v) {
-    const num = p.type === "int" ? v : roundTo(v, p.step);
+    // `display` lets a parameter show something other than its raw value, for
+    // cases where the wire format is not what a player thinks in (master tuning
+    // travels in tenths of a Hz, so 4400 reads as 440.0)
+    const num = p.display ? p.display(v) : (p.type === "int" ? v : roundTo(v, p.step));
     const unit = p.unit ? `<span class="unit">${p.unit}</span>` : "";
     return `${num}${unit}`;
   }
@@ -91,15 +94,17 @@
       const input = document.createElement("input");
       input.type = "number";
       input.className = "save-field param-value-edit";
-      input.min = String(p.min); input.max = String(p.max);
-      input.step = String(p.step || "any");
-      input.value = String(getValue());
+      input.min = String(p.display ? p.display(p.min) : p.min);
+      input.max = String(p.display ? p.display(p.max) : p.max);
+      input.step = String(p.displayStep || p.step || "any");
+      input.value = String(p.display ? p.display(getValue()) : getValue());
       input.setAttribute("aria-label", p.name);
       let done = false;
       const finish = ok => {
         if (done) return;
         done = true;
-        const n = Number(input.value);
+        const n0 = Number(input.value);
+        const n = (isFinite(n0) && p.toRaw) ? p.toRaw(n0) : n0;
         if (ok && input.value !== "" && isFinite(n)) {
           let v = Math.min(p.max, Math.max(p.min, n));
           v = p.type === "int" ? Math.round(v) : roundTo(v, p.step);
@@ -195,9 +200,9 @@
   // no single-setting cards: transpose lives with Scale & harmony, the chord
   // voicing with Chord behaviour
   const PLAY_SETTING_CARDS = [
-    { title: "Scale & harmony", addrs: [30, 35, 34, 33, 31] },
-    { title: "Chord behaviour", addrs: [23, 21, 22, 120] },
-    { title: "Harp", addrs: [99, 40, 98] },
+    { title: "Scale & harmony", addrs: [30, 35, 34, 33, 31, 255] },
+    { title: "Chord behaviour", addrs: [23, 21, 22, 120, 37, 38, 39] },
+    { title: "Harp", addrs: [99, 40, 98, 36, 236] },
   ];
 
   // second-level navigation inside Customize: groups belong to a voice/section domain
@@ -271,6 +276,7 @@
       portNoticeEl.append(pnText, pnBtn);
       middleRoot.appendChild(portNoticeEl);
       middleRoot.appendChild(deviceMap.el);
+      if (deviceMap.setHarpShape) deviceMap.setHarpShape(Prefs.get("harpShape"));
       updatePortNotice();
     }
     buildPlayExtras();   // Play tab: rhythm grid under the keyboard + note settings on the right
@@ -533,6 +539,7 @@
     drawActiveGraph();   // graph strokes read --accent at draw time
   }
   Prefs.subscribe("bankAccent", applyBankAccent);
+  Prefs.subscribe("harpShape", v => { if (deviceMap && deviceMap.setHarpShape) deviceMap.setHarpShape(v); });
   Prefs.subscribe("accentHue", applyBankAccent);
   // a knob can silently drive BPM/cycle/shuffle or a step (the dump then lies); note it, like the mirror does
   function updateRhythmPotNote() {
@@ -1473,6 +1480,7 @@
     el.className = "param" + (opts.compact ? " compact" : "");
 
     const control = p.targetSelect ? selectControl(p, targetOptions(), { crumb: true })
+      : p.type === "degrees" ? degreesControl(p)
       : p.options ? (segWorthy(p) ? segControl(p) : selectControl(p)) : sliderControl(p);
 
     const main = document.createElement("div");
@@ -1672,6 +1680,44 @@
     if (labels.length > 8) seg.el.classList.add("seg-grid");   // e.g. the 12 key signatures
     seg.set(patch[p.addr]);
     return { el: seg.el, onChange: fn => { cb = fn; }, set: v => seg.set(v) };
+  }
+
+  // a set of chromatic degrees held as a bitmask in one parameter. Same
+  // {el, onChange, set} contract as the other controls, so renderParam and
+  // controls[] treat it like anything else. Value = the mask, bit 0 = root.
+  function degreesControl(p) {
+    let cb = () => {};
+    let mask = patch[p.addr] || 0;
+    const wrap = document.createElement("div");
+    wrap.className = "param-degrees";
+    const boxes = (p.degrees || []).map((label, bit) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "degree-btn";
+      b.textContent = label;
+      b.setAttribute("aria-pressed", "false");
+      b.title = "Degree " + label;
+      b.addEventListener("click", () => {
+        mask ^= (1 << bit);
+        paint();
+        cb(mask);
+      });
+      wrap.appendChild(b);
+      return b;
+    });
+    function paint() {
+      boxes.forEach((b, bit) => {
+        const on = (mask & (1 << bit)) !== 0;
+        b.classList.toggle("on", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+    }
+    paint();
+    return {
+      el: wrap,
+      onChange: fn => { cb = fn; },
+      set: v => { mask = v || 0; paint(); },
+    };
   }
 
   // a single enum dropdown may be open at a time (shared with outside-click/Esc)
@@ -2451,7 +2497,11 @@
   // Octave change (99/198) shifts audio pitch only, not the emitted MIDI notes, but
   // the labels show the SOUNDING pitch, so it relabels too (matching stays raw-MIDI).
   // 108 (single port) doesn't change note mapping but drives the mirror's warning chip
-  const DEVICEMAP_ADDRS = new Set([35, 30, 34, 33, 31, 98, 40, 120, 23, 108, 99, 198]);
+  // addresses the Play mirror draws from: editing one of these relabels the grid
+  // and the strings straight away. 36 is the harp scale mode, 39 the chord
+  // layout and 202-208 its slot assignments, 236 the custom scale.
+  const DEVICEMAP_ADDRS = new Set([35, 30, 34, 33, 31, 98, 40, 120, 23, 108, 99, 198,
+    36, 37, 38, 39, 236, 202, 203, 204, 205, 206, 207, 208]);
   function onPatchChange(p, value) {
     if (p) {   // undo/redo: every committed change records against the previous value
       const before = prevPatch[p.addr];
@@ -2888,6 +2938,9 @@
       { label: "Compact", value: "compact" },
       { label: "Verbose", value: "verbose" },
     ], "density"));
+    pop.appendChild(prefRow("Harp shape", "How the strings are drawn on the Play screen. Plate lays them out four by three, as they sit on the faceplate.", [
+      { label: "Strip", value: "strip" }, { label: "Plate", value: "plate" },
+    ], "harpShape"));
     pop.appendChild(prefRow("Term highlights", "Underline glossary words in descriptions (click to define).", [
       { label: "On", value: true }, { label: "Off", value: false },
     ], "glossary"));
@@ -4760,6 +4813,13 @@
     if (p.addr === 32) controller.sendParameter(COLOR_ADDR, bankColor);
   }
 
+  // Master tuning (255) is DEVICE state, not preset state: the firmware keeps it
+  // in its own file and leaves it out of serialize()/deserialize(). Writing it
+  // from a preset pushes one bank's stored number into a device-wide setting,
+  // and in a 12-bank sweep it restarts the firmware's deferred flash write
+  // twelve times. Every bulk parameter loop below skips it.
+  const DEVICE_STATE_ADDRS = new Set([255]);
+
   // write a full preset into the device's current bank (live working state).
   // Mirrors minicontrol's "Try": push every stored parameter (raw ints, by
   // address), then ping address 0 so the device applies them and dumps the new
@@ -4768,6 +4828,7 @@
   function sendPresetToDevice(vals) {
     if (!controller || !controller.isConnected()) return false;
     for (let a = 2; a < vals.length && a < controller.parameter_size; a++) {
+      if (DEVICE_STATE_ADDRS.has(a)) continue;
       controller.sendParameter(a, vals[a]);
     }
     controller.sendParameter(0, 0);   // apply + request a fresh dump
@@ -5309,7 +5370,7 @@
       controller.loadBank(i);
       await new Promise(r => setTimeout(r, 60));
       for (let a = 2; a < values.length; a++) {
-        if (values[a] == null) continue;
+        if (values[a] == null || DEVICE_STATE_ADDRS.has(a)) continue;
         controller.sendParameter(a, values[a]);
         if ((a & 31) === 0) await new Promise(r => setTimeout(r, 1));
       }
@@ -5624,13 +5685,20 @@
       // addresses 0 and 1 are the file marker and the bank number, not settings
       for (let a = 2; a < entry.values.length; a++) {
         const v = entry.values[a];
-        if (v == null) continue;
+        if (v == null || DEVICE_STATE_ADDRS.has(a)) continue;
         controller.sendParameter(a, v);
         if ((a & 31) === 0) await new Promise(r => setTimeout(r, 1));   // let the buffer drain
       }
       await new Promise(r => setTimeout(r, 40));
       controller.saveCurrentSettings(entry.bank);
       await new Promise(r => setTimeout(r, 120));                       // the write is to flash
+    }
+    // A backup holds the tuning in every bank's dump, because the firmware
+    // substitutes the live value at address 255 when it dumps. Restore it ONCE,
+    // from the first bank that carries a plausible one, rather than per bank.
+    for (const entry of data.banks) {
+      const t = entry && entry.values ? entry.values[255] : null;
+      if (t != null && t >= 4320 && t <= 4460) { controller.sendParameter(255, t); break; }
     }
     bankNamesSet(restoredNames);
     if (startingBank >= 0) controller.loadBank(startingBank);

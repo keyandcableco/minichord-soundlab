@@ -1966,3 +1966,70 @@ body.controls-large .trig-every { width: 6.2rem; }
 
 .bank-step:hover { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
 .bank-step:disabled { opacity: 0.4; cursor: default; }
+
+/* ---- chromatic degree set -------------------------------------------------
+   A bitmask parameter shown as one latching chip per degree. Deliberately
+   built from the same tokens as .seg-btn so it reads as the same family of
+   control, but it latches independently rather than picking one of a set. */
+.param-control .param-degrees { width: 100%; }
+
+.param-degrees {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(2rem, 1fr));
+  gap: 4px;
+}
+
+.degree-btn {
+  font-family: var(--font); font-size: 0.74rem; font-weight: 600;
+  color: var(--text-dim); background: var(--panel-2);
+  border: 0.5px solid var(--line); border-radius: var(--radius-sm);
+  padding: 4px 6px; text-align: center; cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: color .12s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+
+.degree-btn:hover { color: var(--text); border-color: var(--accent-line); }
+
+.degree-btn.on {
+  color: var(--accent); background: var(--accent-bg); border-color: var(--accent-line);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.25);
+}
+
+body.controls-large .degree-btn { padding: 8px 6px; }
+
+/* longer chord names in the alternate layout: the pads are sized for a root and
+   a short suffix, so step the type down rather than let "C#7sus4" overflow */
+.dm-chord.dm-chord-long  { font-size: clamp(0.58rem, 4.8cqw, 0.88rem); }
+.dm-chord.dm-chord-xlong { font-size: clamp(0.5rem, 3.9cqw, 0.72rem); letter-spacing: -0.01em; }
+
+/* ---- harp drawn as the faceplate -----------------------------------------
+   The strings sit in four angled rows of three rather than a single column,
+   matching the plate where they are laid out that way. Display only: the string
+   indices and the note matching are unchanged. */
+
+/* in the default strip the wrapper is not a layout box at all, so the strings
+   remain direct flex children of the panel and nothing about it changes */
+.dm-harp-strings { display: contents; }
+
+.dm-harp.dm-harp-plate { flex: 0 0 150px; }
+
+.dm-harp.dm-harp-plate .dm-harp-strings {
+  display: grid;
+  /* string 0 is drawn at the bottom of the strip, so the DOM runs 11 down to 0.
+     Filling the grid in that order would put each row's tonic on the right, so
+     the rows are laid out right to left and the strings set back to ltr. */
+  direction: rtl;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 4px;
+  flex: 1 1 auto;
+}
+
+.dm-harp.dm-harp-plate .dm-string {
+  direction: ltr;
+  min-height: 26px;
+  font-size: 0.7rem;
+  border-radius: 6px;
+}
+
+body.controls-large .dm-harp.dm-harp-plate .dm-string { font-size: 0.76rem; min-height: 32px; }
