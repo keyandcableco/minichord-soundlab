@@ -1942,6 +1942,32 @@ body.controls-large .trig-every { width: 6.2rem; }
 .bank-bulk h3 { width: 100%; margin: 0 0 0.2rem; font-size: 0.8rem; color: var(--text-dim); }
 .bank-bulk .save-field { max-width: 16rem; }
 
+/* the staged rows: one per setting, with what it will become and a way back */
+.bank-bulk-staged { width: 100%; display: flex; flex-direction: column; gap: 3px; }
+.bank-bulk-staged:not(:empty) { margin-bottom: 6px; }
+
+.bank-bulk-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 6px; font-size: 0.74rem;
+  background: var(--accent-bg);
+  border: 0.5px solid var(--accent-line);
+  border-radius: var(--radius-sm);
+}
+
+.bank-bulk-name { flex: 1 1 auto; min-width: 0; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bank-bulk-val { flex: 0 0 auto; color: var(--accent); font-weight: 600; }
+
+.bank-bulk-undo {
+  flex: 0 0 auto; width: 17px; height: 17px; padding: 0; line-height: 1;
+  font-family: var(--font); font-size: 0.8rem; cursor: pointer;
+  color: var(--text-dim); background: transparent;
+  border: 0.5px solid var(--line); border-radius: var(--radius-sm);
+}
+.bank-bulk-undo:hover { color: var(--accent); border-color: var(--accent-line); }
+
+.bank-bulk-picker { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.bank-bulk-select { flex: 1 1 14rem; max-width: 22rem; }
+
 .bank-sheet-actions {
   display: flex; gap: 6px; justify-content: flex-end;
   padding-top: 0.9rem; margin-top: 0.9rem; border-top: 0.5px solid var(--line);
@@ -1966,3 +1992,13 @@ body.controls-large .trig-every { width: 6.2rem; }
 
 .bank-step:hover { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
 .bank-step:disabled { opacity: 0.4; cursor: default; }
+
+/* the cached banks no longer match the device */
+.bank-sheet-stale {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 0 0 0.8rem; padding: 6px 8px;
+  font-size: 0.76rem; color: var(--text);
+  background: var(--accent-bg);
+  border: 0.5px solid var(--accent-line);
+  border-radius: var(--radius-sm);
+}
