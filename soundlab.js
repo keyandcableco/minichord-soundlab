@@ -71,7 +71,10 @@
     return Number(v.toFixed(decimals));
   }
   function formatValue(p, v) {
-    const num = p.type === "int" ? v : roundTo(v, p.step);
+    // `display` lets a parameter show something other than its raw value, for
+    // cases where the wire format is not what a player thinks in (master tuning
+    // travels in tenths of a Hz, so 4400 reads as 440.0)
+    const num = p.display ? p.display(v) : (p.type === "int" ? v : roundTo(v, p.step));
     const unit = p.unit ? `<span class="unit">${p.unit}</span>` : "";
     return `${num}${unit}`;
   }
@@ -91,15 +94,17 @@
       const input = document.createElement("input");
       input.type = "number";
       input.className = "save-field param-value-edit";
-      input.min = String(p.min); input.max = String(p.max);
-      input.step = String(p.step || "any");
-      input.value = String(getValue());
+      input.min = String(p.display ? p.display(p.min) : p.min);
+      input.max = String(p.display ? p.display(p.max) : p.max);
+      input.step = String(p.displayStep || p.step || "any");
+      input.value = String(p.display ? p.display(getValue()) : getValue());
       input.setAttribute("aria-label", p.name);
       let done = false;
       const finish = ok => {
         if (done) return;
         done = true;
-        const n = Number(input.value);
+        const n0 = Number(input.value);
+        const n = (isFinite(n0) && p.toRaw) ? p.toRaw(n0) : n0;
         if (ok && input.value !== "" && isFinite(n)) {
           let v = Math.min(p.max, Math.max(p.min, n));
           v = p.type === "int" ? Math.round(v) : roundTo(v, p.step);
@@ -162,6 +167,7 @@
   let overviewCanvases = [];   // {canvas, draw} pairs for the Overview dashboard
   const overviewProfiles = []; // {el, voice} per-voice profile cards in the dashboard
   let deviceMap = null;        // live "Play" view (devicemap.js), mounted in render()
+  let staffView = null;        // live notation under the mirror (staff.js)
   let playRhythmRefresh = null; // repaint fn for the Play tab's own rhythm grid copy
   let playRhythmSetHead = null; // setPlayhead(step|null) for the Play rhythm grid (live sync)
   const rhythmHelpUpdaters = []; // per-grid fns that re-word the play/pause help for live vs learning mode
@@ -195,9 +201,9 @@
   // no single-setting cards: transpose lives with Scale & harmony, the chord
   // voicing with Chord behaviour
   const PLAY_SETTING_CARDS = [
-    { title: "Scale & harmony", addrs: [30, 35, 34, 33, 31] },
-    { title: "Chord behaviour", addrs: [23, 21, 22, 120] },
-    { title: "Harp", addrs: [99, 40, 98] },
+    { title: "Scale & harmony", addrs: [30, 35, 34, 33, 31, 255] },
+    { title: "Chord behaviour", addrs: [23, 21, 22, 120, 37, 38, 39] },
+    { title: "Harp", addrs: [99, 40, 98, 36, 236] },
   ];
 
   // second-level navigation inside Customize: groups belong to a voice/section domain
@@ -271,6 +277,13 @@
       portNoticeEl.append(pnText, pnBtn);
       middleRoot.appendChild(portNoticeEl);
       middleRoot.appendChild(deviceMap.el);
+      if (deviceMap.setHarpShape) deviceMap.setHarpShape(Prefs.get("harpShape"));      if (!staffView && window.Staff) staffView = window.Staff.create();
+      if (staffView) {
+        middleRoot.appendChild(staffView.el);
+        staffView.setKey(patch[35] || 0, !!patch[31]);
+        staffView.el.hidden = Prefs.get("staffShow") === "off";
+        if (staffView.fit && !staffView.el.hidden) staffView.fit();
+      }
       updatePortNotice();
     }
     buildPlayExtras();   // Play tab: rhythm grid under the keyboard + note settings on the right
@@ -533,6 +546,11 @@
     drawActiveGraph();   // graph strokes read --accent at draw time
   }
   Prefs.subscribe("bankAccent", applyBankAccent);
+  Prefs.subscribe("harpShape", v => { if (deviceMap && deviceMap.setHarpShape) deviceMap.setHarpShape(v); });  Prefs.subscribe("staffShow", v => {
+    if (!staffView) return;
+    staffView.el.hidden = v === "off";
+    if (v !== "off" && staffView.fit) staffView.fit();
+  });
   Prefs.subscribe("accentHue", applyBankAccent);
   // a knob can silently drive BPM/cycle/shuffle or a step (the dump then lies); note it, like the mirror does
   function updateRhythmPotNote() {
@@ -1467,12 +1485,31 @@
     return sec;
   }
 
+  // A value bound to another parameter's target is meaningless as a number: once
+  // the double tap points at Chord layout, what matters is Standard or Alternate,
+  // not 0 or 1. Borrow the target's range and options so the control asks the
+  // right question. The address stays its own.
+  function effectiveParam(p) {
+    if (p.followsTarget == null) return p;
+    const target = paramByAddr[patch[p.followsTarget]];
+    if (!target) return p;
+    return Object.assign({}, p, {
+      options: target.options, optionNotes: target.optionNotes,
+      segmented: target.segmented,
+      min: target.min, max: target.max, step: target.step,
+      unit: target.unit, display: target.display, toRaw: target.toRaw,
+      displayStep: target.displayStep,
+    });
+  }
+
   function renderParam(p, opts) {
     opts = opts || {};
+    p = effectiveParam(p);
     const el = document.createElement("div");
     el.className = "param" + (opts.compact ? " compact" : "");
 
     const control = p.targetSelect ? selectControl(p, targetOptions(), { crumb: true })
+      : p.type === "degrees" ? degreesControl(p)
       : p.options ? (segWorthy(p) ? segControl(p) : selectControl(p)) : sliderControl(p);
 
     const main = document.createElement("div");
@@ -1672,6 +1709,44 @@
     if (labels.length > 8) seg.el.classList.add("seg-grid");   // e.g. the 12 key signatures
     seg.set(patch[p.addr]);
     return { el: seg.el, onChange: fn => { cb = fn; }, set: v => seg.set(v) };
+  }
+
+  // a set of chromatic degrees held as a bitmask in one parameter. Same
+  // {el, onChange, set} contract as the other controls, so renderParam and
+  // controls[] treat it like anything else. Value = the mask, bit 0 = root.
+  function degreesControl(p) {
+    let cb = () => {};
+    let mask = patch[p.addr] || 0;
+    const wrap = document.createElement("div");
+    wrap.className = "param-degrees";
+    const boxes = (p.degrees || []).map((label, bit) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "degree-btn";
+      b.textContent = label;
+      b.setAttribute("aria-pressed", "false");
+      b.title = "Degree " + label;
+      b.addEventListener("click", () => {
+        mask ^= (1 << bit);
+        paint();
+        cb(mask);
+      });
+      wrap.appendChild(b);
+      return b;
+    });
+    function paint() {
+      boxes.forEach((b, bit) => {
+        const on = (mask & (1 << bit)) !== 0;
+        b.classList.toggle("on", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+    }
+    paint();
+    return {
+      el: wrap,
+      onChange: fn => { cb = fn; },
+      set: v => { mask = v || 0; paint(); },
+    };
   }
 
   // a single enum dropdown may be open at a time (shared with outside-click/Esc)
@@ -2451,7 +2526,11 @@
   // Octave change (99/198) shifts audio pitch only, not the emitted MIDI notes, but
   // the labels show the SOUNDING pitch, so it relabels too (matching stays raw-MIDI).
   // 108 (single port) doesn't change note mapping but drives the mirror's warning chip
-  const DEVICEMAP_ADDRS = new Set([35, 30, 34, 33, 31, 98, 40, 120, 23, 108, 99, 198]);
+  // addresses the Play mirror draws from: editing one of these relabels the grid
+  // and the strings straight away. 36 is the harp scale mode, 39 the chord
+  // layout and 202-208 its slot assignments, 236 the custom scale.
+  const DEVICEMAP_ADDRS = new Set([35, 30, 34, 33, 31, 98, 40, 120, 23, 108, 99, 198,
+    36, 37, 38, 39, 236, 202, 203, 204, 205, 206, 207, 208]);
   function onPatchChange(p, value) {
     if (p) {   // undo/redo: every committed change records against the previous value
       const before = prevPatch[p.addr];
@@ -2462,6 +2541,9 @@
     updateGateFlags();
     renderProfiles();
     if (deviceMap && p && DEVICEMAP_ADDRS.has(p.addr)) deviceMap.rebuild();
+    // the double tap's value control mirrors whatever its target is, so picking
+    // a new target has to redraw it
+    if (p && p.addr === 200) render();    if (staffView && p && (p.addr === 35 || p.addr === 31)) staffView.setKey(patch[35] || 0, !!patch[31]);
     if (p && p.addr === 108) updatePortNotice();
     // re-fingerprint after the edit settles (undo/redo identifies itself at
     // the end of applyHistState, don't double up mid-restore)
@@ -2888,6 +2970,11 @@
       { label: "Compact", value: "compact" },
       { label: "Verbose", value: "verbose" },
     ], "density"));
+    pop.appendChild(prefRow("Harp shape", "How the strings are drawn on the Play screen. Plate lays them out four by three, as they sit on the faceplate.", [
+      { label: "Strip", value: "strip" }, { label: "Plate", value: "plate" },
+    ], "harpShape"));    pop.appendChild(prefRow("Notation", "Show a staff under the Play mirror with what you are playing, its key signature and the chord's roman numeral.", [
+      { label: "Show", value: "on" }, { label: "Hide", value: "off" },
+    ], "staffShow"));
     pop.appendChild(prefRow("Term highlights", "Underline glossary words in descriptions (click to define).", [
       { label: "On", value: true }, { label: "Off", value: false },
     ], "glossary"));
@@ -5220,6 +5307,28 @@
     read: false,
     busy: false,
   };
+  // Bulk edits staged so far, one row per setting, each remembering what every
+  // bank held before it so a row can be taken back.
+  let bulkStaged = [];
+
+  // Anything that writes a bank from outside this sheet — saving the preset you
+  // are editing, resetting a bank, wiping memory — leaves the cached copy wrong.
+  // Mark it rather than silently showing stale banks.
+  function bankCacheStale() {
+    if (bankState.read) bankState.stale = true;
+  }
+
+  // Recomputes which slots differ from what was read, after a staged row is
+  // withdrawn — dirty cannot simply be cleared, since a drag may also have
+  // moved things.
+  function recomputeDirty() {
+    if (!bankState.slots || !bankState.original) return;
+    bankState.slots.forEach(slot => {
+      const was = bankState.original[slot.id];
+      if (!was) return;
+      slot.dirty = slot.movedFrom !== slot.id || slot.values.some((v, i) => v !== was[i]);
+    });
+  }
 
   // bank names are player-typed and end up inside innerHTML strings
   function escapeHtml(str) {
@@ -5255,15 +5364,21 @@
     if (!controller || !controller.isConnected()) throw new Error("no minichord connected");
     const startingBank = controller.getDeviceInfo().activeBankNumber;
     const slots = [];
+    const original = [];
     const names = bankNamesGet();
     for (let b = 0; b < 12; b++) {
       if (onProgress) onProgress(b, 12);
       const values = await controller.readBank(b, 3000, true);
-      slots.push({ values: Array.from(values, v => (v == null ? 0 : v)), dirty: false, name: names[b] });
+      const copy = Array.from(values, v => (v == null ? 0 : v));
+      slots.push({ id: b, movedFrom: b, values: copy, dirty: false, name: names[b] });
+      original[b] = copy.slice();
     }
     if (startingBank >= 0) await controller.readBank(startingBank, 3000, true);
     bankState.slots = slots;
+    bankState.original = original;
     bankState.read = true;
+    bankState.stale = false;
+    bulkStaged = [];
     return slots;
   }
 
@@ -5275,7 +5390,7 @@
     const [moved] = slots.splice(from, 1);
     slots.splice(to, 0, moved);
     const lo = Math.min(from, to), hi = Math.max(from, to);
-    for (let i = lo; i <= hi; i++) slots[i].dirty = true;
+    for (let i = lo; i <= hi; i++) { slots[i].movedFrom = i; slots[i].dirty = true; }
     bankNamesSet(slots.map(sl => sl.name || ""));   // the name belongs to the bank, not the slot
   }
 
@@ -5317,6 +5432,7 @@
       controller.saveCurrentSettings(i);
       await new Promise(r => setTimeout(r, 120));
       bankState.slots[i].dirty = false;
+      if (bankState.original) bankState.original[bankState.slots[i].id] = bankState.slots[i].values.slice();
     }
     if (startingBank >= 0) controller.loadBank(startingBank);
     return dirty.length;
@@ -5390,6 +5506,30 @@
     }
 
     const dirtyCount = bankState.slots.filter(s => s.dirty).length;
+
+    // Something wrote a bank since these were read, so what is on screen is not
+    // what is on the device. Say so rather than let it be discovered.
+    if (bankState.stale) {
+      const warn = document.createElement("p");
+      warn.className = "bank-sheet-stale";
+      warn.textContent = dirtyCount
+        ? "A bank has been written since these were read, so this list is out of date. Reading again will discard the staged changes below."
+        : "A bank has been written since these were read, so this list is out of date.";
+      const reread = mkBtn("Read again", "Read all twelve banks off the minichord again");
+      reread.addEventListener("click", async () => {
+        if (dirtyCount && !confirm("Read the banks again? The staged changes will be discarded.")) return;
+        reread.disabled = true;
+        try {
+          await readAllBanks((i, n) => { intro.textContent = "Reading bank " + (i + 1) + " of " + n + "\u2026"; });
+        } catch (e) {
+          intro.textContent = "Couldn't read the banks: " + e.message;
+        }
+        renderBankSheet();
+      });
+      warn.appendChild(reread);
+      card.insertBefore(warn, grid);
+    }
+
     intro.textContent = dirtyCount
       ? dirtyCount + (dirtyCount === 1 ? " bank has" : " banks have") + " unsaved changes. " +
         "Nothing is written to the minichord until you apply."
@@ -5461,30 +5601,100 @@
     const bulk = document.createElement("div");
     bulk.className = "bank-bulk";
     const bulkTitle = document.createElement("h3");
-    bulkTitle.textContent = "Set one setting across banks";
+    bulkTitle.textContent = "Set settings across every bank";
     bulk.appendChild(bulkTitle);
 
+    // Staged bulk edits, listed so several can be set up before applying. Each
+    // row is one setting and the value it will take in every bank.
+    const stagedList = document.createElement("div");
+    stagedList.className = "bank-bulk-staged";
+    bulk.appendChild(stagedList);
+
+    function renderStaged() {
+      stagedList.innerHTML = "";
+      if (!bulkStaged.length) return;
+      bulkStaged.forEach((entry, i) => {
+        const row = document.createElement("div");
+        row.className = "bank-bulk-row";
+        const label = document.createElement("span");
+        label.className = "bank-bulk-name";
+        label.textContent = entry.label;
+        const val = document.createElement("span");
+        val.className = "bank-bulk-val";
+        val.textContent = entry.valueLabel;
+        const undo = document.createElement("button");
+        undo.type = "button";
+        undo.className = "bank-bulk-undo";
+        undo.textContent = "\u00d7";
+        undo.title = "Put this setting back to what each bank had";
+        undo.addEventListener("click", () => {
+          // restore the value every bank held before this row was staged
+          bankState.slots.forEach((slot, si) => {
+            if (entry.before[si] == null) return;
+            slot.values[entry.addr] = entry.before[si];
+          });
+          bulkStaged.splice(i, 1);
+          recomputeDirty();
+          renderBankSheet();
+        });
+        row.append(label, val, undo);
+        stagedList.appendChild(row);
+      });
+    }
+    renderStaged();
+
+    const picker = document.createElement("div");
+    picker.className = "bank-bulk-picker";
+    bulk.appendChild(picker);
+
+    // The list is ordered and labelled the way the knob target picker is: by
+    // voice and card rather than alphabetically, so "Target" is not four
+    // identical-looking entries and a setting is found where it lives.
     const paramSel = document.createElement("select");
-    paramSel.className = "save-field";
-    const flat = [];
-    PARAM_GROUPS.forEach(g => g.params.forEach(p => flat.push(p)));
-    flat.sort((a, b) => a.name.localeCompare(b.name));
-    flat.forEach(p => {
-      const o = document.createElement("option");
-      o.value = String(p.addr);
-      o.textContent = p.name + (p.card ? "  \u00b7 " + p.card : "");
-      paramSel.appendChild(o);
+    paramSel.className = "save-field bank-bulk-select";
+    const DOMAIN_LABEL = { chord: "Chord", harp: "Harp", space: "Space", play: "Play", midi: "MIDI", knobs: "Knobs" };
+    [["chord"], ["harp"], ["space"], ["play"], ["midi"], ["knobs"]].forEach(([dom]) => {
+      const group = document.createElement("optgroup");
+      group.label = DOMAIN_LABEL[dom] || dom;
+      PARAM_GROUPS.filter(g => (g.domain || "harp") === dom).forEach(g => {
+        g.params.forEach(p => {
+          if (p.grid) return;
+          const o = document.createElement("option");
+          o.value = String(p.addr);
+          const card = p.card && !p.card.toLowerCase().startsWith(g.title.toLowerCase()) ? p.card : null;
+          const mid = p.card && !card ? p.card : g.title;
+          o.textContent = [mid, card, p.name].filter(Boolean).join(" \u00b7 ");
+          group.appendChild(o);
+        });
+      });
+      if (group.childNodes.length) paramSel.appendChild(group);
     });
-    bulk.appendChild(paramSel);
+    picker.appendChild(paramSel);
 
     const valWrap = document.createElement("span");
     valWrap.className = "bank-bulk-value";
-    bulk.appendChild(valWrap);
+    picker.appendChild(valWrap);
 
     function renderValueField() {
       valWrap.innerHTML = "";
       const p = paramByAddr[parseInt(paramSel.value, 10)];
       if (!p) return;
+      // A setting that is itself an assignment — a knob's target, the double
+      // tap's — takes an address as its value. Offering a number box there asks
+      // the player to know the address numbers, so give them the same named
+      // list the assignment itself uses.
+      if (p.targetSelect) {
+        const opts = targetOptions();
+        const sel = document.createElement("select");
+        sel.className = "save-field bank-bulk-select";
+        opts.values.forEach((v, i) => {
+          const o = document.createElement("option");
+          o.value = String(v); o.textContent = opts.labels[i];
+          sel.appendChild(o);
+        });
+        valWrap.appendChild(sel);
+        return;
+      }
       if (p.options) {
         const sel = document.createElement("select");
         sel.className = "save-field";
@@ -5506,18 +5716,30 @@
     paramSel.addEventListener("change", renderValueField);
     renderValueField();
 
-    const applyAll = mkBtn("Set in all banks", "Stage this value in every bank");
+    const applyAll = mkBtn("Set in all banks", "Stage this value in every bank and start another");
     applyAll.addEventListener("click", () => {
       const p = paramByAddr[parseInt(paramSel.value, 10)];
       const field = valWrap.querySelector("select, input");
       if (!p || !field) return;
       let v = Number(field.value);
       if (p.type === "float" && !p.options) v = Math.round(v * FLOAT_MULT);
+      // remember what each bank held, so the row can be taken back
+      const before = bankState.slots.map(slot => slot.values[p.addr]);
       const n = bulkSetParameter(p.addr, v, bankState.slots.map((_, i) => i));
+      const existing = bulkStaged.findIndex(e => e.addr === p.addr);
+      const entry = {
+        addr: p.addr,
+        label: paramSel.options[paramSel.selectedIndex].textContent,
+        valueLabel: p.targetSelect ? field.options[field.selectedIndex].textContent
+          : p.options ? p.options[Number(field.value)]
+          : String(field.value) + (p.unit || ""),
+        before: existing >= 0 ? bulkStaged[existing].before : before,
+      };
+      if (existing >= 0) bulkStaged[existing] = entry; else bulkStaged.push(entry);
       announce(n ? "Staged in " + n + (n === 1 ? " bank" : " banks") : "Every bank already has that value");
       renderBankSheet();
     });
-    bulk.appendChild(applyAll);
+    picker.appendChild(applyAll);
     card.appendChild(bulk);
 
     // ---- actions ----
@@ -5541,7 +5763,7 @@
     const discardBtn = mkBtn("Discard", "Throw away the staged changes and read the banks again");
     discardBtn.disabled = !dirtyCount;
     discardBtn.addEventListener("click", () => {
-      bankState.slots = null; bankState.read = false;
+      bankState.slots = null; bankState.read = false; bulkStaged = [];
       renderBankSheet();
     });
 
@@ -6093,10 +6315,13 @@
       (controls[32] || []).forEach(fn => fn(attn));
       onPatchChange(paramByAddr[32], attn);
     });
-    if (save) save.addEventListener("click", () => { if (controller.saveCurrentSettings(controller.active_bank_number)) flash(save, "Saved"); });
+    if (save) save.addEventListener("click", () => {
+      if (controller.saveCurrentSettings(controller.active_bank_number)) { flash(save, "Saved"); bankCacheStale(); }
+    });
     if (reload) reload.addEventListener("click", requestDump);
     if (reset) reset.addEventListener("click", () => {
       if (controller.resetCurrentBank()) {
+        bankCacheStale();
         flash(reset, "Reset");
         setTimeout(requestDump, 150);   // let the reset land, then re-read the bank into the UI
       }
@@ -6265,6 +6490,9 @@
       midiRec.feed(role, type, note, vel);   // the recorder hears everything, even in single-port mode
       if (patch[108] === 1) return;   // single-port mode: the mirror can't trust roles, drop the stream
       if (deviceMap) deviceMap.onNote(role, type, note, vel);
+      if (staffView) {
+        if (type === "on") staffView.noteOn(role, note); else staffView.noteOff(role, note);
+      }
       if (role === "chord") rhythmSync.onChordNote(type, note);
     };
   }
