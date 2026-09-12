@@ -256,7 +256,7 @@
 
     // A chord sounds as one event, so its voices stack on a single x like a real
     // chord. The harp is strummed one string at a time, so those spread across.
-    const chordX = () => contentLeft + 22;
+    const chordX = () => contentLeft + 30;   // leaves room for three accidental columns
     function harpX(index, total) {
       const from = contentLeft + 74, to = WIDTH - RIGHT_PAD - 16;
       if (total <= 1) return (from + to) / 2;
@@ -300,6 +300,30 @@
         // nudged; the harp is strummed, so its notes spread across instead
         const isChord = role === "chord";
         const nudge = isChord ? seconds(placed.map(p => p.step)) : placed.map(() => 0);
+        // Accidentals sit in their own column to the LEFT of the whole stack, so a
+        // note nudged right by a second cannot cover the one belonging to the note
+        // below it. Two accidentals a diatonic step apart cannot share a column
+        // either — 4.5px of separation against a 12px glyph — so each collision
+        // steps one column further left, highest note first, as engraving does.
+        const accAt = placed.map(p => {
+          const a = assign(p.step);
+          const drawStep = p.step + a.shift;
+          return { drawStep, treble: a.treble,
+                   need: p.alt !== (altered.get(((drawStep % 7) + 7) % 7) || 0) };
+        });
+        const accCol = new Array(placed.length).fill(0);
+        if (isChord) {
+          const cols = [];
+          accAt.map((v, i) => i).filter(i => accAt[i].need)
+            .sort((a, b) => accAt[b].drawStep - accAt[a].drawStep)
+            .forEach(i => {
+              let c = 0;
+              while ((cols[c] || []).some(o => o.treble === accAt[i].treble
+                     && Math.abs(o.drawStep - accAt[i].drawStep) < 2)) c++;
+              (cols[c] = cols[c] || []).push(accAt[i]);
+              accCol[i] = c;
+            });
+        }
         list.forEach((midi, i) => {
           if (slot >= POOL) return;
           const sl = slots[slot++];
@@ -319,7 +343,7 @@
           const fromKey = altered.get(letter) || 0;
           if (alt !== fromKey) {
             sl.acc.textContent = alt === 0 ? "\u266e" : (alt > 0 ? "\u266f" : "\u266d");
-            sl.acc.setAttribute("x", x - 13);
+            sl.acc.setAttribute("x", (isChord ? chordX() : x) - 13 - accCol[i] * 8);
             sl.acc.setAttribute("y", y + 3.6);
             sl.acc.setAttribute("visibility", "visible");
           } else {
