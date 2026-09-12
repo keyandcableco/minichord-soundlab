@@ -59,9 +59,14 @@
   const FLAT_STEPS_TREBLE  = [34,37,33,36,32,35,31];   // B4 E5 A4 D5 G4 C5 F4
   const shift = (arr, by) => arr.map(v => v - by);
 
-  // A flat key spells with flats, and so does the flat button; everything else
-  // uses sharps. Matches how the rest of the app names notes.
-  const flatSide = (key, flatBtn) => flatBtn || (key >= 6 && key <= 11) || key >= 19;
+  // A flat key spells with flats; everything else uses sharps. Matches how the
+  // rest of the app names notes.
+  //
+  // The sharp/flat modifier deliberately does NOT come into this. The staff
+  // draws a key signature, and its noteheads have to agree with it: three
+  // sharps in the signature and a G# drawn as A♭ is not notation anyone can
+  // read.
+  const flatSide = key => (key >= 6 && key <= 11) || key >= 19;
 
   // pitch classes the key signature already alters, so a note on them needs no
   // accidental of its own
@@ -73,9 +78,9 @@
     return set;
   }
 
-  function place(midi, key, flatBtn) {
+  function place(midi, key) {
     const pc = ((midi % 12) + 12) % 12;
-    const [letter, alt] = (flatSide(key, flatBtn) ? FLAT_SPELL : SHARP_SPELL)[pc];
+    const [letter, alt] = (flatSide(key) ? FLAT_SPELL : SHARP_SPELL)[pc];
     // the octave the LETTER belongs to: B#3 and Cb4 cross the boundary
     let octave = Math.floor(midi / 12) - 1;
     if (alt > 0 && letter === 6) octave -= 1;        // B# belongs with the B below
@@ -229,7 +234,7 @@
     legend.innerHTML = '<span class="k-chord">● <b>chord</b></span><span class="k-harp">● <b>harp</b></span>';
     root.appendChild(legend);
 
-    let key = 0, flatBtn = false;
+    let key = 0;
     const sounding = { chord: new Map(), harp: new Map() };
 
     function drawKeySignature() {
@@ -290,7 +295,7 @@
       const marks = new Set();
 
       const draw = (list, role) => {
-        const placed = list.map(m => place(m, key, flatBtn));
+        const placed = list.map(m => place(m, key));
         // a chord sounds at once, so its voices share a column and any second is
         // nudged; the harp is strummed, so its notes spread across instead
         const isChord = role === "chord";
@@ -354,10 +359,10 @@
       el: root,
       // call once the panel is in the document so the clefs can be measured
       fit() { fitClefs(); if (!clefsFitted) requestAnimationFrame(fitClefs); },
-      setKey(k, flat) {
+      setKey(k) {
         const kk = Math.max(0, Math.min(20, k | 0));
-        if (kk === key && !!flat === flatBtn) return;
-        key = kk; flatBtn = !!flat;
+        if (kk === key) return;
+        key = kk;
         drawKeySignature();
         refresh();
       },

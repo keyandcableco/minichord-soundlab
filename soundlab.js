@@ -280,7 +280,7 @@
       if (deviceMap.setHarpShape) deviceMap.setHarpShape(Prefs.get("harpShape"));      if (!staffView && window.Staff) staffView = window.Staff.create();
       if (staffView) {
         middleRoot.appendChild(staffView.el);
-        staffView.setKey(patch[35] || 0, !!patch[31]);
+        staffView.setKey(patch[35] || 0);
         staffView.el.hidden = Prefs.get("staffShow") === "off";
         if (staffView.fit && !staffView.el.hidden) staffView.fit();
       }
@@ -2543,7 +2543,7 @@
     if (deviceMap && p && DEVICEMAP_ADDRS.has(p.addr)) deviceMap.rebuild();
     // the double tap's value control mirrors whatever its target is, so picking
     // a new target has to redraw it
-    if (p && p.addr === 200) render();    if (staffView && p && (p.addr === 35 || p.addr === 31)) staffView.setKey(patch[35] || 0, !!patch[31]);
+    if (p && p.addr === 200) render();    if (staffView && p && p.addr === 35) staffView.setKey(patch[35] || 0);
     if (p && p.addr === 108) updatePortNotice();
     // re-fingerprint after the edit settles (undo/redo identifies itself at
     // the end of applyHistState, don't double up mid-restore)
