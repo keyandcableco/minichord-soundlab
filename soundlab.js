@@ -168,6 +168,11 @@
   const overviewProfiles = []; // {el, voice} per-voice profile cards in the dashboard
   let deviceMap = null;        // live "Play" view (devicemap.js), mounted in render()
   let staffView = null;        // live notation under the mirror (staff.js)
+  // The staff keeps its own key rather than reading the patch, so every path that
+  // replaces the patch has to tell it. Missing one leaves the staff drawing the
+  // key it was last told about: no signature and sharp spelling if that was C.
+  // setKey early-returns when the key is unchanged, so calling this freely is free.
+  const syncStaffKey = () => { if (staffView) staffView.setKey(patch[35] || 0); };
   let playRhythmRefresh = null; // repaint fn for the Play tab's own rhythm grid copy
   let playRhythmSetHead = null; // setPlayhead(step|null) for the Play rhythm grid (live sync)
   const rhythmHelpUpdaters = []; // per-grid fns that re-word the play/pause help for live vs learning mode
@@ -280,7 +285,7 @@
       if (deviceMap.setHarpShape) deviceMap.setHarpShape(Prefs.get("harpShape"));      if (!staffView && window.Staff) staffView = window.Staff.create();
       if (staffView) {
         middleRoot.appendChild(staffView.el);
-        staffView.setKey(patch[35] || 0);
+        syncStaffKey();
         staffView.el.hidden = Prefs.get("staffShow") === "off";
         if (staffView.fit && !staffView.el.hidden) staffView.fit();
       }
@@ -964,6 +969,7 @@
     const live = !!(controller && controller.isConnected());
     deviceMap.setConnected(live);
     deviceMap.rebuild();
+    syncStaffKey();
     if (playRhythmRefresh) playRhythmRefresh();
     setRhythmHue();
     updateRhythmPotNote();
@@ -2543,7 +2549,7 @@
     if (deviceMap && p && DEVICEMAP_ADDRS.has(p.addr)) deviceMap.rebuild();
     // the double tap's value control mirrors whatever its target is, so picking
     // a new target has to redraw it
-    if (p && p.addr === 200) render();    if (staffView && p && p.addr === 35) staffView.setKey(patch[35] || 0);
+    if (p && p.addr === 200) render();    if (p && p.addr === 35) syncStaffKey();
     if (p && p.addr === 108) updatePortNotice();
     // re-fingerprint after the edit settles (undo/redo identifies itself at
     // the end of applyHistState, don't double up mid-restore)
@@ -2665,6 +2671,7 @@
     if (any) {
       drawActiveGraph(); renderProfiles(); updateGateFlags(); updatePortNotice();
       if (deviceMap) deviceMap.rebuild();
+      syncStaffKey();
     }
     return any;
   }
@@ -4901,6 +4908,7 @@
     }));
     if (any) { drawActiveGraph(); renderProfiles(); updateGateFlags(); updatePortNotice(); }
     if (any && deviceMap) deviceMap.rebuild();   // refresh Play-tab labels for the new patch (strum pattern, chromatic, key…)
+    if (any) syncStaffKey();
     if (any) prevPatch = Object.assign({}, patch);   // bulk loads re-baseline undo's "before" values
     return any;
   }
@@ -4930,6 +4938,7 @@
     updateGateFlags();
     updateConnectionUI(true, data);
     if (deviceMap) { deviceMap.setConnected(true); deviceMap.rebuild(); }   // refresh the live mirror
+    syncStaffKey();   // a dump can carry a key the device changed by itself
     midiRec.connection(true);   // a dump means the device is live, un-gray the Record button
     applyBankAccent();       // bank hue may have changed with the new bank
     updateRhythmPotNote();   // pot targets (patch[10/12/14/16]) may have changed
