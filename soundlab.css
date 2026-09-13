@@ -1946,6 +1946,15 @@ body.controls-large .trig-every { width: 6.2rem; }
 .bank-bulk-staged { width: 100%; display: flex; flex-direction: column; gap: 3px; }
 .bank-bulk-staged:not(:empty) { margin-bottom: 6px; }
 
+/* saved profiles sit under the staged list and reuse its row styling */
+.bank-bulk-profiles { width: 100%; display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
+.bank-bulk-profhead {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+.bank-bulk-profhead > span { flex: 1 1 auto; }
+
 .bank-bulk-row {
   display: flex; align-items: center; gap: 8px;
   padding: 4px 6px; font-size: 0.74rem;

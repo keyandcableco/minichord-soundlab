@@ -5661,6 +5661,153 @@
     }
     renderStaged();
 
+    /* ---- saved profiles ------------------------------------------------
+     * A profile is a named, SPARSE set of address/value pairs. It is not a
+     * small backup: a backup replaces all 256 addresses in all twelve banks,
+     * so it can only restore presets you already had. A profile touches the
+     * addresses it names and nothing else, which is what lets it repoint every
+     * pot in someone else's presets without disturbing the sounds they made.
+     *
+     * Captured from whatever is staged, so building one is the same gesture as
+     * doing the edit once. Values are the wire values, which is what
+     * bulkSetParameter takes.
+     */
+    const profWrap = document.createElement("div");
+    profWrap.className = "bank-bulk-profiles";
+    bulk.appendChild(profWrap);
+
+    const readProfiles = () => (Prefs.get("bulkProfiles") || []).slice();
+    const writeProfiles = list => Prefs.set("bulkProfiles", list);
+
+    function applyProfile(pr) {
+      let touched = 0;
+      const all = bankState.slots.map((_, i) => i);
+      pr.edits.forEach(e => {
+        const param = paramByAddr[e.addr];
+        if (!param) return;                       // an address this build has no control for
+        const before = bankState.slots.map(slot => slot.values[e.addr]);
+        const n = bulkSetParameter(e.addr, e.value, all);
+        if (!n) return;
+        touched += n;
+        const existing = bulkStaged.findIndex(x => x.addr === e.addr);
+        const entry = {
+          addr: e.addr, value: e.value,
+          label: param.name || ("addr " + e.addr),
+          valueLabel: param.options ? (param.options[e.value] != null ? param.options[e.value] : String(e.value))
+            : String(param.display ? param.display(e.value) : e.value) + (param.unit || ""),
+          before: existing >= 0 ? bulkStaged[existing].before : before,
+        };
+        if (existing >= 0) bulkStaged[existing] = entry; else bulkStaged.push(entry);
+      });
+      return touched;
+    }
+
+    function renderProfiles() {
+      profWrap.innerHTML = "";
+      const list = readProfiles();
+
+      const head = document.createElement("div");
+      head.className = "bank-bulk-profhead";
+      const title = document.createElement("span");
+      title.textContent = list.length ? "Profiles" : "";
+      head.appendChild(title);
+
+      const saveBtn = mkBtn("Save as profile", "Keep the staged settings as a named set you can apply again");
+      saveBtn.className = "mini-btn";
+      saveBtn.disabled = !bulkStaged.length;
+      saveBtn.addEventListener("click", () => {
+        const name = (prompt("Name this profile", "") || "").trim();
+        if (!name) return;
+        const edits = bulkStaged.map(e => ({ addr: e.addr, value: e.value }));
+        const next = readProfiles().filter(p2 => p2.name !== name);
+        next.push({ name, edits });
+        if (!writeProfiles(next)) { announce("Couldn't save that profile"); return; }
+        announce("Saved \u201c" + name + "\u201d");
+        renderProfiles();
+      });
+      head.appendChild(saveBtn);
+
+      const importBtn = mkBtn("Import", "Load profiles from a file someone shared");
+      importBtn.className = "mini-btn";
+      importBtn.addEventListener("click", () => {
+        const inp = document.createElement("input");
+        inp.type = "file"; inp.accept = "application/json,.json";
+        inp.addEventListener("change", () => {
+          const f = inp.files && inp.files[0];
+          if (!f) return;
+          const r = new FileReader();
+          r.onload = () => {
+            let incoming;
+            try { incoming = JSON.parse(r.result); } catch (e) { announce("That file isn't JSON"); return; }
+            const arr = Array.isArray(incoming) ? incoming : incoming && incoming.profiles;
+            const merged = readProfiles();
+            (Array.isArray(arr) ? arr : []).forEach(pr => {
+              const i = merged.findIndex(x => x.name === (pr && pr.name));
+              if (i >= 0) merged[i] = pr; else merged.push(pr);
+            });
+            // Prefs validates the whole list, so a malformed file is rejected
+            // outright rather than half-imported
+            if (!writeProfiles(merged)) { announce("That file didn't look like profiles"); return; }
+            announce("Imported profiles");
+            renderProfiles();
+          };
+          r.readAsText(f);
+        });
+        inp.click();
+      });
+      head.appendChild(importBtn);
+      profWrap.appendChild(head);
+
+      list.forEach(pr => {
+        const row = document.createElement("div");
+        row.className = "bank-bulk-row";
+
+        const name = document.createElement("span");
+        name.className = "bank-bulk-name";
+        name.textContent = pr.name;
+
+        const count = document.createElement("span");
+        count.className = "bank-bulk-val";
+        count.textContent = pr.edits.length + (pr.edits.length === 1 ? " setting" : " settings");
+
+        const use = mkBtn("Apply", "Stage this profile's settings across every bank");
+        use.className = "mini-btn";
+        use.disabled = !bankState.slots;
+        use.addEventListener("click", () => {
+          const n = applyProfile(pr);
+          announce(n ? "Staged " + pr.name : "Every bank already matches " + pr.name);
+          recomputeDirty();
+          renderBankSheet();
+        });
+
+        const out = mkBtn("Export", "Save this profile to a file");
+        out.className = "mini-btn";
+        out.addEventListener("click", () => {
+          const blob = new Blob([JSON.stringify({ profiles: [pr] }, null, 2)], { type: "application/json" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = pr.name.replace(/[^\w.-]+/g, "-") + ".profile.json";
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        });
+
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "bank-bulk-undo";
+        del.textContent = "\u00d7";
+        del.title = "Forget this profile";
+        del.addEventListener("click", () => {
+          if (!confirm("Forget the profile \u201c" + pr.name + "\u201d?")) return;
+          writeProfiles(readProfiles().filter(x => x.name !== pr.name));
+          renderProfiles();
+        });
+
+        row.append(name, count, use, out, del);
+        profWrap.appendChild(row);
+      });
+    }
+    renderProfiles();
+
     const picker = document.createElement("div");
     picker.className = "bank-bulk-picker";
     bulk.appendChild(picker);
@@ -5747,6 +5894,7 @@
       const existing = bulkStaged.findIndex(e => e.addr === p.addr);
       const entry = {
         addr: p.addr,
+        value: v,          // the raw wire value, so a staged set can be saved
         label: paramSel.options[paramSel.selectedIndex].textContent,
         valueLabel: p.targetSelect ? field.options[field.selectedIndex].textContent
           : p.options ? p.options[Number(field.value)]
