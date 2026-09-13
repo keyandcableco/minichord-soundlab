@@ -192,12 +192,21 @@
       });
       if (!ok) return;
       clefsFitted = true;
-      // the key signature clears the widest clef, and the notes clear the key
+      // the key signature clears the widest clef
       keyLeft = right + 7;
-      const [, count] = KEY_SIG[key] || KEY_SIG[0];
-      contentLeft = keyLeft + Math.min(count, 7) * KEYACC_W + 12;
+      layoutForKey();
       drawKeySignature();
       refresh();
+    }
+
+    // The notes have to clear the key signature, and the signature's width
+    // depends on the key — so this is not a one-off measurement. It was computed
+    // only inside fitClefs, which runs at build, so changing from C to a key with
+    // accidentals grew the signature rightwards while the notes stayed where no
+    // accidentals had put them, and the two overlapped.
+    function layoutForKey() {
+      const [, count] = KEY_SIG[key] || KEY_SIG[0];
+      contentLeft = keyLeft + Math.min(count, 7) * KEYACC_W + 12;
     }
 
     const keyLayer = el("g", { class: "staff-key" });
@@ -387,6 +396,7 @@
         const kk = Math.max(0, Math.min(20, k | 0));
         if (kk === key) return;
         key = kk;
+        layoutForKey();       // a wider signature pushes the notes right
         drawKeySignature();
         refresh();
       },
