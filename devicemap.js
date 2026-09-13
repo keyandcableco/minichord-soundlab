@@ -164,6 +164,69 @@
   // note→string matching logic (that's harpStringNote, by string index).
   const HARP_STRING0_AT_TOP = false;
 
+  /* ---- spelled pitch -------------------------------------------------------
+   * A note is a LETTER plus an ALTERATION, not a pitch class. A twelve-entry
+   * table cannot tell E# from F or B♭♭ from A, so anything built on one spells
+   * the enharmonic keys and the altered chord tones wrong however the table is
+   * chosen. Pitch is derived from the spelling rather than the other way round.
+   *
+   * Roots come out of the hardware for free: the seven buttons are B E A D G C F,
+   * which is exactly the order of flats, and reversed the order of sharps — which
+   * is why SHARP_BTNS is the button list backwards. A button's letter is fixed;
+   * the key signature supplies its alteration.
+   */
+  const LETTER_PC = [0, 2, 4, 5, 7, 9, 11];              // natural pc of C D E F G A B
+  const LETTER_NAME = ["C", "D", "E", "F", "G", "A", "B"];
+  const ALT_TEXT = { "-2": "\u266d\u266d", "-1": "\u266d", "0": "", "1": "#", "2": "x" };
+  const SHARP_ORDER = [3, 0, 4, 1, 5, 2, 6];             // F C G D A E B, as letters
+  const FLAT_ORDER = [6, 2, 5, 1, 4, 0, 3];              // B E A D G C F
+  const BTN_LETTER = [6, 2, 5, 1, 4, 0, 3];              // the buttons, as letters
+  // signed position on the circle of fifths, and tonic letter, for each of the 21 keys
+  const KEY_FIFTHS = [0, 1, 2, 3, 4, 5, -1, -2, -3, -4, -5, -6, 6, 7, 8, 9, 10, 11, 12, -8, -7];
+  const KEY_TONIC = [0, 4, 1, 5, 2, 6, 3, 6, 2, 5, 1, 4, 3, 0, 4, 1, 5, 2, 6, 3, 0];
+
+  const spelledPc = sp => (((LETTER_PC[sp.letter] + sp.alt) % 12) + 12) % 12;
+  const spellText = sp => LETTER_NAME[sp.letter]
+    + (String(sp.alt) in ALT_TEXT ? ALT_TEXT[String(sp.alt)] : "");
+
+  function keyAlt(acc, count, letter) {
+    const order = acc > 0 ? SHARP_ORDER : FLAT_ORDER;
+    let alt = 0;
+    for (let i = 0; i < count; i++) if (order[i % 7] === letter) alt += acc;
+    return alt;
+  }
+
+  // Transposing moves the sounding key without changing the fingering, so the
+  // letters move with it: in C transposed up one, the B button plays C. The key
+  // itself is taken exactly as selected when there is no transpose, so C# major
+  // stays C# major rather than being quietly respelled as Db.
+  function spellingKey(key, semis) {
+    const k = Math.max(0, Math.min(20, key | 0));
+    if (!semis) return { acc: KEY_FIFTHS[k] >= 0 ? 1 : -1, count: Math.abs(KEY_FIFTHS[k]),
+                         tonic: KEY_TONIC[k], base: k };
+    const from = KEY_FIFTHS[k], want = from + 7 * semis;
+    let best = null;
+    for (let f = -8; f <= 12; f++) {
+      if ((((f - want) % 12) + 12) % 12 !== 0) continue;
+      if (best === null || Math.abs(f) < Math.abs(best)
+          || (Math.abs(f) === Math.abs(best) && (from >= 0 ? f > best : f < best))) best = f;
+    }
+    return { acc: best >= 0 ? 1 : -1, count: Math.abs(best),
+             tonic: (((KEY_TONIC[k] + 4 * (best - from)) % 7) + 7) % 7, base: k };
+  }
+
+  // the root a button names: letter from the button (moved by any transpose),
+  // alteration from the key signature, plus the modifier when it is held
+  function spellRoot(s, button, sharpHeld, semis) {
+    const tr = semis == null ? (s.transpose | 0) : semis;
+    const sk = spellingKey(s.key, tr);
+    const shift = (((sk.tonic - KEY_TONIC[Math.max(0, Math.min(20, s.key | 0))]) % 7) + 7) % 7;
+    const letter = (BTN_LETTER[button] + shift) % 7;
+    let alt = keyAlt(sk.acc, sk.count, letter);
+    if (sharpHeld) alt += s.flat ? -1 : 1;
+    return { letter, alt };
+  }
+
   const NOTE_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   const NOTE_FLAT  = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 
@@ -872,8 +935,7 @@
         // LIVE transpose, like the harp labels: a cell names what the button plays on its NEXT
         // press (a new press always adopts the live addr 30). Only the readout of a currently
         // HELD chord keeps the frozen press-time transpose (chordLabel/chordVoiceNote).
-        const rootMidi = rootButton(s, button) + s.transpose;
-        const rootName = pitchName(rootMidi, s);
+        const rootName = spellText(spellRoot(s, button, false));
         for (let row = 0; row < 3; row++) {
           const suffix = s.altLayout ? (TYPE_NAME[altSlotType(row, s)] || "")
             : (s.barry ? ROWS[row].barrySuffix : ROWS[row].suffix);
@@ -1335,15 +1397,13 @@
       // Fold it into the shown octave digit (a ±12 shift never moves the pitch class)
       const rm = MIDI_BASE + tr + rootButton(s, button) + (off || 0) + (sharp ? (s.flat ? -1 : 1) : 0) + (s.chordOctSemis || 0);
       const oct = Math.floor(rm / 12) - 1;
-      // spell the root by the BUTTON's own natural name + the accidental (E#, B#), so the label matches
-      // the lit chord column, instead of collapsing to the enharmonic natural (E#→F, B#→C).
-      const natPc = (((rm - (sharp ? (s.flat ? -1 : 1) : 0)) % 12) + 12) % 12;
-      const rootName = names[natPc] + (sharp ? (s.flat ? "♭" : "#") : "");
+      // the root carries its own letter, so E# stays E# rather than collapsing to F
+      const rootName = spellText(spellRoot(s, button, sharp, tr + (off || 0)));
       let str = rootName + '<sub class="dm-ro-oct">' + oct + "</sub>" + (TYPE_NAME[type] != null ? TYPE_NAME[type] : type);
 
       // the slash bass must shift with the same transpose as the root. Otherwise, with
       // transpose on, D/G reads as D with the wrong bass name while the root stays correct
-      if (slashButton != null) str += "/" + names[((((rootButton(s, slashButton) + tr + (off || 0)) % 12) + 12) % 12)];
+      if (slashButton != null) str += "/" + spellText(spellRoot(s, slashButton, false, tr + (off || 0)));
       return str;
     }
     let roCur = null, roCurBtn = null, harpReadT = 0, harpBtn = null;
@@ -1468,12 +1528,10 @@
       applyChord(r);
     }
     function describeChord(c) {
-      const names = noteNames(s);
-      // spell by the button's natural name + accidental (E#, B#), matching the lit column
-      const natPc = (((rootButton(s, c.button)) % 12) + 12) % 12;
-      const rootName = names[natPc] + (c.sharp ? (s.flat ? "♭" : "#") : "");
+      // spell by the button's own letter, matching the lit column
+      const rootName = spellText(spellRoot(s, c.button, c.sharp));
       let str = rootName + (TYPE_NAME[c.type] != null ? TYPE_NAME[c.type] : c.type);
-      if (c.slash) str += "/" + names[(((rootButton(s, c.slash.button) % 12) + 12) % 12)];
+      if (c.slash) str += "/" + spellText(spellRoot(s, c.slash.button, false));
       return str + ` [col${colOf(c.button)} rows${typeRows(c.type, s).join("")}${c.sharp ? " SHARP" : ""}${c.slash ? " slash@col" + colOf(c.slash.button) : ""}]`;
     }
 

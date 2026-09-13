@@ -8,7 +8,7 @@
     "lint:css": "stylelint \"**/*.css\"",
     "lint:html": "html-validate index.html",
     "smoke": "node __harness__/smoke.js",
-    "test": "node __harness__/run.js > __harness__/out.txt && git diff --no-index __harness__/golden.txt __harness__/out.txt",
+    "test": "node __harness__/run.js > __harness__/out.txt && git diff --no-index __harness__/golden.txt __harness__/out.txt && node __harness__/spelling.js",
     "check": "npm run lint && npm run lint:css && npm run lint:html && npm run test && npm run smoke"
   },
   "license": "CC-BY-NC-4.0",

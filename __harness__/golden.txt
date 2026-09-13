@@ -254,7 +254,8 @@
   · C held @t0 | lit: button.lit:C
 [Play] HARP shown top→bot: #11:A#6  #10:G6  #9:D#6  #8:A#5  #7:G5  #6:D#5  #5:A#4  #4:G4  #3:D#4  #2:A#3  #1:G3  #0:D#3
 [Play] effective: harpShuf=0(normal) key=0 frameShift=0 transpose=3(chord frozen@0) slashLevel=0 chordShuf=2 chromatic=0 barry=0 sharp-btn altLayout=0 inv=0 spacing=0 harpMode=0 | held: button=5(C) type=major
-  · transpose=3 while held (matching frozen, labels live) | lit: button.lit:D#
+[Play] ▶ DETECTED: E♭ [col1 rows0]   (live: C4 E4 G4 C5)
+  · transpose=3 while held (matching frozen, labels live) | lit: button.lit:E♭
 [Play] MIDI  chord  OFF  60 C4  (+30ms)
 [Play] MIDI  chord  OFF  64 E4  (+0ms)
 [Play] MIDI  chord  OFF  67 G4  (+0ms)
