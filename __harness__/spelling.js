@@ -17,6 +17,34 @@ const fs = require("fs"), vm = require("vm"), path = require("path");
 let clock = 0, seq = 0, timers = [];
 const setT = (fn, ms) => { const t = { fn, due: clock + (ms || 0), seq: seq++, dead: false }; timers.push(t); return t; };
 const clrT = t => { if (t) t.dead = true; };
+
+/* Run every pending timer, in order, until the queue is empty.
+ *
+ * This used to be a fixed 900-iteration loop that re-filtered the whole timer
+ * array each time. `timers` is shared across every DeviceMap this file builds —
+ * about two thousand of them — and dead entries were never removed, so each
+ * scenario re-scanned everything the previous ones had left behind. The checks
+ * took forty seconds, almost all of it walking dead timers.
+ *
+ * Draining properly and pruning as we go costs one pass. It also removes the
+ * arbitrary iteration cap, which was silently truncating any scenario that
+ * needed more steps than the number I happened to pick.
+ */
+function settle(limit) {
+  let steps = 0;
+  for (;;) {
+    let next = null;
+    for (const t of timers) {
+      if (t.dead) continue;
+      if (!next || t.due < next.due || (t.due === next.due && t.seq < next.seq)) next = t;
+    }
+    if (!next || ++steps > (limit || 5000)) break;
+    clock = next.due;
+    next.dead = true;
+    try { next.fn(); } catch (e) { /* shim gaps are expected */ }
+  }
+  timers = timers.filter(t => !t.dead);     // the part that was missing
+}
 function el(tag) {
   const cls = new Set();
   return { tagName: tag, nodeKids: [], className: "", textContent: "", title: "", type: "",
@@ -42,6 +70,25 @@ vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "devicemap.js"), "utf8"),
                 sandbox, { filename: "devicemap.js" });
 const DeviceMap = sandbox.window.DeviceMap;
+
+/* DeviceMap.create + rebuild() builds the whole chord candidate lookup, which is
+ * where nearly all the time in this file goes. The patch only changes per key,
+ * inversion and spacing — not per chord — so one device is reused across every
+ * chord tried under the same patch, with the notes released in between. Counts
+ * are asserted below and must not move: if reuse leaked state between chords
+ * they would.
+ */
+let reuseKey = null, reuseDm = null;
+function deviceFor(patch) {
+  const k = JSON.stringify(patch);
+  if (k !== reuseKey) {
+    reuseKey = k;
+    reuseDm = DeviceMap.create({ getPatch: () => patch, getHue: () => 210 });
+    reuseDm.setConnected(true); reuseDm.rebuild();
+  }
+  return reuseDm;
+}
+
 
 /* ---- the firmware's pitch, reimplemented independently ------------------
  * Deliberately a separate implementation rather than a call into devicemap:
@@ -97,7 +144,24 @@ const buttonOfCol = c => 6 - c;
 const KEY_NAME = ["C", "G", "D", "A", "E", "B", "F", "Bb", "Eb", "Ab", "Db", "Gb",
                   "F#", "C#", "G#", "D#", "A#", "E#", "B#", "Fb", "Cb"];
 let checked = 0; const bad = [];
+/* This file walks about eleven thousand labels, which takes a few seconds. Say
+ * what it is doing rather than sitting silent — on a TTY it rewrites one line,
+ * and in CI it prints nothing so logs stay clean. */
+const tty = process.stdout.isTTY;
+let phaseStart = Date.now();
+const step = (label, done, total) => {
+  if (!tty) return;
+  const pct = Math.round(100 * done / total);
+  const bar = "#".repeat(Math.round(pct / 4)).padEnd(25, ".");
+  process.stdout.write(`\r  ${label.padEnd(14)} [${bar}] ${String(pct).padStart(3)}%`);
+};
+const phaseDone = label => {
+  if (!tty) return;
+  process.stdout.write(`\r  ${label.padEnd(14)} [${"#".repeat(25)}] done in ${((Date.now() - phaseStart) / 1000).toFixed(1)}s\n`);
+  phaseStart = Date.now();
+};
 for (let key = 0; key < 21; key++) {
+  step("pad labels", key, 21);
   for (let tr = 0; tr <= 12; tr++) {
     const labels = pads(key, tr);
     if (labels.length !== 7) { bad.push(`key ${KEY_NAME[key]} +${tr}: got ${labels.length} pads`); continue; }
@@ -124,16 +188,11 @@ for (let key = 0; key < 21; key++) {
  * chord-tone default, with and without a chord held.
  */
 function harpStrings(patch, hold) {
-  const dm = DeviceMap.create({ getPatch: () => patch, getHue: () => 210 });
-  dm.setConnected(true); dm.rebuild();
+  // same reuse as the voices sweep: the patch is per key and mode, not per chord
+  const dm = deviceFor(patch);
   if (hold) hold.forEach(n => dm.onNote("chord", "on", n));
   // let any deferred relabel settle
-  for (let i = 0; i < 400; i++) {
-    const due = timers.filter(t => !t.dead && t.due <= clock + 1);
-    if (!due.length) { clock += 1; continue; }
-    due.sort((a, b) => a.due - b.due || a.seq - b.seq);
-    due.forEach(t => { t.dead = true; try { t.fn(); } catch (e) { /* shim */ } });
-  }
+  settle();
   const out = [];
   (function walk(n) { if (!n) return;
     if (/dm-string/.test(n.className || "") && n.textContent) {
@@ -141,13 +200,16 @@ function harpStrings(patch, hold) {
       if (m) out.push({ label: n.textContent, midi: parseInt(m[1], 10) });
     }
     (n.nodeKids || []).forEach(walk); })(dm.el);
+  if (hold) { hold.forEach(n => dm.onNote("chord", "off", n)); settle(); }
   return out;
 }
 
 const CHORD_C = [60, 64, 67, 72];        // a C major shape, button C in key C
 let harpChecked = 0;
 const MODES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+phaseDone("pad labels");
 for (let key = 0; key < 21; key++) {
+  step("harp strings", key, 21);
   for (const mode of MODES) {
     for (const held of [null, CHORD_C]) {
       const patch = { 35: key, 36: mode, 236: 0b101010110101 };
@@ -218,15 +280,9 @@ function voicesFor(key, btn, table, inv, sp) {
   return out;
 }
 function readout(patch, notes) {
-  const dm = DeviceMap.create({ getPatch: () => patch, getHue: () => 210 });
-  dm.setConnected(true); dm.rebuild();
+  const dm = deviceFor(patch);
   notes.forEach(n => dm.onNote("chord", "on", n));
-  for (let i = 0; i < 900; i++) {
-    const due = timers.filter(t => !t.dead && t.due <= clock + 1);
-    if (!due.length) { clock += 1; continue; }
-    due.sort((a, b) => a.due - b.due || a.seq - b.seq);
-    due.forEach(t => { t.dead = true; try { t.fn(); } catch (e) { /* shim */ } });
-  }
+  settle();
   let html = "", cur = "";
   (function walk(n) { if (!n) return;
     if (/dm-ro-notes/.test(n.className || "")) html = n.innerHTML || "";
@@ -236,15 +292,24 @@ function readout(patch, notes) {
   readout.matched = cur.replace(/<sub[^>]*>.*?<\/sub>/g, "").replace(/<[^>]*>/g, "").trim();
   // each entry is "<name><sub>octave</sub>"; the octave is the sounding truth and
   // is checked elsewhere, so take the name only
-  return html.split(/<span[^>]*>·<\/span>/)
+  const out = html.split(/<span[^>]*>·<\/span>/)
     .map(x => x.split("<sub")[0].replace(/<[^>]*>/g, "").trim())
     .filter(Boolean);
+  notes.forEach(n => dm.onNote("chord", "off", n));   // leave it clean for the next chord
+  settle();
+  return out;
 }
 let voiceChecked = 0, voiceSkipped = 0;
-for (const key of [0, 1, 3, 6, 9, 11, 13]) {
-  for (const type of Object.keys(CHORD_TABLES)) {
-    for (const btn of [0, 3, 5]) {
-      for (const [inv, sp] of [[0, 0], [1, 0], [2, 0], [0, 1], [0, 4], [1, 4]]) {
+// inversion and spacing outermost: they are what the patch depends on, so every
+// chord tried under one patch reuses one device instead of rebuilding the
+// candidate lookup each time
+phaseDone("harp strings");
+const VOICE_KEYS = [0, 1, 3, 6, 9, 11, 13];
+for (const key of VOICE_KEYS) {
+  step("chord voices", VOICE_KEYS.indexOf(key), VOICE_KEYS.length);
+  for (const [inv, sp] of [[0, 0], [1, 0], [2, 0], [0, 1], [0, 4], [1, 4]]) {
+    for (const type of Object.keys(CHORD_TABLES)) {
+      for (const btn of [0, 3, 5]) {
         const table = CHORD_TABLES[type];
         const notes = voicesFor(key, btn, table, inv, sp);
         const labels = readout({ 35: key, 37: inv, 38: sp }, notes);
@@ -298,18 +363,14 @@ function harpScale(type, mode) {
   const dm = DeviceMap.create({ getPatch: () => patch, getHue: () => 210 });
   dm.setConnected(true); dm.rebuild();
   CHORD_VOICING[type].forEach(t => dm.onNote("chord", "on", 60 + t));
-  for (let i = 0; i < 900; i++) {
-    const due = timers.filter(t => !t.dead && t.due <= clock + 1);
-    if (!due.length) { clock += 1; continue; }
-    due.sort((a, b) => a.due - b.due || a.seq - b.seq);
-    due.forEach(t => { t.dead = true; try { t.fn(); } catch (e) { /* shim */ } });
-  }
+  settle();
   const out = [];
   (function walk(n) { if (!n) return;
     if (/dm-string/.test(n.className || "") && n.textContent) out.push(n.textContent);
     (n.nodeKids || []).forEach(walk); })(dm.el);
   return out.reverse();          // strings render high to low
 }
+phaseDone("chord voices");
 let scaleChecked = 0;
 for (const key of Object.keys(SCALE_SPELLING)) {
   const [type, mode] = key.split(":");
@@ -320,6 +381,7 @@ for (const key of Object.keys(SCALE_SPELLING)) {
     bad.push(`scale ${type} mode ${mode}: got "${got.join(" ")}", expected "${want.join(" ")}"`);
 }
 
+phaseDone("scale spellings");
 if (bad.length) {
   console.error(`spelling: ${bad.length} failure(s) of ${checked} pad labels and ${harpChecked} harp labels and ${voiceChecked} chord voices and ${scaleChecked} scale spellings\n`);
   bad.slice(0, 25).forEach(b => console.error("  " + b));
