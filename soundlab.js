@@ -162,6 +162,12 @@
   let overviewCanvases = [];   // {canvas, draw} pairs for the Overview dashboard
   const overviewProfiles = []; // {el, voice} per-voice profile cards in the dashboard
   let deviceMap = null;        // live "Play" view (devicemap.js), mounted in render()
+  let staffView = null;        // live notation under the mirror (staff.js)
+  // The staff keeps its own key rather than reading the patch, so every path that
+  // replaces the patch has to tell it. Missing one leaves the staff drawing the
+  // key it was last told about: no signature and sharp spelling if that was C.
+  // setKey early-returns when the key is unchanged, so calling this freely is free.
+  const syncStaffKey = () => { if (staffView) staffView.setKey(patch[35] || 0); };
   let playRhythmRefresh = null; // repaint fn for the Play tab's own rhythm grid copy
   let playRhythmSetHead = null; // setPlayhead(step|null) for the Play rhythm grid (live sync)
   const rhythmHelpUpdaters = []; // per-grid fns that re-word the play/pause help for live vs learning mode
@@ -271,6 +277,13 @@
       portNoticeEl.append(pnText, pnBtn);
       middleRoot.appendChild(portNoticeEl);
       middleRoot.appendChild(deviceMap.el);
+      if (!staffView && window.Staff) staffView = window.Staff.create();
+      if (staffView) {
+        middleRoot.appendChild(staffView.el);
+        syncStaffKey();
+        staffView.el.hidden = Prefs.get("staffShow") === "off";
+        if (staffView.fit && !staffView.el.hidden) staffView.fit();
+      }
       updatePortNotice();
     }
     buildPlayExtras();   // Play tab: rhythm grid under the keyboard + note settings on the right
@@ -533,6 +546,11 @@
     drawActiveGraph();   // graph strokes read --accent at draw time
   }
   Prefs.subscribe("bankAccent", applyBankAccent);
+  Prefs.subscribe("staffShow", v => {
+    if (!staffView) return;
+    staffView.el.hidden = v === "off";
+    if (v !== "off" && staffView.fit) staffView.fit();
+  });
   Prefs.subscribe("accentHue", applyBankAccent);
   // a knob can silently drive BPM/cycle/shuffle or a step (the dump then lies); note it, like the mirror does
   function updateRhythmPotNote() {
@@ -946,6 +964,7 @@
     const live = !!(controller && controller.isConnected());
     deviceMap.setConnected(live);
     deviceMap.rebuild();
+    syncStaffKey();
     if (playRhythmRefresh) playRhythmRefresh();
     setRhythmHue();
     updateRhythmPotNote();
@@ -2462,6 +2481,7 @@
     updateGateFlags();
     renderProfiles();
     if (deviceMap && p && DEVICEMAP_ADDRS.has(p.addr)) deviceMap.rebuild();
+    if (p && p.addr === 35) syncStaffKey();
     if (p && p.addr === 108) updatePortNotice();
     // re-fingerprint after the edit settles (undo/redo identifies itself at
     // the end of applyHistState, don't double up mid-restore)
@@ -2583,6 +2603,7 @@
     if (any) {
       drawActiveGraph(); renderProfiles(); updateGateFlags(); updatePortNotice();
       if (deviceMap) deviceMap.rebuild();
+      syncStaffKey();
     }
     return any;
   }
@@ -2888,6 +2909,9 @@
       { label: "Compact", value: "compact" },
       { label: "Verbose", value: "verbose" },
     ], "density"));
+    pop.appendChild(prefRow("Notation", "Show a staff under the Play mirror with what you are playing, its key signature and the chord's roman numeral.", [
+      { label: "Show", value: "on" }, { label: "Hide", value: "off" },
+    ], "staffShow"));
     pop.appendChild(prefRow("Term highlights", "Underline glossary words in descriptions (click to define).", [
       { label: "On", value: true }, { label: "Off", value: false },
     ], "glossary"));
@@ -4806,6 +4830,7 @@
     }));
     if (any) { drawActiveGraph(); renderProfiles(); updateGateFlags(); updatePortNotice(); }
     if (any && deviceMap) deviceMap.rebuild();   // refresh Play-tab labels for the new patch (strum pattern, chromatic, key…)
+    if (any) syncStaffKey();
     if (any) prevPatch = Object.assign({}, patch);   // bulk loads re-baseline undo's "before" values
     return any;
   }
@@ -4835,6 +4860,7 @@
     updateGateFlags();
     updateConnectionUI(true, data);
     if (deviceMap) { deviceMap.setConnected(true); deviceMap.rebuild(); }   // refresh the live mirror
+    syncStaffKey();   // a dump can carry a key the device changed by itself
     midiRec.connection(true);   // a dump means the device is live, un-gray the Record button
     applyBankAccent();       // bank hue may have changed with the new bank
     updateRhythmPotNote();   // pot targets (patch[10/12/14/16]) may have changed
@@ -6265,6 +6291,9 @@
       midiRec.feed(role, type, note, vel);   // the recorder hears everything, even in single-port mode
       if (patch[108] === 1) return;   // single-port mode: the mirror can't trust roles, drop the stream
       if (deviceMap) deviceMap.onNote(role, type, note, vel);
+      if (staffView) {
+        if (type === "on") staffView.noteOn(role, note); else staffView.noteOff(role, note);
+      }
       if (role === "chord") rhythmSync.onChordNote(type, note);
     };
   }

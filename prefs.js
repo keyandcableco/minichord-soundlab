@@ -24,6 +24,8 @@ window.Prefs = (function () {
     welcome:   { def: true,      ok: v => typeof v === "boolean" },
     lastView:  { def: "play",    ok: v => typeof v === "string" },
     pins:      { def: [],        ok: v => Array.isArray(v) && v.every(Number.isInteger) },
+    // whether the notation panel is shown under the device mirror
+    staffShow: { def: "on",      ok: v => v === "on" || v === "off" },
     // names the player has given their own banks. The device has no room for
     // these, so they live here: twelve slots, "" meaning unnamed.
     bankNames: { def: [],        ok: v => Array.isArray(v) && v.length <= 12 && v.every(x => typeof x === "string") },
