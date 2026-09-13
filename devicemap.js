@@ -177,7 +177,12 @@
    */
   const LETTER_PC = [0, 2, 4, 5, 7, 9, 11];              // natural pc of C D E F G A B
   const LETTER_NAME = ["C", "D", "E", "F", "G", "A", "B"];
-  const ALT_TEXT = { "-2": "\u266d\u266d", "-1": "\u266d", "0": "", "1": "#", "2": "x" };
+  // Literal spelling in the far keys really can reach a third accidental: B# major's
+  // relative minor is G-double-sharp minor, whose harmonic leading tone is F triple
+  // sharp. Absurd to read, but it is what the key asks for, and rendering a bare "F"
+  // there would name the wrong pitch — which is worse than an ugly name.
+  const ALT_TEXT = { "-3": "\u266d\u266d\u266d", "-2": "\u266d\u266d", "-1": "\u266d",
+                     "0": "", "1": "#", "2": "x", "3": "#x" };
   const SHARP_ORDER = [3, 0, 4, 1, 5, 2, 6];             // F C G D A E B, as letters
   const FLAT_ORDER = [6, 2, 5, 1, 4, 0, 3];              // B E A D G C F
   const BTN_LETTER = [6, 2, 5, 1, 4, 0, 3];              // the buttons, as letters
@@ -186,8 +191,11 @@
   const KEY_TONIC = [0, 4, 1, 5, 2, 6, 3, 6, 2, 5, 1, 4, 3, 0, 4, 1, 5, 2, 6, 3, 0];
 
   const spelledPc = sp => (((LETTER_PC[sp.letter] + sp.alt) % 12) + 12) % 12;
-  const spellText = sp => LETTER_NAME[sp.letter]
-    + (String(sp.alt) in ALT_TEXT ? ALT_TEXT[String(sp.alt)] : "");
+  // never silently drop an alteration: an unrenderable one falls back to the
+  // pitch-class name, which is at least the right note
+  const spellText = sp => (String(sp.alt) in ALT_TEXT)
+    ? LETTER_NAME[sp.letter] + ALT_TEXT[String(sp.alt)]
+    : NOTE_SHARP[spelledPc(sp)];
 
   function keyAlt(acc, count, letter) {
     const order = acc > 0 ? SHARP_ORDER : FLAT_ORDER;
@@ -225,6 +233,52 @@
     let alt = keyAlt(sk.acc, sk.count, letter);
     if (sharpHeld) alt += s.flat ? -1 : 1;
     return { letter, alt };
+  }
+
+  /* A note's LETTER comes from its degree above a root, and its alteration from
+   * whatever makes the semitone distance come out right. Chords carry explicit
+   * degrees because their tones have known functions: dim's 6 is a diminished
+   * FIFTH, aug's 8 an augmented FIFTH, full_dim's 9 a diminished SEVENTH. A
+   * chromatic rule would call those a tritone, a minor sixth and a sixth, and
+   * spell all three wrongly. Scales have no such functions beyond the naming the
+   * custom-scale editor already uses (1 b2 2 b3 3 4 b5 5 b6 6 b7 7), so one
+   * chromatic rule covers every scale mode and the player's own scale alike. */
+  const CHROMATIC_DEGREE = [0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6];
+  const CHORD_DEGREE = {
+    major:       [0, 2, 4, 7, 1, 3, 5],
+    minor:       [0, 2, 4, 7, 1, 3, 5],
+    maj_sixth:   [0, 2, 4, 5, 1, 3, 7],
+    min_sixth:   [0, 2, 4, 5, 1, 3, 7],
+    seventh:     [0, 2, 6, 4, 1, 3, 5],
+    maj_seventh: [0, 2, 6, 4, 1, 3, 5],
+    half_dim:    [0, 2, 4, 6, 1, 3, 5],
+    sus_fourth:  [0, 3, 4, 7, 1, 5, 6],
+    sus_second:  [0, 1, 4, 7, 3, 5, 2],
+    seventh_sus: [0, 3, 6, 4, 1, 5, 2],
+    major_ninth: [0, 2, 6, 1, 4, 3, 5],
+    minor_ninth: [0, 2, 6, 1, 4, 3, 5],
+    added_ninth: [0, 2, 4, 1, 3, 5, 6],
+    six_nine:    [0, 2, 5, 1, 4, 3, 6],
+    min_seventh: [0, 2, 6, 4, 1, 3, 5],
+    aug:         [0, 2, 4, 7, 1, 3, 5],
+    dim:         [0, 2, 4, 7, 1, 3, 5],
+    full_dim:    [0, 2, 4, 6, 1, 3, 7],
+  };
+
+  function spellInterval(root, deg, semis) {
+    const letter = (root.letter + deg) % 7;
+    const natSpan = (((LETTER_PC[letter] - LETTER_PC[root.letter]) % 12) + 12) % 12;
+    const want = (((semis % 12) + 12) % 12);
+    const diff = ((((want - natSpan) % 12) + 12 + 6) % 12) - 6;
+    return { letter, alt: root.alt + diff };
+  }
+
+  // the key's own tonic, spelled; `third` drops a minor third for the relative
+  // minor modes, which is two letters down and so keeps the letter honest
+  function spellTonic(s, minor) {
+    const sk = spellingKey(s.key, s.transpose | 0);
+    const letter = minor ? (sk.tonic + 5) % 7 : sk.tonic;
+    return { letter, alt: keyAlt(sk.acc, sk.count, letter) };
   }
 
   const NOTE_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -548,6 +602,55 @@
   }
 
   // calculate_note_harp for a string, given the currently held chord (incl. slash + sharp)
+  /* The spelled twin of harpStringNote below. It mirrors that function's branches
+   * exactly, returning the LETTER each string names rather than its pitch. The
+   * two are kept honest by __harness__/spelling.js, which asserts every string of
+   * every mode spells the pitch harpStringNote returns — the one thing that would
+   * catch these two drifting apart. */
+  function harpStringSpell(string, held, s, rowOverride) {
+    const semitonesAbove = (root, note) => (((note - root) % 12) + 12) % 12;
+
+    if (s.chromatic) {
+      const tonic = spellTonic(s, false);
+      const iv = semitonesAbove(LETTER_PC[tonic.letter] + tonic.alt, MIDI_BASE + s.transpose + string + 24);
+      return spellInterval(tonic, CHROMATIC_DEGREE[iv], iv);
+    }
+
+    const mode = s.harpMode | 0;
+    if (mode >= 1 && mode <= 7) {
+      const scale = SCALE_INTERVALS[mode - 1];
+      const tonic = spellTonic(s, mode >= 5 && mode <= 7);
+      const iv = scale[string % scale.length];
+      return spellInterval(tonic, CHROMATIC_DEGREE[iv], iv);
+    }
+    if (mode === 10) {
+      const scale = customScaleIntervals(s.customScale);
+      const tonic = spellTonic(s, false);
+      const iv = scale[string % scale.length];
+      return spellInterval(tonic, CHROMATIC_DEGREE[iv], iv);
+    }
+    if (mode === 11 || mode === 8 || mode === 9) {
+      // rooted on the chord, and on the slash bass when one is held
+      const root = spellRoot(s, held.slash ? held.slash.button : held.button, !!held.sharp);
+      const scale = mode === 11 ? customScaleIntervals(s.customScale)
+        : CHORD_SCALE_INTERVALS[(CHORD_SCALE_INDEX[held.type] || CHORD_SCALE_INDEX.major)[mode === 9 ? 0 : 1]];
+      const iv = scale[string % scale.length];
+      return spellInterval(root, CHROMATIC_DEGREE[iv], iv);
+    }
+
+    // mode 0: the harp plays the chord's own tones, so they take the chord's degrees
+    const level = HARP_SHUF[rowOverride == null ? s.harpShuf : rowOverride][string];
+    if (held.slash && (level % 10) === s.slashLevel) {
+      return spellRoot(s, held.slash.button, !!held.sharp);
+    }
+    const root = spellRoot(s, held.button, !!held.sharp);
+    const idx = level % 10;
+    const table = CHORD[held.type];
+    const degrees = CHORD_DEGREE[held.type];
+    if (!table || !degrees) return root;
+    return spellInterval(root, degrees[idx], table[idx]);
+  }
+
   function harpStringNote(string, held, s, rowOverride) {
     if (s.chromatic) return MIDI_BASE + s.transpose + string + 24;
 
@@ -982,7 +1085,7 @@
       const hc = harpCtx();   // the harp follows its OWN context while desynced from the chord port
       for (let i = 0; i < 12; i++) {
         const note = harpStringNote(i, hc, s, effHarpShuf);
-        segByString[i].textContent = pitchName(note, s);
+        segByString[i].textContent = spellText(harpStringSpell(i, hc, s, effHarpShuf));
         // raw MIDI stays the truth; an explicit octave setting shifts AUDIO only,
         // so show the sounding pitch beside it when they differ
         segByString[i].title = "string#" + i + " · MIDI " + note + " " + noteLabel(note)

@@ -74,9 +74,10 @@ function firmwareRoot(key, btn) {
 /* ---- read the pads ----------------------------------------------------- */
 const LETTER_PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 function parse(label) {
-  const m = /^([A-G])(bb|\u266d\u266d|b|\u266d|#|x)?$/.exec(label);
+  const m = /^([A-G])(\u266d\u266d\u266d|bbb|\u266d\u266d|bb|\u266d|b|#x|x#|###|#|x)?$/.exec(label);
   if (!m) return null;
-  const alt = { "bb": -2, "\u266d\u266d": -2, "b": -1, "\u266d": -1, "#": 1, "x": 2 }[m[2]] || 0;
+  const alt = { "\u266d\u266d\u266d": -3, "bbb": -3, "\u266d\u266d": -2, "bb": -2,
+                "\u266d": -1, "b": -1, "#": 1, "x": 2, "#x": 3, "x#": 3, "###": 3 }[m[2]] || 0;
   return { letter: m[1], pc: ((LETTER_PC[m[1]] + alt) % 12 + 12) % 12 };
 }
 function pads(key, transpose) {
@@ -115,10 +116,57 @@ for (let key = 0; key < 21; key++) {
   }
 }
 
+/* ---- harp strings ------------------------------------------------------
+ * Each harp segment carries its own MIDI number in the title, so the label and
+ * the pitch can be compared without reaching into devicemap. That is the whole
+ * check: whatever the string sounds, its NAME must spell that pitch. Covers the
+ * key-rooted scale modes, the chord-rooted ones, the custom scale and the
+ * chord-tone default, with and without a chord held.
+ */
+function harpStrings(patch, hold) {
+  const dm = DeviceMap.create({ getPatch: () => patch, getHue: () => 210 });
+  dm.setConnected(true); dm.rebuild();
+  if (hold) hold.forEach(n => dm.onNote("chord", "on", n));
+  // let any deferred relabel settle
+  for (let i = 0; i < 400; i++) {
+    const due = timers.filter(t => !t.dead && t.due <= clock + 1);
+    if (!due.length) { clock += 1; continue; }
+    due.sort((a, b) => a.due - b.due || a.seq - b.seq);
+    due.forEach(t => { t.dead = true; try { t.fn(); } catch (e) { /* shim */ } });
+  }
+  const out = [];
+  (function walk(n) { if (!n) return;
+    if (/dm-string/.test(n.className || "") && n.textContent) {
+      const m = /MIDI (\d+)/.exec(n.title || "");
+      if (m) out.push({ label: n.textContent, midi: parseInt(m[1], 10) });
+    }
+    (n.nodeKids || []).forEach(walk); })(dm.el);
+  return out;
+}
+
+const CHORD_C = [60, 64, 67, 72];        // a C major shape, button C in key C
+let harpChecked = 0;
+const MODES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+for (let key = 0; key < 21; key++) {
+  for (const mode of MODES) {
+    for (const held of [null, CHORD_C]) {
+      const patch = { 35: key, 36: mode, 236: 0b101010110101 };
+      const strings = harpStrings(patch, held);
+      strings.forEach((st, i) => {
+        harpChecked++;
+        const sp = parse(st.label);
+        if (!sp) { bad.push(`harp key ${KEY_NAME[key]} mode ${mode}${held ? " held" : ""} str${i}: cannot parse "${st.label}"`); return; }
+        const want = ((st.midi % 12) + 12) % 12;
+        if (sp.pc !== want) bad.push(`harp key ${KEY_NAME[key]} mode ${mode}${held ? " held" : ""} str${i}: "${st.label}" is pc ${sp.pc}, string sounds ${want}`);
+      });
+    }
+  }
+}
+
 if (bad.length) {
-  console.error(`spelling: ${bad.length} failure(s) of ${checked} pad labels\n`);
+  console.error(`spelling: ${bad.length} failure(s) of ${checked} pad labels and ${harpChecked} harp labels\n`);
   bad.slice(0, 25).forEach(b => console.error("  " + b));
   if (bad.length > 25) console.error(`  ... and ${bad.length - 25} more`);
   process.exit(1);
 }
-console.log(`spelling: ${checked} pad labels across 21 keys x 13 transposes, all agree with the firmware`);
+console.log(`spelling: ${checked} pad labels across 21 keys x 13 transposes and ${harpChecked} harp labels across 12 modes, all agree with the pitch played`);
