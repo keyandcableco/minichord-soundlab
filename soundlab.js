@@ -2605,8 +2605,32 @@
   // the knobs a player is EXPECTED to ride mid-performance: Play-screen
   // settings, the rhythm scalars, pinned controls and trigger targets,
   // edits there count 1/4 in the fuzzy fingerprint
+  /* Addresses that may differ without a preset stopping being that preset.
+   *
+   * These are routing and assignment: which parameter a knob drives, which MIDI
+   * channel the notes leave on, which chord type a button combination selects.
+   * Change every one of them and the preset sounds exactly the same, because
+   * none of them is in the signal path.
+   *
+   * It matters because the matcher allows only CORE_TOL differences outside this
+   * set. Reassigning both mod knobs and the double tap is five differences, one
+   * over, so a preset with its controls remapped stopped being recognised at all
+   * — which is precisely the kind of edit someone makes without touching a sound.
+   *
+   * Deliberately NOT here: the transient generator (100-105), which reads like a
+   * utility but is timbre; and octave and glide (198-199), which are arguably
+   * performance rather than identity but do change what you hear.
+   */
+  const ROUTING_ADDRS = [
+    10, 11, 12, 13, 14, 15, 16, 17,          // knob targets and ranges
+    106, 107, 108,                            // MIDI channels and single-port mode
+    200, 201,                                 // double tap target and value
+    202, 203, 204, 205, 206, 207, 208,        // the seven alternate-layout slots
+  ];
+
   function presetLeewayAddrs() {
     const lee = new Set([187, 188, 189, 190, 191]);   // rhythm scalars
+    ROUTING_ADDRS.forEach(a => lee.add(a));
     PLAY_SETTING_CARDS.forEach(c => c.addrs.forEach(a => lee.add(a)));
     Prefs.get("pins").forEach(a => lee.add(a));
     if (window.Triggers) window.Triggers.list().forEach(t =>
