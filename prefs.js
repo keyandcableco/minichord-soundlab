@@ -28,6 +28,18 @@ window.Prefs = (function () {
     // these, so they live here: twelve slots, "" meaning unnamed.
     bankNames: { def: [],        ok: v => Array.isArray(v) && v.length <= 12 && v.every(x => typeof x === "string") },
     locks:     { def: [],        ok: v => Array.isArray(v) && v.every(Number.isInteger) },   // addrs shielded from randomize
+    // Named sets of bulk edits: [{ name, edits: [{ addr, value }] }]. Sparse by
+    // design — a profile touches the addresses it names and leaves the other 251
+    // alone, which is what a whole-device backup cannot do. Validated properly
+    // rather than trusted, since these can arrive from an imported file.
+    bulkProfiles: {
+      def: [],
+      ok: v => Array.isArray(v) && v.length <= 24 && v.every(pr =>
+        pr && typeof pr.name === "string" && pr.name.length > 0 && pr.name.length <= 40
+        && Array.isArray(pr.edits) && pr.edits.length > 0 && pr.edits.length <= 64
+        && pr.edits.every(e => e && Number.isInteger(e.addr) && e.addr >= 2 && e.addr <= 255
+                               && Number.isInteger(e.value))),
+    },
     rhythmLock: { def: true,     ok: v => typeof v === "boolean" },   // ONE lock for the whole rhythm section (pattern + settings), on by default
     deviceCollapsed: { def: false, ok: v => typeof v === "boolean" },   // hide the left (device/presets/profile) panel to give the other columns room
     randomStyle: { def: "safe",  ok: v => v === "safe" || v === "true" },   // safe = preset-weighted rolls, true = uniform full-range

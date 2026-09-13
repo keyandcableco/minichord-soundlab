@@ -5220,6 +5220,28 @@
     read: false,
     busy: false,
   };
+  // Bulk edits staged so far, one row per setting, each remembering what every
+  // bank held before it so a row can be taken back.
+  let bulkStaged = [];
+
+  // Anything that writes a bank from outside this sheet — saving the preset you
+  // are editing, resetting a bank, wiping memory — leaves the cached copy wrong.
+  // Mark it rather than silently showing stale banks.
+  function bankCacheStale() {
+    if (bankState.read) bankState.stale = true;
+  }
+
+  // Recomputes which slots differ from what was read, after a staged row is
+  // withdrawn — dirty cannot simply be cleared, since a drag may also have
+  // moved things.
+  function recomputeDirty() {
+    if (!bankState.slots || !bankState.original) return;
+    bankState.slots.forEach(slot => {
+      const was = bankState.original[slot.id];
+      if (!was) return;
+      slot.dirty = slot.movedFrom !== slot.id || slot.values.some((v, i) => v !== was[i]);
+    });
+  }
 
   // bank names are player-typed and end up inside innerHTML strings
   function escapeHtml(str) {
@@ -5255,15 +5277,21 @@
     if (!controller || !controller.isConnected()) throw new Error("no minichord connected");
     const startingBank = controller.getDeviceInfo().activeBankNumber;
     const slots = [];
+    const original = [];
     const names = bankNamesGet();
     for (let b = 0; b < 12; b++) {
       if (onProgress) onProgress(b, 12);
       const values = await controller.readBank(b, 3000, true);
-      slots.push({ values: Array.from(values, v => (v == null ? 0 : v)), dirty: false, name: names[b] });
+      const copy = Array.from(values, v => (v == null ? 0 : v));
+      slots.push({ id: b, movedFrom: b, values: copy, dirty: false, name: names[b] });
+      original[b] = copy.slice();
     }
     if (startingBank >= 0) await controller.readBank(startingBank, 3000, true);
     bankState.slots = slots;
+    bankState.original = original;
     bankState.read = true;
+    bankState.stale = false;
+    bulkStaged = [];
     return slots;
   }
 
@@ -5275,7 +5303,7 @@
     const [moved] = slots.splice(from, 1);
     slots.splice(to, 0, moved);
     const lo = Math.min(from, to), hi = Math.max(from, to);
-    for (let i = lo; i <= hi; i++) slots[i].dirty = true;
+    for (let i = lo; i <= hi; i++) { slots[i].movedFrom = i; slots[i].dirty = true; }
     bankNamesSet(slots.map(sl => sl.name || ""));   // the name belongs to the bank, not the slot
   }
 
@@ -5317,6 +5345,7 @@
       controller.saveCurrentSettings(i);
       await new Promise(r => setTimeout(r, 120));
       bankState.slots[i].dirty = false;
+      if (bankState.original) bankState.original[bankState.slots[i].id] = bankState.slots[i].values.slice();
     }
     if (startingBank >= 0) controller.loadBank(startingBank);
     return dirty.length;
@@ -5390,6 +5419,30 @@
     }
 
     const dirtyCount = bankState.slots.filter(s => s.dirty).length;
+
+    // Something wrote a bank since these were read, so what is on screen is not
+    // what is on the device. Say so rather than let it be discovered.
+    if (bankState.stale) {
+      const warn = document.createElement("p");
+      warn.className = "bank-sheet-stale";
+      warn.textContent = dirtyCount
+        ? "A bank has been written since these were read, so this list is out of date. Reading again will discard the staged changes below."
+        : "A bank has been written since these were read, so this list is out of date.";
+      const reread = mkBtn("Read again", "Read all twelve banks off the minichord again");
+      reread.addEventListener("click", async () => {
+        if (dirtyCount && !confirm("Read the banks again? The staged changes will be discarded.")) return;
+        reread.disabled = true;
+        try {
+          await readAllBanks((i, n) => { intro.textContent = "Reading bank " + (i + 1) + " of " + n + "\u2026"; });
+        } catch (e) {
+          intro.textContent = "Couldn't read the banks: " + e.message;
+        }
+        renderBankSheet();
+      });
+      warn.appendChild(reread);
+      card.insertBefore(warn, grid);
+    }
+
     intro.textContent = dirtyCount
       ? dirtyCount + (dirtyCount === 1 ? " bank has" : " banks have") + " unsaved changes. " +
         "Nothing is written to the minichord until you apply."
@@ -5461,30 +5514,273 @@
     const bulk = document.createElement("div");
     bulk.className = "bank-bulk";
     const bulkTitle = document.createElement("h3");
-    bulkTitle.textContent = "Set one setting across banks";
+    bulkTitle.textContent = "Set settings across every bank";
     bulk.appendChild(bulkTitle);
 
+    // Staged bulk edits, listed so several can be set up before applying. Each
+    // row is one setting and the value it will take in every bank.
+    const stagedList = document.createElement("div");
+    stagedList.className = "bank-bulk-staged";
+    bulk.appendChild(stagedList);
+
+    function renderStaged() {
+      stagedList.innerHTML = "";
+      if (!bulkStaged.length) return;
+      bulkStaged.forEach((entry, i) => {
+        const row = document.createElement("div");
+        row.className = "bank-bulk-row";
+        const label = document.createElement("span");
+        label.className = "bank-bulk-name";
+        label.textContent = entry.label;
+        const val = document.createElement("span");
+        val.className = "bank-bulk-val";
+        val.textContent = entry.valueLabel;
+        const undo = document.createElement("button");
+        undo.type = "button";
+        undo.className = "bank-bulk-undo";
+        undo.textContent = "\u00d7";
+        undo.title = "Put this setting back to what each bank had";
+        undo.addEventListener("click", () => {
+          // restore the value every bank held before this row was staged
+          bankState.slots.forEach((slot, si) => {
+            if (entry.before[si] == null) return;
+            slot.values[entry.addr] = entry.before[si];
+          });
+          bulkStaged.splice(i, 1);
+          recomputeDirty();
+          renderBankSheet();
+        });
+        row.append(label, val, undo);
+        stagedList.appendChild(row);
+      });
+    }
+    renderStaged();
+
+    /* ---- saved profiles ------------------------------------------------
+     * A profile is a named, SPARSE set of address/value pairs. It is not a
+     * small backup: a backup replaces all 256 addresses in all twelve banks,
+     * so it can only restore presets you already had. A profile touches the
+     * addresses it names and nothing else, which is what lets it repoint every
+     * pot in someone else's presets without disturbing the sounds they made.
+     *
+     * Captured from whatever is staged, so building one is the same gesture as
+     * doing the edit once. Values are the wire values, which is what
+     * bulkSetParameter takes.
+     */
+    const profWrap = document.createElement("div");
+    profWrap.className = "bank-bulk-profiles";
+    bulk.appendChild(profWrap);
+
+    const readProfiles = () => (Prefs.get("bulkProfiles") || []).slice();
+    const writeProfiles = list => Prefs.set("bulkProfiles", list);
+
+    /* The same names the picker shows, so a profile row reads like a row you
+     * staged by hand. A bare p.name is not enough — several settings are called
+     * "Target" — and a setting that assigns something takes an ADDRESS as its
+     * value, which has to be looked up rather than printed as a number. */
+    function paramLabel(p) {
+      const g = PARAM_GROUPS.find(gr => gr.params.some(x => x.addr === p.addr));
+      if (!g) return p.name || ("addr " + p.addr);
+      const card = p.card && !p.card.toLowerCase().startsWith(g.title.toLowerCase()) ? p.card : null;
+      const mid = p.card && !card ? p.card : g.title;
+      return [mid, card, p.name].filter(Boolean).join(" \u00b7 ");
+    }
+    function valueLabel(p, v) {
+      if (p.targetSelect) {
+        const opts = targetOptions();
+        const i = opts.values.indexOf(v);
+        return i >= 0 ? opts.labels[i] : "addr " + v;
+      }
+      if (p.options) return p.options[v] != null ? p.options[v] : String(v);
+      const shown = p.type === "float" ? v / FLOAT_MULT : v;
+      return String(p.display ? p.display(v) : shown) + (p.unit || "");
+    }
+
+    function applyProfile(pr) {
+      let staged = 0, already = 0, unknown = 0;
+      const all = bankState.slots.map((_, i) => i);
+      pr.edits.forEach(e => {
+        const param = paramByAddr[e.addr];
+        if (!param) { unknown++; return; }        // an address this build has no control for
+        const before = bankState.slots.map(slot => slot.values[e.addr]);
+        const n = bulkSetParameter(e.addr, e.value, all);
+        if (n) staged++; else already++;
+        // staged either way: a profile says what it sets, and a row that changes
+        // nothing still confirms the profile arrived whole. Apply stays disabled
+        // when none of them differ, since dirty is counted separately.
+        const existing = bulkStaged.findIndex(x => x.addr === e.addr);
+        const entry = {
+          addr: e.addr, value: e.value,
+          label: paramLabel(param),
+          valueLabel: valueLabel(param, e.value),
+          before: existing >= 0 ? bulkStaged[existing].before : before,
+        };
+        if (existing >= 0) bulkStaged[existing] = entry; else bulkStaged.push(entry);
+      });
+      return { staged, already, unknown };
+    }
+
+    function renderProfiles() {
+      profWrap.innerHTML = "";
+      const list = readProfiles();
+
+      const head = document.createElement("div");
+      head.className = "bank-bulk-profhead";
+      const title = document.createElement("span");
+      title.textContent = list.length ? "Profiles" : "";
+      head.appendChild(title);
+
+      const saveBtn = mkBtn("Save as profile", "Keep the staged settings as a named set you can apply again");
+      saveBtn.className = "mini-btn";
+      saveBtn.disabled = !bulkStaged.length;
+      saveBtn.addEventListener("click", () => {
+        const name = (prompt("Name this profile", "") || "").trim();
+        if (!name) return;
+        const edits = bulkStaged.map(e => ({ addr: e.addr, value: e.value }));
+        const next = readProfiles().filter(p2 => p2.name !== name);
+        next.push({ name, edits });
+        if (!writeProfiles(next)) { announce("Couldn't save that profile"); return; }
+        announce("Saved \u201c" + name + "\u201d");
+        renderProfiles();
+      });
+      head.appendChild(saveBtn);
+
+      const importBtn = mkBtn("Import", "Load profiles from a file someone shared");
+      importBtn.className = "mini-btn";
+      importBtn.addEventListener("click", () => {
+        const inp = document.createElement("input");
+        inp.type = "file"; inp.accept = "application/json,.json";
+        inp.addEventListener("change", () => {
+          const f = inp.files && inp.files[0];
+          if (!f) return;
+          const r = new FileReader();
+          r.onload = () => {
+            let incoming;
+            try { incoming = JSON.parse(r.result); } catch (e) { announce("That file isn't JSON"); return; }
+            const arr = Array.isArray(incoming) ? incoming : incoming && incoming.profiles;
+            const merged = readProfiles();
+            (Array.isArray(arr) ? arr : []).forEach(pr => {
+              const i = merged.findIndex(x => x.name === (pr && pr.name));
+              if (i >= 0) merged[i] = pr; else merged.push(pr);
+            });
+            // Prefs validates the whole list, so a malformed file is rejected
+            // outright rather than half-imported
+            if (!writeProfiles(merged)) { announce("That file didn't look like profiles"); return; }
+            announce("Imported profiles");
+            renderProfiles();
+          };
+          r.readAsText(f);
+        });
+        inp.click();
+      });
+      head.appendChild(importBtn);
+      profWrap.appendChild(head);
+
+      list.forEach(pr => {
+        const row = document.createElement("div");
+        row.className = "bank-bulk-row";
+
+        const name = document.createElement("span");
+        name.className = "bank-bulk-name";
+        name.textContent = pr.name;
+
+        const count = document.createElement("span");
+        count.className = "bank-bulk-val";
+        count.textContent = pr.edits.length + (pr.edits.length === 1 ? " setting" : " settings");
+
+        const use = mkBtn("Apply", "Stage this profile's settings across every bank");
+        use.className = "mini-btn";
+        use.disabled = !bankState.slots;
+        use.addEventListener("click", () => {
+          const r = applyProfile(pr);
+          const bits = [r.staged + (r.staged === 1 ? " setting" : " settings") + " staged"];
+          if (r.already) bits.push(r.already + " already matching");
+          if (r.unknown) bits.push(r.unknown + " not in this build");
+          announce(pr.name + ": " + bits.join(", "));
+          recomputeDirty();
+          renderBankSheet();
+        });
+
+        const out = mkBtn("Export", "Save this profile to a file");
+        out.className = "mini-btn";
+        out.addEventListener("click", () => {
+          const blob = new Blob([JSON.stringify({ profiles: [pr] }, null, 2)], { type: "application/json" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = pr.name.replace(/[^\w.-]+/g, "-") + ".profile.json";
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        });
+
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "bank-bulk-undo";
+        del.textContent = "\u00d7";
+        del.title = "Forget this profile";
+        del.addEventListener("click", () => {
+          if (!confirm("Forget the profile \u201c" + pr.name + "\u201d?")) return;
+          writeProfiles(readProfiles().filter(x => x.name !== pr.name));
+          renderProfiles();
+        });
+
+        row.append(name, count, use, out, del);
+        profWrap.appendChild(row);
+      });
+    }
+    renderProfiles();
+
+    const picker = document.createElement("div");
+    picker.className = "bank-bulk-picker";
+    bulk.appendChild(picker);
+
+    // The list is ordered and labelled the way the knob target picker is: by
+    // voice and card rather than alphabetically, so "Target" is not four
+    // identical-looking entries and a setting is found where it lives.
     const paramSel = document.createElement("select");
-    paramSel.className = "save-field";
-    const flat = [];
-    PARAM_GROUPS.forEach(g => g.params.forEach(p => flat.push(p)));
-    flat.sort((a, b) => a.name.localeCompare(b.name));
-    flat.forEach(p => {
-      const o = document.createElement("option");
-      o.value = String(p.addr);
-      o.textContent = p.name + (p.card ? "  \u00b7 " + p.card : "");
-      paramSel.appendChild(o);
+    paramSel.className = "save-field bank-bulk-select";
+    const DOMAIN_LABEL = { chord: "Chord", harp: "Harp", space: "Space", play: "Play", midi: "MIDI", knobs: "Knobs" };
+    [["chord"], ["harp"], ["space"], ["play"], ["midi"], ["knobs"]].forEach(([dom]) => {
+      const group = document.createElement("optgroup");
+      group.label = DOMAIN_LABEL[dom] || dom;
+      PARAM_GROUPS.filter(g => (g.domain || "harp") === dom).forEach(g => {
+        g.params.forEach(p => {
+          if (p.grid) return;
+          const o = document.createElement("option");
+          o.value = String(p.addr);
+          const card = p.card && !p.card.toLowerCase().startsWith(g.title.toLowerCase()) ? p.card : null;
+          const mid = p.card && !card ? p.card : g.title;
+          o.textContent = [mid, card, p.name].filter(Boolean).join(" \u00b7 ");
+          group.appendChild(o);
+        });
+      });
+      if (group.childNodes.length) paramSel.appendChild(group);
     });
-    bulk.appendChild(paramSel);
+    picker.appendChild(paramSel);
 
     const valWrap = document.createElement("span");
     valWrap.className = "bank-bulk-value";
-    bulk.appendChild(valWrap);
+    picker.appendChild(valWrap);
 
     function renderValueField() {
       valWrap.innerHTML = "";
       const p = paramByAddr[parseInt(paramSel.value, 10)];
       if (!p) return;
+      // A setting that is itself an assignment — a knob's target, the double
+      // tap's — takes an address as its value. Offering a number box there asks
+      // the player to know the address numbers, so give them the same named
+      // list the assignment itself uses.
+      if (p.targetSelect) {
+        const opts = targetOptions();
+        const sel = document.createElement("select");
+        sel.className = "save-field bank-bulk-select";
+        opts.values.forEach((v, i) => {
+          const o = document.createElement("option");
+          o.value = String(v); o.textContent = opts.labels[i];
+          sel.appendChild(o);
+        });
+        valWrap.appendChild(sel);
+        return;
+      }
       if (p.options) {
         const sel = document.createElement("select");
         sel.className = "save-field";
@@ -5506,18 +5802,31 @@
     paramSel.addEventListener("change", renderValueField);
     renderValueField();
 
-    const applyAll = mkBtn("Set in all banks", "Stage this value in every bank");
+    const applyAll = mkBtn("Set in all banks", "Stage this value in every bank and start another");
     applyAll.addEventListener("click", () => {
       const p = paramByAddr[parseInt(paramSel.value, 10)];
       const field = valWrap.querySelector("select, input");
       if (!p || !field) return;
       let v = Number(field.value);
       if (p.type === "float" && !p.options) v = Math.round(v * FLOAT_MULT);
+      // remember what each bank held, so the row can be taken back
+      const before = bankState.slots.map(slot => slot.values[p.addr]);
       const n = bulkSetParameter(p.addr, v, bankState.slots.map((_, i) => i));
+      const existing = bulkStaged.findIndex(e => e.addr === p.addr);
+      const entry = {
+        addr: p.addr,
+        value: v,          // the raw wire value, so a staged set can be saved
+        label: paramSel.options[paramSel.selectedIndex].textContent,
+        valueLabel: p.targetSelect ? field.options[field.selectedIndex].textContent
+          : p.options ? p.options[Number(field.value)]
+          : String(field.value) + (p.unit || ""),
+        before: existing >= 0 ? bulkStaged[existing].before : before,
+      };
+      if (existing >= 0) bulkStaged[existing] = entry; else bulkStaged.push(entry);
       announce(n ? "Staged in " + n + (n === 1 ? " bank" : " banks") : "Every bank already has that value");
       renderBankSheet();
     });
-    bulk.appendChild(applyAll);
+    picker.appendChild(applyAll);
     card.appendChild(bulk);
 
     // ---- actions ----
@@ -5541,7 +5850,7 @@
     const discardBtn = mkBtn("Discard", "Throw away the staged changes and read the banks again");
     discardBtn.disabled = !dirtyCount;
     discardBtn.addEventListener("click", () => {
-      bankState.slots = null; bankState.read = false;
+      bankState.slots = null; bankState.read = false; bulkStaged = [];
       renderBankSheet();
     });
 
@@ -6093,10 +6402,13 @@
       (controls[32] || []).forEach(fn => fn(attn));
       onPatchChange(paramByAddr[32], attn);
     });
-    if (save) save.addEventListener("click", () => { if (controller.saveCurrentSettings(controller.active_bank_number)) flash(save, "Saved"); });
+    if (save) save.addEventListener("click", () => {
+      if (controller.saveCurrentSettings(controller.active_bank_number)) { flash(save, "Saved"); bankCacheStale(); }
+    });
     if (reload) reload.addEventListener("click", requestDump);
     if (reset) reset.addEventListener("click", () => {
       if (controller.resetCurrentBank()) {
+        bankCacheStale();
         flash(reset, "Reset");
         setTimeout(requestDump, 150);   // let the reset land, then re-read the bank into the UI
       }
