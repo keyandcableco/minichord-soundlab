@@ -78,9 +78,14 @@
     return set;
   }
 
-  function place(midi, key) {
+  // `spelled` is {letter, alt} from whoever knows what chord or scale produced
+  // this note. The staff's own table is a fallback for notes nobody claims: it
+  // can only go by pitch class, so it cannot tell E# from F.
+  function place(midi, key, spelled) {
     const pc = ((midi % 12) + 12) % 12;
-    const [letter, alt] = (flatSide(key) ? FLAT_SPELL : SHARP_SPELL)[pc];
+    const [letter, alt] = spelled
+      ? [spelled.letter, spelled.alt]
+      : (flatSide(key) ? FLAT_SPELL : SHARP_SPELL)[pc];
     // the octave the LETTER belongs to: B#3 and Cb4 cross the boundary
     let octave = Math.floor(midi / 12) - 1;
     if (alt > 0 && letter === 6) octave -= 1;        // B# belongs with the B below
@@ -244,6 +249,7 @@
     root.appendChild(legend);
 
     let key = 0;
+    let speller = () => null;      // replaced by setSpeller once devicemap exists
     const sounding = { chord: new Map(), harp: new Map() };
 
     function drawKeySignature() {
@@ -304,7 +310,7 @@
       const marks = new Set();
 
       const draw = (list, role) => {
-        const placed = list.map(m => place(m, key));
+        const placed = list.map(m => place(m, key, speller(role, m)));
         // a chord sounds at once, so its voices share a column and any second is
         // nudged; the harp is strummed, so its notes spread across instead
         const isChord = role === "chord";
@@ -390,6 +396,10 @@
 
     return {
       el: root,
+      // whoever knows what is being played supplies (role, midi) -> {letter, alt}
+      setSpeller(fn) { speller = typeof fn === "function" ? fn : (() => null); },
+      // re-place the notes already sounding, for when the spelling has caught up
+      reflow() { refresh(); },
       // call once the panel is in the document so the clefs can be measured
       fit() { fitClefs(); if (!clefsFitted) requestAnimationFrame(fitClefs); },
       setKey(k) {

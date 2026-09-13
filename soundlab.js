@@ -286,6 +286,7 @@
       if (staffView) {
         middleRoot.appendChild(staffView.el);
         syncStaffKey();
+        staffView.setSpeller((role, midi) => deviceMap ? deviceMap.spellSounding(role, midi) : null);
         staffView.el.hidden = Prefs.get("staffShow") === "off";
         if (staffView.fit && !staffView.el.hidden) staffView.fit();
       }
@@ -6587,6 +6588,9 @@
   // live "Play" mirror, reads the patch for note mapping + the playing hue for
   // its glow; chord/pluck observers feed the trigger system (device AND clicks)
   if (window.DeviceMap) deviceMap = window.DeviceMap.create({
+    // the engine works out the chord after a short delay, so the staff re-places
+    // its notes once the spelling is known rather than guessing at note-on
+    onLabels: () => { if (staffView) staffView.reflow(); },
     getPatch: () => patch,
     getHue: () => effectiveHue(),
     onChord: ev => window.Triggers.feedChord(ev),

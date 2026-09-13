@@ -857,6 +857,17 @@
     opts = opts || {};
     const getPatch = opts.getPatch || (() => ({}));
     const getHue = opts.getHue || (() => 210);
+    // called after a relabel, so a consumer holding spellings (the staff) can
+    // re-place its notes once the engine has worked out what is being played
+    const onLabels = opts.onLabels || (() => {});
+
+    /* How each sounding note was spelled, keyed "role:midi". The staff receives
+     * raw MIDI from the note stream and has no idea what chord produced it, so
+     * it cannot spell correctly on its own — a pitch class cannot tell E# from F.
+     * This is filled in as the labels are built and read back through
+     * spellSounding, which keeps one speller for the whole app rather than two
+     * implementations drifting apart. */
+    const spellMap = new Map();
 
     let s = readSettings(getPatch());
 
@@ -1127,7 +1138,9 @@
       const hc = harpCtx();   // the harp follows its OWN context while desynced from the chord port
       for (let i = 0; i < 12; i++) {
         const note = harpStringNote(i, hc, s, effHarpShuf);
-        segByString[i].textContent = spellText(harpStringSpell(i, hc, s, effHarpShuf));
+        const hsp = harpStringSpell(i, hc, s, effHarpShuf);
+        spellMap.set("harp:" + note, hsp);
+        segByString[i].textContent = spellText(hsp);
         // raw MIDI stays the truth; an explicit octave setting shifts AUDIO only,
         // so show the sounding pitch beside it when they differ
         segByString[i].title = "string#" + i + " · MIDI " + note + " " + noteLabel(note)
@@ -1173,6 +1186,7 @@
           + `${held.sharp ? " +sharp" : ""}${held.slash ? ` slash→${BTN_NAMES[held.slash.button] || "?"}` : ""}`
           + `${harpHeld ? ` | harp: ${ctxLabel(harpHeld)} (desynced)` : ""}`);
       }
+      onLabels();   // harp spellings have changed
     }
 
     // which strings carry `note` under a given chord context + shuffling row
@@ -1572,6 +1586,7 @@
       roCurEl.innerHTML = name;
       roPop(roCurEl);
       renderReadoutDetail(button, type, off, slashButton, sharp);
+      onLabels();   // the staff can now re-place what it is already showing
     }
 
     // the chord's four sounding voices under the big label, plus a key/transpose
@@ -1587,8 +1602,11 @@
       });
       // the octave still comes from the MIDI, which is the sounding truth; only
       // the NAME comes from the chord's own degrees
-      const lbl = (n, v) => spellText(chordVoiceSpell(v, button, type, s, slash, undefined, sharp))
-        + '<sub class="dm-ro-oct">' + (Math.floor(n / 12) - 1) + "</sub>";
+      const lbl = (n, v) => {
+        const csp = chordVoiceSpell(v, button, type, s, slash, undefined, sharp);
+        spellMap.set("chord:" + n, csp);
+        return spellText(csp) + '<sub class="dm-ro-oct">' + (Math.floor(n / 12) - 1) + "</sub>";
+      };
       roNotesEl.innerHTML = voices.map(lbl).join('<span class="dm-ro-sep">·</span>');
       const ctx = [];
       if (s.key) ctx.push("key " + (KEY_NAMES[s.key] || "?"));
@@ -2206,7 +2224,10 @@
     relabel();
 
     // clear() is intentionally not exported; setConnected(false) is the only caller.
-    return { el: root, rebuild, onNote, setConnected, identifyChord, setRhythmActive, showRhythmChord, setHarpShape };
+    // spellSounding gives {letter, alt} for a sounding note, or null when the
+    // engine has not worked out what is being played — callers fall back then
+    const spellSounding = (role, midi) => spellMap.get(role + ":" + midi) || null;
+    return { el: root, rebuild, onNote, setConnected, identifyChord, setRhythmActive, showRhythmChord, setHarpShape, spellSounding };
   }
 
   const VERSION = "play-engine-2026-07-01-r60-sharp-enharmonic";
