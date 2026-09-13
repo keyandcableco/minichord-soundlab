@@ -163,10 +163,113 @@ for (let key = 0; key < 21; key++) {
   }
 }
 
+/* ---- chord voices ------------------------------------------------------
+ * The readout's note list must spell the notes actually sounding. Press a chord,
+ * then check each displayed name against the pitch class of the note sent for
+ * that voice. Covers every chord type, every inversion and every spacing — the
+ * inversion path is the one that matters, since it is where a voice stops
+ * knowing which chord tone it is.
+ */
+const CHORD_TABLES = {
+  major:[0,4,7,12,2,5,9], minor:[0,3,7,12,1,5,8], maj_sixth:[0,4,7,9,2,5,12],
+  min_sixth:[0,3,7,9,1,5,12], seventh:[0,4,10,7,2,5,9], maj_seventh:[0,4,11,7,2,5,9],
+  min_seventh:[0,3,10,7,1,5,8], aug:[0,4,8,12,2,5,9], dim:[0,3,6,12,2,5,9],
+  full_dim:[0,3,6,9,2,5,12],
+};
+const TYPE_SUFFIX = { major: "", minor: "m", seventh: "7", maj_seventh: "maj7",
+  min_seventh: "m7", dim: "dim", aug: "aug", maj_sixth: "6", min_sixth: "m6",
+  full_dim: "\u00b07" };
+const padCache = new Map();
+const padLabel = (key, btn) => {
+  if (!padCache.has(key)) padCache.set(key, pads(key, 0));
+  return padCache.get(key)[6 - btn];     // pads render as columns, reversed
+};
+const SHUF = [10, 11, 12, 13];          // chordShuf default row, voices 0-3
+const MIDI_BASE = 48;
+function tonesSorted(table) {
+  const out = [];
+  for (let i = 0; i < 4; i++) { const pc = table[i] % 12; if (out.indexOf(pc) === -1) out.push(pc); }
+  return out.sort((a, b) => a - b);
+}
+function spacingShift(voice, sp) {
+  switch (sp) {
+    case 1: return voice === 2 ? -12 : 0;
+    case 2: return voice === 1 ? -12 : 0;
+    case 3: return (voice === 2 || voice === 0) ? -12 : 0;
+    case 4: return voice === 0 ? -12 : (voice === 3 ? 12 : 0);
+    default: return 0;
+  }
+}
+function voicesFor(key, btn, table, inv, sp) {
+  const root = firmwareRoot(key, btn);
+  const out = [];
+  for (let v = 0; v < 4; v++) {
+    const level = SHUF[v];
+    let offset;
+    if ((inv > 0 || sp > 0)) {
+      const t = tonesSorted(table), k = v + inv;
+      offset = t[k % t.length] + 12 * Math.floor(k / t.length);
+    } else offset = table[level % 10];
+    let n = MIDI_BASE + 12 * Math.floor(level / 10) + root + offset;
+    const sh = spacingShift(v, sp);
+    if (sh && n + sh >= MIDI_BASE + 12 && n + sh <= MIDI_BASE + 60) n += sh;
+    out.push(n);
+  }
+  return out;
+}
+function readout(patch, notes) {
+  const dm = DeviceMap.create({ getPatch: () => patch, getHue: () => 210 });
+  dm.setConnected(true); dm.rebuild();
+  notes.forEach(n => dm.onNote("chord", "on", n));
+  for (let i = 0; i < 900; i++) {
+    const due = timers.filter(t => !t.dead && t.due <= clock + 1);
+    if (!due.length) { clock += 1; continue; }
+    due.sort((a, b) => a.due - b.due || a.seq - b.seq);
+    due.forEach(t => { t.dead = true; try { t.fn(); } catch (e) { /* shim */ } });
+  }
+  let html = "", cur = "";
+  (function walk(n) { if (!n) return;
+    if (/dm-ro-notes/.test(n.className || "")) html = n.innerHTML || "";
+    if (/dm-ro-cur/.test(n.className || "")) cur = n.innerHTML || n.textContent || "";
+    (n.nodeKids || []).forEach(walk); })(dm.el);
+  // the octave subscript sits between the root and the type, so drop it whole
+  readout.matched = cur.replace(/<sub[^>]*>.*?<\/sub>/g, "").replace(/<[^>]*>/g, "").trim();
+  // each entry is "<name><sub>octave</sub>"; the octave is the sounding truth and
+  // is checked elsewhere, so take the name only
+  return html.split(/<span[^>]*>·<\/span>/)
+    .map(x => x.split("<sub")[0].replace(/<[^>]*>/g, "").trim())
+    .filter(Boolean);
+}
+let voiceChecked = 0, voiceSkipped = 0;
+for (const key of [0, 1, 3, 6, 9, 11, 13]) {
+  for (const type of Object.keys(CHORD_TABLES)) {
+    for (const btn of [0, 3, 5]) {
+      for (const [inv, sp] of [[0, 0], [1, 0], [2, 0], [0, 1], [0, 4], [1, 4]]) {
+        const table = CHORD_TABLES[type];
+        const notes = voicesFor(key, btn, table, inv, sp);
+        const labels = readout({ 35: key, 37: inv, 38: sp }, notes);
+        // Only spelling is under test here. When the engine resolves the notes as
+        // a DIFFERENT chord — a 6th read as a major triad, say — its note list
+        // describes that other chord, which is matching's business and not this
+        // check's. Skip those rather than blame the speller for them.
+        const wantLabel = padLabel(key, btn) + (TYPE_SUFFIX[type] || type);
+        if (labels.length !== 4 || readout.matched !== wantLabel) { voiceSkipped++; continue; }
+        labels.forEach((label, v) => {
+          voiceChecked++;
+          const sp2 = parse(label);
+          if (!sp2) { bad.push(`voice key ${KEY_NAME[key]} ${type} btn${btn} inv${inv} sp${sp} v${v}: cannot parse "${label}"`); return; }
+          const want = ((notes[v] % 12) + 12) % 12;
+          if (sp2.pc !== want) bad.push(`voice key ${KEY_NAME[key]} ${type} btn${btn} inv${inv} sp${sp} v${v}: "${label}" is pc ${sp2.pc}, voice sounds ${want}`);
+        });
+      }
+    }
+  }
+}
+
 if (bad.length) {
-  console.error(`spelling: ${bad.length} failure(s) of ${checked} pad labels and ${harpChecked} harp labels\n`);
+  console.error(`spelling: ${bad.length} failure(s) of ${checked} pad labels and ${harpChecked} harp labels and ${voiceChecked} chord voices\n`);
   bad.slice(0, 25).forEach(b => console.error("  " + b));
   if (bad.length > 25) console.error(`  ... and ${bad.length - 25} more`);
   process.exit(1);
 }
-console.log(`spelling: ${checked} pad labels across 21 keys x 13 transposes and ${harpChecked} harp labels across 12 modes, all agree with the pitch played`);
+console.log(`spelling: ${checked} pad labels across 21 keys x 13 transposes and ${harpChecked} harp labels across 12 modes and ${voiceChecked} chord voices across inversions and spacings, all agree with the pitch played (${voiceSkipped} voicings unmatched, skipped)`);

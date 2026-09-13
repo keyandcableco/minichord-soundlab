@@ -453,6 +453,22 @@
     const k = voice + inversion;
     return t[k % t.length] + 12 * Math.floor(k / t.length);
   }
+  // chordTones dedupes and sorts, which is where a voice stops knowing which
+  // chord tone it is. Sorting the (offset, degree) pairs together keeps that,
+  // so an inverted voice can still be spelled by its function rather than by
+  // its pitch class. Indexes identically to invertedOffset above.
+  function chordTonePairs(table, degrees) {
+    const out = [];
+    for (let i = 0; i < 4; i++) {
+      const pc = table[i] % 12;
+      if (!out.some(o => o.pc === pc)) out.push({ pc, deg: degrees[i] });
+    }
+    return out.sort((a, b) => a.pc - b.pc);
+  }
+  function invertedDegree(table, degrees, voice, inversion) {
+    const t = chordTonePairs(table, degrees);
+    return t[(voice + inversion) % t.length].deg;
+  }
 
   // how far each voice moves for a spacing; the numbering counts from the top,
   // and after the inversion step the voices are in pitch order
@@ -467,6 +483,32 @@
   }
 
   const CHORD_NOTE_FLOOR = 12, CHORD_NOTE_CEILING = 96;
+
+  /* The spelled twin of chordVoiceNote below, mirroring its branches. Spacing is
+   * not handled here and does not need to be: spacingShift only ever returns
+   * ±12 or 0, and an octave changes neither the pitch class nor the degree.
+   * Kept honest by __harness__/spelling.js, which checks every voice's label
+   * against the pitch chordVoiceNote returns for the same inputs. */
+  function chordVoiceSpell(voice, button, type, s, slash, rowOverride, sharpHeld) {
+    const level = CHORD_SHUF[rowOverride == null ? s.chordShuf : rowOverride][voice];
+    if (slash && (level % 10) === s.slashLevel) {
+      return spellRoot(s, slash.button, false);
+    }
+    const root = spellRoot(s, button, !!sharpHeld);
+    const table = CHORD[type], degrees = CHORD_DEGREE[type];
+    if (!table || !degrees) return root;
+
+    const inv = s.inversion | 0, sp = s.spacing | 0;
+    const useSorted = (inv > 0 || sp > 0) && voice < 4 && (level % 10) < 4;
+    if (useSorted) {
+      const k = voice + inv;
+      const pairs = chordTonePairs(table, degrees);
+      const pick = pairs[k % pairs.length];
+      return spellInterval(root, pick.deg, pick.pc);
+    }
+    const idx = level % 10;
+    return spellInterval(root, degrees[idx], table[idx]);
+  }
 
   function chordVoiceNote(voice, button, table, s, slash, rowOverride) {
     const level = CHORD_SHUF[rowOverride == null ? s.chordShuf : rowOverride][voice];
@@ -1539,12 +1581,14 @@
     function renderReadoutDetail(button, type, off, slashButton, sharp) {
       const table = CHORD[type];   // `type` is the resolved table NAME; voiceSet wants the interval array
       if (!table) { roNotesEl.innerHTML = ""; return; }
-      const names = noteNames(s);
-      const lbl = n => names[((n % 12) + 12) % 12] + '<sub class="dm-ro-oct">' + (Math.floor(n / 12) - 1) + "</sub>";
+      const slash = slashButton != null ? { button: slashButton } : null;
       const voices = voiceSet(button, table, s, {
-        count: 4, off: off || 0, sharp: !!sharp,
-        slash: slashButton != null ? { button: slashButton } : null,
+        count: 4, off: off || 0, sharp: !!sharp, slash,
       });
+      // the octave still comes from the MIDI, which is the sounding truth; only
+      // the NAME comes from the chord's own degrees
+      const lbl = (n, v) => spellText(chordVoiceSpell(v, button, type, s, slash, undefined, sharp))
+        + '<sub class="dm-ro-oct">' + (Math.floor(n / 12) - 1) + "</sub>";
       roNotesEl.innerHTML = voices.map(lbl).join('<span class="dm-ro-sep">·</span>');
       const ctx = [];
       if (s.key) ctx.push("key " + (KEY_NAMES[s.key] || "?"));
