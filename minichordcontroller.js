@@ -231,25 +231,40 @@ class MiniChordController {
       return new Promise((resolve, reject) => {
         const previous = this.onDataReceived;
         let settled = false;
+        let nudges = [];            // declared up front: both the handler and the
+                                    // timeout clear them, and either can run first
         const timer = setTimeout(() => {
           if (settled) return;
           settled = true;
+          nudges.forEach(clearTimeout);
           this.onDataReceived = previous;
           reject(new Error("timed out reading bank " + bankNumber));
         }, timeoutMs || 3000);
         this.onDataReceived = data => {
           if (previous && !quiet) previous(data);
           if (settled) return;
+          // A dump says which bank it describes, and it has to be checked.
+          // Loading a bank makes the device report on its own — load_config ends
+          // with control_command(0, 0) — so a dump from the previous step of a
+          // walk can still be in flight. Taking the first one that arrives reads
+          // the bank BEFORE the one asked for, and once a walk falls behind it
+          // stays behind: several slots end up holding one bank's values, and
+          // writing them back copies that preset over the others.
+          if (data.bankNumber !== bankNumber) return;
           settled = true;
           clearTimeout(timer);
+          nudges.forEach(clearTimeout);
           this.onDataReceived = previous;
           resolve(data.rawParameters || data.parameters);
         };
-        // Loading a bank does not report anything back, so ask for the dump
-        // once the device has had time to read the bank out of flash and apply
-        // every parameter.
+        // Loading a bank does report back, but ask anyway in case the report is
+        // missed or the firmware predates it. Repeated, since an early request
+        // can be answered by a dump still describing the previous bank — which
+        // is now ignored rather than accepted.
         this.loadBank(bankNumber);
-        setTimeout(() => this.requestCurrentData(), 80);
+        nudges = [80, 400, 900].map(ms => setTimeout(() => {
+          if (!settled) this.requestCurrentData();
+        }, ms));
       });
     }
 
