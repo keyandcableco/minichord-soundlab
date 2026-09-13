@@ -5679,27 +5679,50 @@
     const readProfiles = () => (Prefs.get("bulkProfiles") || []).slice();
     const writeProfiles = list => Prefs.set("bulkProfiles", list);
 
+    /* The same names the picker shows, so a profile row reads like a row you
+     * staged by hand. A bare p.name is not enough — several settings are called
+     * "Target" — and a setting that assigns something takes an ADDRESS as its
+     * value, which has to be looked up rather than printed as a number. */
+    function paramLabel(p) {
+      const g = PARAM_GROUPS.find(gr => gr.params.some(x => x.addr === p.addr));
+      if (!g) return p.name || ("addr " + p.addr);
+      const card = p.card && !p.card.toLowerCase().startsWith(g.title.toLowerCase()) ? p.card : null;
+      const mid = p.card && !card ? p.card : g.title;
+      return [mid, card, p.name].filter(Boolean).join(" \u00b7 ");
+    }
+    function valueLabel(p, v) {
+      if (p.targetSelect) {
+        const opts = targetOptions();
+        const i = opts.values.indexOf(v);
+        return i >= 0 ? opts.labels[i] : "addr " + v;
+      }
+      if (p.options) return p.options[v] != null ? p.options[v] : String(v);
+      const shown = p.type === "float" ? v / FLOAT_MULT : v;
+      return String(p.display ? p.display(v) : shown) + (p.unit || "");
+    }
+
     function applyProfile(pr) {
-      let touched = 0;
+      let staged = 0, already = 0, unknown = 0;
       const all = bankState.slots.map((_, i) => i);
       pr.edits.forEach(e => {
         const param = paramByAddr[e.addr];
-        if (!param) return;                       // an address this build has no control for
+        if (!param) { unknown++; return; }        // an address this build has no control for
         const before = bankState.slots.map(slot => slot.values[e.addr]);
         const n = bulkSetParameter(e.addr, e.value, all);
-        if (!n) return;
-        touched += n;
+        if (n) staged++; else already++;
+        // staged either way: a profile says what it sets, and a row that changes
+        // nothing still confirms the profile arrived whole. Apply stays disabled
+        // when none of them differ, since dirty is counted separately.
         const existing = bulkStaged.findIndex(x => x.addr === e.addr);
         const entry = {
           addr: e.addr, value: e.value,
-          label: param.name || ("addr " + e.addr),
-          valueLabel: param.options ? (param.options[e.value] != null ? param.options[e.value] : String(e.value))
-            : String(param.display ? param.display(e.value) : e.value) + (param.unit || ""),
+          label: paramLabel(param),
+          valueLabel: valueLabel(param, e.value),
           before: existing >= 0 ? bulkStaged[existing].before : before,
         };
         if (existing >= 0) bulkStaged[existing] = entry; else bulkStaged.push(entry);
       });
-      return touched;
+      return { staged, already, unknown };
     }
 
     function renderProfiles() {
@@ -5774,8 +5797,11 @@
         use.className = "mini-btn";
         use.disabled = !bankState.slots;
         use.addEventListener("click", () => {
-          const n = applyProfile(pr);
-          announce(n ? "Staged " + pr.name : "Every bank already matches " + pr.name);
+          const r = applyProfile(pr);
+          const bits = [r.staged + (r.staged === 1 ? " setting" : " settings") + " staged"];
+          if (r.already) bits.push(r.already + " already matching");
+          if (r.unknown) bits.push(r.unknown + " not in this build");
+          announce(pr.name + ": " + bits.join(", "));
           recomputeDirty();
           renderBankSheet();
         });
