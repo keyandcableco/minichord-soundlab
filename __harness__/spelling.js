@@ -266,10 +266,64 @@ for (const key of [0, 1, 3, 6, 9, 11, 13]) {
   }
 }
 
+/* ---- chord-rooted scale spelling --------------------------------------
+ * The checks above prove a label names the pitch it sounds. They cannot prove it
+ * names it WELL: G♭ and F# are the same pitch, so a lydian pentatonic spelling
+ * its #4 as a ♭5 passes every one of them. These are the spellings themselves,
+ * from a C root, reviewed by ear rather than derived — which is why they are
+ * written out rather than computed.
+ */
+const SCALE_SPELLING = {
+  "major:9":       "C D E G A",            "major:8":       "C D E F G A B",
+  "maj_seventh:9": "C D E F# A",           "maj_seventh:8": "C D E F# G A B",
+  "minor:9":       "C E♭ F G B♭",          "minor:8":       "C D E♭ F G A♭ B♭",
+  "seventh:9":     "C D E G B♭",           "seventh:8":     "C D E F G A B♭",
+  "min_seventh:9": "C E♭ F G A",           "min_seventh:8": "C D E♭ F G A B♭",
+  "dim:9":         "C D♭ E♭ E G♭ G A B♭",  "dim:8":         "C D♭ E♭ E G♭ G A B♭",
+  "aug:9":         "C D E F# G# A#",       "aug:8":         "C D E F# G# A#",
+  // the reported case: a lydian pentatonic over a ninth chord, which spelled its
+  // #4 as a ♭5 and read C D E G♭ A
+  "major_ninth:9": "C D E F# A",           "major_ninth:8": "C D E F# G A B",
+};
+// the alternate layout REPLACES the standard chords, so only its own types want it
+const ALT_TYPE = new Set(["major_ninth"]);
+const CHORD_VOICING = {
+  major: [0,4,7,12], maj_seventh: [0,4,11,7], minor: [0,3,7,12], seventh: [0,4,10,7],
+  min_seventh: [0,3,10,7], dim: [0,3,6,12], aug: [0,4,8,12],
+  major_ninth: [0,4,11,2],
+};
+function harpScale(type, mode) {
+  const patch = { 35: 0, 36: mode };
+  if (ALT_TYPE.has(type)) patch[39] = 1;
+  const dm = DeviceMap.create({ getPatch: () => patch, getHue: () => 210 });
+  dm.setConnected(true); dm.rebuild();
+  CHORD_VOICING[type].forEach(t => dm.onNote("chord", "on", 60 + t));
+  for (let i = 0; i < 900; i++) {
+    const due = timers.filter(t => !t.dead && t.due <= clock + 1);
+    if (!due.length) { clock += 1; continue; }
+    due.sort((a, b) => a.due - b.due || a.seq - b.seq);
+    due.forEach(t => { t.dead = true; try { t.fn(); } catch (e) { /* shim */ } });
+  }
+  const out = [];
+  (function walk(n) { if (!n) return;
+    if (/dm-string/.test(n.className || "") && n.textContent) out.push(n.textContent);
+    (n.nodeKids || []).forEach(walk); })(dm.el);
+  return out.reverse();          // strings render high to low
+}
+let scaleChecked = 0;
+for (const key of Object.keys(SCALE_SPELLING)) {
+  const [type, mode] = key.split(":");
+  const want = SCALE_SPELLING[key].split(" ");
+  const got = harpScale(type, +mode).slice(0, want.length);
+  scaleChecked++;
+  if (got.join(" ") !== want.join(" "))
+    bad.push(`scale ${type} mode ${mode}: got "${got.join(" ")}", expected "${want.join(" ")}"`);
+}
+
 if (bad.length) {
-  console.error(`spelling: ${bad.length} failure(s) of ${checked} pad labels and ${harpChecked} harp labels and ${voiceChecked} chord voices\n`);
+  console.error(`spelling: ${bad.length} failure(s) of ${checked} pad labels and ${harpChecked} harp labels and ${voiceChecked} chord voices and ${scaleChecked} scale spellings\n`);
   bad.slice(0, 25).forEach(b => console.error("  " + b));
   if (bad.length > 25) console.error(`  ... and ${bad.length - 25} more`);
   process.exit(1);
 }
-console.log(`spelling: ${checked} pad labels across 21 keys x 13 transposes and ${harpChecked} harp labels across 12 modes and ${voiceChecked} chord voices across inversions and spacings, all agree with the pitch played (${voiceSkipped} voicings unmatched, skipped)`);
+console.log(`spelling: ${checked} pad labels across 21 keys x 13 transposes and ${harpChecked} harp labels across 12 modes and ${voiceChecked} chord voices across inversions and spacings, all agree with the pitch played (${voiceSkipped} voicings unmatched, skipped), and ${scaleChecked} chord-rooted scales spell as reviewed`);

@@ -244,6 +244,83 @@
    * custom-scale editor already uses (1 b2 2 b3 3 4 b5 5 b6 6 b7 7), so one
    * chromatic rule covers every scale mode and the player's own scale alike. */
   const CHROMATIC_DEGREE = [0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6];
+
+  /* CHROMATIC_DEGREE above is one fixed reading per interval, which is right for
+   * the player's own twelve-bit mask — they picked those degrees from exactly
+   * those labels, so the app should name them back the same way. It is wrong for
+   * a NAMED scale attached to a KNOWN chord, where more is available: it always
+   * calls six semitones a diminished fifth, so a lydian pentatonic over a maj9
+   * spelled its #4 as a ♭5 and A B C# D# F# came out A B C# E♭ F#.
+   *
+   * Degrees are chosen for the scale as a whole instead, by smallest alteration
+   * first and then three tiebreaks, in this order:
+   *
+   *  1. the chord's own reading, for a scale note that IS a chord tone. A
+   *     tiebreak and not an override: overriding made a scale over C dim7 inherit
+   *     the chord's B-double-flat, doubling B and leaving A unused when A sits
+   *     there at no alteration at all.
+   *  2. an unused letter over a repeated one — eight-note scales must repeat, but
+   *     nothing else should.
+   *  3. an unbroken run of degrees, kept unbroken. A stepwise scale is spelled
+   *     stepwise: this is what walks whole tone up C D E F# G# A# rather than
+   *     skipping to B♭. It cannot fire on a pentatonic, whose degrees already
+   *     have a hole in them.
+   *  4. the interval's own diatonic position, interval * 7/12. Without this the
+   *     minor pentatonic's ♭7 becomes a #6.
+   */
+  const scaleDegreeCache = new Map();
+  function scaleDegrees(scale, type) {
+    const key = scale.join(",") + "|" + (type || "");
+    const hit = scaleDegreeCache.get(key);
+    if (hit) return hit;
+
+    const candidates = iv => {
+      const out = [];
+      for (let d = 0; d < 7; d++) {
+        const nat = (((LETTER_PC[d] - LETTER_PC[0]) % 12) + 12) % 12;
+        const alt = ((((iv - nat) % 12) + 12 + 6) % 12) - 6;
+        if (Math.abs(alt) <= 2) out.push({ d, alt });
+      }
+      return out;
+    };
+    // does adding `d` keep an already-unbroken run unbroken?
+    const breaksRun = (used, d) => {
+      const a = [...used].sort((x, y) => x - y);
+      if (a.length && a[a.length - 1] - a[0] + 1 !== a.length) return 0;   // already broken
+      const b = [...a, d].sort((x, y) => x - y);
+      return b[b.length - 1] - b[0] + 1 === b.length ? 0 : 1;
+    };
+
+    const table = CHORD[type], degrees = CHORD_DEGREE[type];
+    const chordDeg = new Map();
+    if (table && degrees) {
+      scale.forEach(iv => {
+        for (let k = 0; k < table.length; k++) {
+          if ((((table[k] % 12) + 12) % 12) === iv) { chordDeg.set(iv, degrees[k]); break; }
+        }
+      });
+    }
+
+    const used = new Set();
+    const out = new Array(scale.length);
+    // the notes with only one sensible letter claim it first
+    scale.map((iv, i) => ({ iv, i }))
+      .sort((a, b) => Math.min(...candidates(a.iv).map(c => Math.abs(c.alt)))
+                    - Math.min(...candidates(b.iv).map(c => Math.abs(c.alt))))
+      .forEach(({ iv, i }) => {
+        const pick = candidates(iv).sort((a, b) =>
+          Math.abs(a.alt) - Math.abs(b.alt)
+          || (chordDeg.get(iv) === a.d ? 0 : 1) - (chordDeg.get(iv) === b.d ? 0 : 1)
+          || (used.has(a.d) ? 1 : 0) - (used.has(b.d) ? 1 : 0)
+          || breaksRun(used, a.d) - breaksRun(used, b.d)
+          || Math.abs(a.d - iv * 7 / 12) - Math.abs(b.d - iv * 7 / 12)
+          || a.d - b.d)[0];
+        used.add(pick.d);
+        out[i] = pick.d;
+      });
+    scaleDegreeCache.set(key, out);
+    return out;
+  }
   const CHORD_DEGREE = {
     major:       [0, 2, 4, 7, 1, 3, 5],
     minor:       [0, 2, 4, 7, 1, 3, 5],
@@ -660,10 +737,14 @@
 
     const mode = s.harpMode | 0;
     if (mode >= 1 && mode <= 7) {
+      // a named scale, but rooted on the key rather than a chord, so no chord to
+      // seed the degrees from. None of these seven contains a tritone, so this
+      // comes out the same as the old fixed rule did — it just goes through one
+      // implementation now rather than two.
       const scale = SCALE_INTERVALS[mode - 1];
       const tonic = spellTonic(s, mode >= 5 && mode <= 7);
-      const iv = scale[string % scale.length];
-      return spellInterval(tonic, CHROMATIC_DEGREE[iv], iv);
+      const idx = string % scale.length;
+      return spellInterval(tonic, scaleDegrees(scale, null)[idx], scale[idx]);
     }
     if (mode === 10) {
       const scale = customScaleIntervals(s.customScale);
@@ -674,10 +755,15 @@
     if (mode === 11 || mode === 8 || mode === 9) {
       // rooted on the chord, and on the slash bass when one is held
       const root = spellRoot(s, held.slash ? held.slash.button : held.button, !!held.sharp);
-      const scale = mode === 11 ? customScaleIntervals(s.customScale)
+      const custom = mode === 11;
+      const scale = custom ? customScaleIntervals(s.customScale)
         : CHORD_SCALE_INTERVALS[(CHORD_SCALE_INDEX[held.type] || CHORD_SCALE_INDEX.major)[mode === 9 ? 0 : 1]];
-      const iv = scale[string % scale.length];
-      return spellInterval(root, CHROMATIC_DEGREE[iv], iv);
+      const idx = string % scale.length;
+      const iv = scale[idx];
+      // the player's own mask keeps its own labels; a named scale takes its
+      // degrees from the chord it belongs to
+      const deg = custom ? CHROMATIC_DEGREE[iv] : scaleDegrees(scale, held.type)[idx];
+      return spellInterval(root, deg, iv);
     }
 
     // mode 0: the harp plays the chord's own tones, so they take the chord's degrees
