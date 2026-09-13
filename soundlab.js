@@ -5261,6 +5261,25 @@
     if (controller && controller.isConnected()) updateConnectionUI(true);
   }
 
+  /* A bank name is supposed to describe what is IN the bank. bankSlotLabel below
+   * already derives that from the preset library and marks it "(edited)" when the
+   * contents drift, which is a name that keeps itself honest. A typed name only
+   * adds anything while the contents match nothing at all.
+   *
+   * So when a bank is written with contents the library recognises, the typed
+   * name stands down and the matched one shows through. Write paths only — never
+   * on load, since loading a preset changes the live state and not the bank, and
+   * clearing then would throw away a name just for auditioning something.
+   */
+  function bankNameSyncOnWrite(bank, values) {
+    if (bank == null || bank < 0 || bank > 11) return;
+    if (!bankSlotLabel(values)) return;          // unrecognisable: a typed name is all there is
+    const names = bankNamesGet();
+    if (!names[bank]) return;
+    names[bank] = "";
+    bankNamesSet(names);
+  }
+
   function bankSlotLabel(values) {
     if (!window.PresetMatch || !values) return null;
     const m = window.PresetMatch.identify(values, presetLeewayAddrs());
@@ -6403,7 +6422,11 @@
       onPatchChange(paramByAddr[32], attn);
     });
     if (save) save.addEventListener("click", () => {
-      if (controller.saveCurrentSettings(controller.active_bank_number)) { flash(save, "Saved"); bankCacheStale(); }
+      if (controller.saveCurrentSettings(controller.active_bank_number)) {
+        // the bank now holds whatever is live, so its name follows the contents
+        bankNameSyncOnWrite(controller.active_bank_number, patch);
+        flash(save, "Saved"); bankCacheStale();
+      }
     });
     if (reload) reload.addEventListener("click", requestDump);
     if (reset) reset.addEventListener("click", () => {
