@@ -245,7 +245,8 @@
 
     const legend = document.createElement("div");
     legend.className = "staff-legend";
-    legend.innerHTML = '<span class="k-chord">● <b>chord</b></span><span class="k-harp">● <b>harp</b></span>';
+    legend.innerHTML = '<span class="k-chord">● <b>chord</b></span><span class="k-harp">● <b>harp</b></span>'
+      + '<span class="k-rhythm">● <b>rhythm</b></span>';
     root.appendChild(legend);
 
     let key = 0;

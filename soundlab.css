@@ -2091,6 +2091,8 @@ body.controls-large .dm-harp.dm-harp-plate .dm-string { font-size: 0.76rem; min-
 .staff-legend b { font-weight: 600; }
 .staff-legend .k-chord { color: var(--accent); }
 .staff-legend .k-harp  { color: var(--harp-note); }
+/* matches the dimmer notehead: the rhythm is the quiet one of the three */
+.staff-legend .k-rhythm { color: var(--rhythm-note, #c08a52); opacity: 0.8; }
 
 .staff-line, .staff-brace, .staff-ledger {
   stroke: var(--text-dim);
