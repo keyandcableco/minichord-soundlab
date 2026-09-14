@@ -1754,6 +1754,12 @@
       }
     }
     function paintChord() {
+      // While the rhythm playhead is locked, everything shown comes from
+      // showRhythmChord: the readout, the grid tint, the harp labels. Matching
+      // here would compute a chord and throw it away, and the repaint underneath
+      // would clear and re-add the lit classes on all 21 pads — per note, on a
+      // stream that repeats at the tempo.
+      if (rhythmActive) return;
       const r = matchChord();
       const isComplex = r && (r.c.slash || typeRows(r.c.type, s).length > 1);
       const alreadyShown = r && curChord && sameChord(curChord, r.c);
@@ -2037,6 +2043,7 @@
       rebuildLookups();
       relabel();
       paintChord();
+      renderChord();   // a rebuild must repaint even while rhythm suppresses paintChord
     }
     function clear() {
       if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
