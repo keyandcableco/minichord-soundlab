@@ -32,6 +32,10 @@
     sus_fourth:  [0, 5, 7, 12, 2, 9, 10],
     sus_second:  [0, 2, 7, 12, 5, 9, 4],
     seventh_sus: [0, 5, 10, 7, 2, 9, 4],
+    neutral:      [0, 3, 7, 12, 2, 5, 9],
+    harmonic_7th: [0, 4, 10, 7, 2, 5, 9],
+    subminor:     [0, 3, 7, 12, 2, 5, 9],
+    supermajor:   [0, 4, 7, 12, 2, 5, 9],
     major_ninth: [0, 4, 11, 2, 7, 5, 9],
     minor_ninth: [0, 3, 10, 2, 7, 5, 8],
     added_ninth: [0, 4, 7, 2, 5, 9, 11],
@@ -332,6 +336,10 @@
     sus_fourth:  [0, 3, 4, 7, 1, 5, 6],
     sus_second:  [0, 1, 4, 7, 3, 5, 2],
     seventh_sus: [0, 3, 6, 4, 1, 5, 2],
+    neutral:      [0, 2, 4, 7, 1, 3, 5],
+    harmonic_7th: [0, 2, 6, 4, 1, 3, 5],
+    subminor:     [0, 2, 4, 7, 1, 3, 5],
+    supermajor:   [0, 2, 4, 7, 1, 3, 5],
     major_ninth: [0, 2, 6, 1, 4, 3, 5],
     minor_ninth: [0, 2, 6, 1, 4, 3, 5],
     added_ninth: [0, 2, 4, 1, 3, 5, 6],
@@ -384,7 +392,8 @@
   const noteLabel = n => NOTE_SHARP[((n % 12) + 12) % 12] + (Math.floor(n / 12) - 1);
   const TYPE_NAME = { major: "", minor: "m", seventh: "7", maj_seventh: "maj7", min_seventh: "m7", dim: "dim", aug: "aug", maj_sixth: "6", min_sixth: "m6", full_dim: "°7",
     half_dim: "m7\u266d5", sus_fourth: "sus4", sus_second: "sus2", seventh_sus: "7sus4",
-    major_ninth: "maj9", minor_ninth: "m9", added_ninth: "add9", six_nine: "6/9" };
+    major_ninth: "maj9", minor_ninth: "m9", added_ninth: "add9", six_nine: "6/9",
+    neutral: "neut", harmonic_7th: "h7", subminor: "sub", supermajor: "sup" };
 
   // The alternate layout points each of the seven button combinations at one of
   // these, mirroring the firmware's chord_catalogue. Index 0 means "the slot's
@@ -392,7 +401,8 @@
   const ALT_CATALOGUE = ["major", "minor", "seventh", "maj_seventh", "min_seventh", "dim", "aug",
     "maj_sixth", "min_sixth", "full_dim", "half_dim",
     "sus_fourth", "sus_second", "seventh_sus",
-    "major_ninth", "minor_ninth", "added_ninth", "six_nine"];
+    "major_ninth", "minor_ninth", "added_ninth", "six_nine",
+    "neutral", "harmonic_7th", "subminor", "supermajor"];
   const ALT_SLOT_DEFAULT = [11, 12, 13, 14, 15, 16, 17];
   // which slot each set of held rows selects, in the same order as COMBOS
   const ALT_SLOT_BY_ROWS = { "0": 0, "1": 1, "2": 2, "0,2": 3, "1,2": 4, "0,1": 5, "0,1,2": 6 };
