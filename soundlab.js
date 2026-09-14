@@ -584,6 +584,7 @@
     let active = false, locked = false, step = -1, paused = true;   // playhead starts paused by default
     let anchorT = 0, anchorStep = 0, haveAnchor = false, offT = 0, hits = 0, lastOnsetT = 0;
     let tickT = null, burst = null, burstT = null, voices = null, recent = [], outsiderCount = 0;
+    let pausedChangeCb = null;   // set by the pattern graph so its button follows
     const nowMs = () => Date.now();
     const connected = () => !!(controller && controller.isConnected());
     const bpm = () => Math.max(30, Math.min(300, patch[187] || 80));
@@ -692,7 +693,12 @@
     // pinned by DISTINCTIVE notes (a voice that fires at exactly one step); a note that breaks a
     // repeating pattern becomes the anchor. Rests are counted (the step index can jump by >1).
     function onBurst(notes) {
-      if (!active || paused || !connected()) return;
+      // Deliberately not gated on `paused`. That flag says whether to DRAW the
+      // playhead, which is a display preference; whether the device is playing a
+      // rhythm is a fact about the device. Conflating them meant the mirror only
+      // stopped chewing through rhythm notes if the player had found and pressed
+      // the playhead button first, and the button defaults to paused.
+      if (!active || !connected()) return;
       const t = nowMs();
       lastOnsetT = t;
 
@@ -753,7 +759,7 @@
           const predicted = (((anchorStep + Math.round((t - anchorT) / sm)) % c) + c) % c;
           anchorStep = pin; anchorT = t;
           hits = predicted === pin ? hits + 1 : Math.max(hits, 1);
-          if (!locked && hits >= 3) { locked = true; if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(true); showChord(); }
+          if (!locked && hits >= 3) { locked = true; api.onLock(); if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(true); showChord(); }
           return;
         }
         // CONFIRM the phase by onset TIMING + step ACTIVITY (pitch-independent): does the predicted
@@ -773,7 +779,7 @@
         }
         if (bestK >= 1 && bestD <= 0.6) {                      // fits → confirm + re-anchor (no jump)
           anchorStep = (((anchorStep + bestK) % c) + c) % c; anchorT = t; hits++;
-          if (!locked && hits >= 3) { locked = true; if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(true); showChord(); }
+          if (!locked && hits >= 3) { locked = true; api.onLock(); if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(true); showChord(); }
           return;
         }
         if (locked) return;                                   // ambiguous mismatch while locked → ignore
@@ -794,7 +800,7 @@
       // reconcile the chord-grid suppression every tick: it must be ON only while genuinely locked &
       // playing. Safety net: if any unlock/stop/pause path is ever missed, the rhythm tint
       // still can't get stuck on the grid (it clears on the next tick).
-      if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(locked && !paused && connected());
+      if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(locked && connected());
       if (paused) { setHead(-1); tickT = setTimeout(tick, 30); return; }   // playhead off in both modes
       if (connected()) {
         if (locked) {
@@ -811,7 +817,7 @@
       }
       tickT = setTimeout(tick, 30);
     }
-    return {
+    const api = {
       start() {
         if (active) return;
         active = true; locked = false; haveAnchor = false; hits = 0; step = -1; lastOnsetT = nowMs(); offT = nowMs();
@@ -825,7 +831,7 @@
         if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(false);
       },
       onChordNote(type, note) {
-        if (!active || paused || !connected() || type !== "on") return;
+        if (!active || !connected() || type !== "on") return;
 
         // an ARRAY, not a Set: a slash voicing can sound the same pitch on TWO voices at once
         // (C6/G at voicing 4 doubles G4, the slash bass collides with the 5th), and that doubled
@@ -835,21 +841,33 @@
         clearTimeout(burstT);
         burstT = setTimeout(() => { const b = burst; burst = null; onBurst(b); }, 40);
       },
+      // The device has no way to say "I am in rhythm mode now" — it toggles on a
+      // long button hold and reports nothing — so the playhead follows the only
+      // evidence there is: the controller locking onto a real pattern. Starting
+      // the rhythm on the instrument therefore starts the playhead here, without
+      // the player having to find this button first.
+      onLock() {
+        if (!paused) return;
+        paused = false;
+        offT = nowMs(); lastOnsetT = nowMs();
+        if (pausedChangeCb) pausedChangeCb();
+      },
+      onPausedChange(fn) { pausedChangeCb = typeof fn === "function" ? fn : null; },
       isPaused() { return paused; },
       // the device's rhythm engine is audibly stepping right now (playhead
       // locked onto real playback). Rolls re-voice a sound that's already going
-      isLive() { return active && locked && !paused; },
+      isLive() { return active && locked; },
       setPaused(p) {
         paused = !!p;
-        if (paused) {   // pausing kills the playhead and releases the chord-grid suppression
-          locked = false; haveAnchor = false; hits = 0; setHead(-1);
-          if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(false);
-        } else {        // resuming: restart the offline free-run phase from now
-          offT = nowMs(); lastOnsetT = nowMs();
-        }
+        // Pausing hides the playhead and nothing more. It used to drop the lock
+        // and release the chord-grid suppression too, which meant hiding an
+        // indicator put the mirror back to matching every note of the stream.
+        if (paused) setHead(-1);
+        else { offT = nowMs(); lastOnsetT = nowMs(); }   // resuming: free-run phase from now
       },
       onStep(fn) { stepSubs.push(fn); },
     };
+    return api;
   }
 
   // Overview is a special domain (a side-by-side dashboard, no parameter groups);
@@ -1314,6 +1332,8 @@
       pauseBtn.classList.toggle("paused", paused);
     };
     pauseBtn.addEventListener("click", () => { rhythmSync.setPaused(!rhythmSync.isPaused()); syncPauseBtn(); });
+    // the playhead can start itself when the device's rhythm locks, so follow it
+    if (rhythmSync.onPausedChange) rhythmSync.onPausedChange(syncPauseBtn);
     syncPauseBtn();
     head.appendChild(pauseBtn);
     wrap.appendChild(head);
