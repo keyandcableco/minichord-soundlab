@@ -206,7 +206,7 @@
   // no single-setting cards: transpose lives with Scale & harmony, the chord
   // voicing with Chord behaviour
   const PLAY_SETTING_CARDS = [
-    { title: "Scale & harmony", addrs: [30, 35, 34, 33, 31, 255] },
+    { title: "Scale & harmony", addrs: [30, 35, 237, 34, 33, 31, 255] },
     { title: "Chord behaviour", addrs: [23, 21, 22, 120, 37, 38, 39] },
     { title: "Harp", addrs: [99, 40, 98, 36, 236] },
   ];
