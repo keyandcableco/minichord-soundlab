@@ -251,6 +251,10 @@
     let key = 0;
     let speller = () => null;      // replaced by setSpeller once devicemap exists
     const sounding = { chord: new Map(), harp: new Map() };
+    // Notes from the device's own rhythm engine arrive on the chord port and are
+    // indistinguishable from played ones, so the app has to say which they are.
+    // They stack and spell exactly like a chord; only the colour differs.
+    let chordIsRhythm = false;
 
     function drawKeySignature() {
       while (keyLayer.firstChild) keyLayer.removeChild(keyLayer.firstChild);
@@ -351,7 +355,8 @@
 
           sl.use.setAttribute("x", x);
           sl.use.setAttribute("y", y);
-          sl.g.setAttribute("class", "staff-note " + (isChord ? "is-chord" : "is-harp"));
+          sl.g.setAttribute("class", "staff-note "
+            + (isChord ? (chordIsRhythm ? "is-rhythm" : "is-chord") : "is-harp"));
           sl.g.setAttribute("display", "");
 
           const letter = ((drawStep % 7) + 7) % 7;
@@ -400,6 +405,14 @@
       setSpeller(fn) { speller = typeof fn === "function" ? fn : (() => null); },
       // re-place the notes already sounding, for when the spelling has caught up
       reflow() { refresh(); },
+      // the chord port is carrying the device's rhythm engine rather than
+      // something being played. Safe to call on every reconcile: unchanged is free.
+      setRhythm(on) {
+        on = !!on;
+        if (on === chordIsRhythm) return;
+        chordIsRhythm = on;
+        refresh();
+      },
       // call once the panel is in the document so the clefs can be measured
       fit() { fitClefs(); if (!clefsFitted) requestAnimationFrame(fitClefs); },
       setKey(k) {

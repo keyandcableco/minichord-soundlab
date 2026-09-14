@@ -801,6 +801,9 @@
       // playing. Safety net: if any unlock/stop/pause path is ever missed, the rhythm tint
       // still can't get stuck on the grid (it clears on the next tick).
       if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(locked && connected());
+      // the staff colours rhythm notes differently; reconciled here too so it can
+      // never get stuck on if an unlock path is ever missed
+      if (staffView && staffView.setRhythm) staffView.setRhythm(locked && connected());
       if (paused) { setHead(-1); tickT = setTimeout(tick, 30); return; }   // playhead off in both modes
       if (connected()) {
         if (locked) {

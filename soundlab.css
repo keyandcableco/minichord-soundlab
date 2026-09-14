@@ -2113,6 +2113,11 @@ body.controls-large .dm-harp.dm-harp-plate .dm-string { font-size: 0.76rem; min-
 .staff-note.is-harp use  { fill: var(--harp-note, #4ea8de); }
 .staff-note.is-chord .staff-acc { fill: var(--accent); opacity: 0.85; }
 .staff-note.is-harp .staff-acc  { fill: var(--harp-note, #4ea8de); opacity: 0.85; }
+/* the device's own rhythm engine: a third colour, and dimmer than the other two.
+   These repeat at the tempo, so at full strength they pull the eye away from the
+   notes actually being played. */
+.staff-note.is-rhythm use { fill: var(--rhythm-note, #c08a52); opacity: 0.75; }
+.staff-note.is-rhythm .staff-acc { fill: var(--rhythm-note, #c08a52); opacity: 0.65; }
 
 .staff-acc { fill: var(--text-dim); font-size: 12px; }
 
