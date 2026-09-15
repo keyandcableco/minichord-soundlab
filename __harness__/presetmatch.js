@@ -7,7 +7,9 @@
  *
  * Checks three things:
  *   1. every library preset identifies as itself, exactly
- *   2. a preset with every routing address changed still identifies, as edited
+ *   2. a preset with every routing address changed still identifies, as edited,
+ *      and a preset at any master tuning identifies exactly (tuning is where the
+ *      player is tuned, not part of the preset)
  *   3. no two library presets are closer than CORE_TOL, which would let one be
  *      mistaken for another
  *
@@ -69,6 +71,21 @@ presets.forEach(p => {
   else if (m.preset.name !== p.name) bad.push(`"${p.name}" remapped identifies as "${m.preset.name}"`);
 });
 
+/* ---- 2b. master tuning is not part of what a preset is ------------------- */
+// shared preset codes carry 0 at 109; a device on firmware 10 reports 4400 there
+// for the same preset, or whatever the player has tuned to
+const TUNING_ADDR = 109;
+presets.forEach(p => {
+  [4400, 4420, 4320].forEach(t => {
+    const v = p.vals.slice();
+    v[TUNING_ADDR] = t;
+    const m = PM.identify(v, leeway);
+    if (!m || !m.preset) bad.push(`"${p.name}" is not recognised at master tuning ${t}`);
+    else if (m.preset.name !== p.name) bad.push(`"${p.name}" at master tuning ${t} identifies as "${m.preset.name}"`);
+    else if (m.edited) bad.push(`"${p.name}" reads as edited at master tuning ${t}`);
+  });
+});
+
 /* ---- 3. no two presets are close enough to be confused -------------------- */
 let closest = { d: Infinity, pair: "" };
 for (let i = 0; i < presets.length; i++) {
@@ -87,7 +104,7 @@ if (bad.length) {
   bad.slice(0, 20).forEach(b => console.error("  " + b));
   process.exit(1);
 }
-console.log(`preset match: ${presets.length} presets identify as themselves, and still do with all ${ROUTING.length} routing addresses changed`);
+console.log(`preset match: ${presets.length} presets identify as themselves, and still do with all ${ROUTING.length} routing addresses changed or the master tuning moved`);
 if (closest.d <= CORE_TOL) {
   console.log(`  note: the closest pair is ${closest.d} core differences apart (${closest.pair}), `
     + `at or under CORE_TOL of ${CORE_TOL} — an edit to one can read as ambiguous against the other`);

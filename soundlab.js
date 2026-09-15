@@ -206,7 +206,7 @@
   // no single-setting cards: transpose lives with Scale & harmony, the chord
   // voicing with Chord behaviour
   const PLAY_SETTING_CARDS = [
-    { title: "Scale & harmony", addrs: [30, 35, 237, 34, 33, 31, 255] },
+    { title: "Scale & harmony", addrs: [30, 35, 237, 34, 33, 31, 109] },
     { title: "Chord behaviour", addrs: [23, 21, 22, 120, 37, 38, 39] },
     { title: "Harp", addrs: [99, 40, 98, 36, 236] },
   ];
@@ -1969,7 +1969,7 @@
   function presetRealValue(p, vals) {
     const raw = vals[p.addr];
     if (raw == null) return null;
-    const v = p.type === "float" ? raw / FLOAT_MULT : raw;
+    const v = rawToReal(p, raw);
     return Math.min(p.max, Math.max(p.min, v));
   }
   // restore the given addresses to the loaded preset (UI + device); preset stays selected
@@ -4887,6 +4887,12 @@
 
   /* ---- Web MIDI device sync ------------------------------------------------ */
   const FLOAT_MULT = 100;
+  // a stored (raw) value in the units the Lab works in: floats are stored x100,
+  // and a param can reinterpret a raw value first (master tuning reads 0 as 4400)
+  function rawToReal(p, raw) {
+    const r = p.fromRaw ? p.fromRaw(raw) : raw;
+    return p.type === "float" ? r / FLOAT_MULT : r;
+  }
   const controller = (typeof MiniChordController !== "undefined") ? new MiniChordController() : null;
   const deviceCard = document.getElementById("device-card");
   const badge = document.getElementById("mode-badge");
@@ -4902,13 +4908,6 @@
     if (p.addr === 32) controller.sendParameter(COLOR_ADDR, bankColor);
   }
 
-  // Master tuning (255) is DEVICE state, not preset state: the firmware keeps it
-  // in its own file and leaves it out of serialize()/deserialize(). Writing it
-  // from a preset pushes one bank's stored number into a device-wide setting,
-  // and in a 12-bank sweep it restarts the firmware's deferred flash write
-  // twelve times. Every bulk parameter loop below skips it.
-  const DEVICE_STATE_ADDRS = new Set([255]);
-
   // write a full preset into the device's current bank (live working state).
   // Mirrors minicontrol's "Try": push every stored parameter (raw ints, by
   // address), then ping address 0 so the device applies them and dumps the new
@@ -4917,7 +4916,6 @@
   function sendPresetToDevice(vals) {
     if (!controller || !controller.isConnected()) return false;
     for (let a = 2; a < vals.length && a < controller.parameter_size; a++) {
-      if (DEVICE_STATE_ADDRS.has(a)) continue;
       controller.sendParameter(a, vals[a]);
     }
     controller.sendParameter(0, 0);   // apply + request a fresh dump
@@ -4949,7 +4947,7 @@
     PARAM_GROUPS.forEach(g => g.params.forEach(p => {
       const raw = paramsByAddr[p.addr];
       if (raw == null || !controls[p.addr]) return;
-      let v = p.type === "float" ? raw / FLOAT_MULT : raw;
+      let v = rawToReal(p, raw);
       v = Math.min(p.max, Math.max(p.min, v));
       controls[p.addr].forEach(fn => fn(v));
       any = true;
@@ -5061,7 +5059,7 @@
     PARAM_GROUPS.forEach(g => g.params.forEach(p => {
       const raw = vals[p.addr];
       if (raw == null) return;
-      pp[p.addr] = p.type === "float" ? raw / FLOAT_MULT : raw;
+      pp[p.addr] = rawToReal(p, raw);
     }));
     return pp;
   }
@@ -5508,7 +5506,7 @@
       controller.loadBank(i);
       await new Promise(r => setTimeout(r, 60));
       for (let a = 2; a < values.length; a++) {
-        if (values[a] == null || DEVICE_STATE_ADDRS.has(a)) continue;
+        if (values[a] == null) continue;
         controller.sendParameter(a, values[a]);
         if ((a & 31) === 0) await new Promise(r => setTimeout(r, 1));
       }
@@ -5763,8 +5761,9 @@
         return i >= 0 ? opts.labels[i] : "addr " + v;
       }
       if (p.options) return p.options[v] != null ? p.options[v] : String(v);
-      const shown = p.type === "float" ? v / FLOAT_MULT : v;
-      return String(p.display ? p.display(v) : shown) + (p.unit || "");
+      const r = p.fromRaw ? p.fromRaw(v) : v;
+      const shown = p.type === "float" ? r / FLOAT_MULT : r;
+      return String(p.display ? p.display(r) : shown) + (p.unit || "");
     }
 
     function applyProfile(pr) {
@@ -6104,20 +6103,18 @@
       // addresses 0 and 1 are the file marker and the bank number, not settings
       for (let a = 2; a < entry.values.length; a++) {
         const v = entry.values[a];
-        if (v == null || DEVICE_STATE_ADDRS.has(a)) continue;
+        if (v == null) continue;
         controller.sendParameter(a, v);
         if ((a & 31) === 0) await new Promise(r => setTimeout(r, 1));   // let the buffer drain
       }
+      // Backups from test firmware that kept master tuning as device state, at
+      // address 255, carry the live tuning in every bank and nothing at 109.
+      // Give each such bank that tuning, so a tuned device stays tuned.
+      const legacyTuning = entry.values[255];
+      if (!entry.values[109] && legacyTuning >= 4320 && legacyTuning <= 4460) controller.sendParameter(109, legacyTuning);
       await new Promise(r => setTimeout(r, 40));
       controller.saveCurrentSettings(entry.bank);
       await new Promise(r => setTimeout(r, 120));                       // the write is to flash
-    }
-    // A backup holds the tuning in every bank's dump, because the firmware
-    // substitutes the live value at address 255 when it dumps. Restore it ONCE,
-    // from the first bank that carries a plausible one, rather than per bank.
-    for (const entry of data.banks) {
-      const t = entry && entry.values ? entry.values[255] : null;
-      if (t != null && t >= 4320 && t <= 4460) { controller.sendParameter(255, t); break; }
     }
     bankNamesSet(restoredNames);
     if (startingBank >= 0) controller.loadBank(startingBank);
@@ -6239,7 +6236,7 @@
     PARAM_GROUPS.forEach(g => g.params.forEach(p => {
       const rv = raw[p.addr];
       if (rv == null || !Number.isFinite(rv)) return;
-      const v = clampToParam(p, p.type === "float" ? rv / FLOAT_MULT : rv);
+      const v = clampToParam(p, rawToReal(p, rv));
       if (v != null) snap[p.addr] = v;
     }));
     return Object.keys(snap).length ? snap : null;

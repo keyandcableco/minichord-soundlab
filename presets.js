@@ -86,8 +86,10 @@ const SHARED_PRESETS = [
   //   0,1   bank slot number          7      firmware version
   //   2,3   volume (forced to 50)     4,5,6  potentiometers (forced to 512)
   //   20    bank color, 32 LED brightness (cosmetic, user-ridden, no effect on ID)
+  //   109   master tuning (where the player is tuned, not what the preset is;
+  //         shared preset codes carry 0 there while a device reports 4400)
   //   220-235  rhythm grid (the device stores these as bit-fields, not params)
-  const SKIP = new Set([0, 1, 2, 3, 4, 5, 6, 7, 20, 32]);
+  const SKIP = new Set([0, 1, 2, 3, 4, 5, 6, 7, 20, 32, 109]);
   function isMatchAddr(a) {
     if (a < 2 || a > 254) return false;     // 255 isn't present in stored presets
     if (SKIP.has(a)) return false;
