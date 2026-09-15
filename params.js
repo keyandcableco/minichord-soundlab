@@ -921,11 +921,14 @@ const PARAM_GROUPS = [
           "On sixth and seventh chords, the fourth note takes the bass. On triads this is root position an octave up.",
         ],
         explain: { is: "Which note of the chord sits at the bottom.", does: "Revoices the four chord buttons without changing the chord itself.", tips: "Inversions move chords closer together, so progressions sound smoother and less jumpy. You can change this while a chord is sustaining. Chord spacing is the other half of this: inversion picks which note is at the bottom, spacing decides how far apart the voices sit." } },
-      { addr: 255, name: "Master tuning", card: "Scale & harmony", unit: "Hz", min: 4320, max: 4460, step: 1, type: "int", curve: "linear", def: 4400,
+      { addr: 109, name: "Master tuning", card: "Scale & harmony", unit: "Hz", min: 4320, max: 4460, step: 1, type: "int", curve: "linear", def: 4400,
+        // firmware 10 reads a stored 0 as 440.0 Hz: presets from before master tuning
+        // existed carry 0 here, and so does every shared preset code
+        fromRaw: v => (v === 0 ? 4400 : v),
         display: v => (v / 10).toFixed(1),
         toRaw: v => Math.round(v * 10),
         displayStep: 0.1,
-        explain: { is: "The reference pitch the whole instrument is tuned to, A4 in tenths of a Hz.", does: "Reads and edits in Hz: 440.0 is standard. Drop to 432.0, or go as high as 446.0 to match an ensemble that tunes sharp.", tips: "This is stored separately from your presets, so it stays put when you change preset and survives a power cycle. Changing it retunes a sustaining chord as you turn." } },
+        explain: { is: "The reference pitch the whole instrument is tuned to, A4 in tenths of a Hz.", does: "Reads and edits in Hz: 440.0 is standard. Drop to 432.0, or go as high as 446.0 to match an ensemble that tunes sharp.", tips: "It is saved with the preset like any other setting, so each bank can have its own tuning. Presets made before firmware 10 play at 440.0. Changing it retunes a sustaining chord as you turn." } },
       { addr: 39, name: "Chord layout", card: "Scale & harmony", unit: "", min: 0, max: 1, step: 1, type: "int", curve: "linear", def: 0, segmented: true,
         options: ["Standard", "Alternate"],
         optionNotes: [
@@ -1539,8 +1542,9 @@ const PARAM_FIRMWARE = {
   106: 8, 107: 8, 108: 8,                 // MIDI channels, single-port
   198: 3,                                 // chord octave change
   199: 7,                                 // chord glide
-  36: 9, 37: 9, 38: 9, 39: 9, 236: 9, 255: 9,
-  200: 9, 201: 9, 202: 9, 203: 9, 204: 9, 205: 9, 206: 9, 207: 9, 208: 9,           // harp scale modes, chord inversion, custom scale, master tuning
+  36: 9, 37: 9, 38: 9, 39: 9, 236: 9,
+  200: 9, 201: 9, 202: 9, 203: 9, 204: 9, 205: 9, 206: 9, 207: 9, 208: 9,           // harp scale modes, chord inversion, custom scale
+  109: 10,                                // master tuning
 };
 
 // "Inert" gates: when a gating control is turned all the way down, the whole
@@ -1602,7 +1606,7 @@ const ADDR_NAMES = {
   200: "Chord layout · double tap target",
   201: "Chord layout · double tap value",
   236: "Scale & harmony · custom scale",
-  255: "Settings · master tuning",
+  109: "Settings · master tuning",
   21: "Settings · retrigger chords",
   22: "Settings · change held strings",
   23: "Settings · slash level",

@@ -19,9 +19,10 @@ window.RandomRoll = (function () {
   const roundTo = (v, step) => (step ? Math.round(v / step) * step : v);
 
   // never randomized: section volumes (silence/blast), bank color, LED
-  // brightness, and the whole MIDI + Knobs domains (channels and pot routing
-  // are configuration, not sound design)
-  const SKIP = new Set([2, 3, 20, 32]);
+  // brightness, master tuning (a roll would put the instrument out of tune with
+  // whatever it is playing alongside), and the whole MIDI + Knobs domains
+  // (channels and pot routing are configuration, not sound design)
+  const SKIP = new Set([2, 3, 20, 32, 109]);
   const SKIP_DOMAINS = new Set(["midi", "knobs"]);
   // params that mute a whole section when 0: harp osc amplitude, chord osc 1
   // amplitude, the two section output levels, and the low-pass BASE cutoffs
