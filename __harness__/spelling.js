@@ -184,7 +184,7 @@ for (let key = 0; key < 21; key++) {
  * Each harp segment carries its own MIDI number in the title, so the label and
  * the pitch can be compared without reaching into devicemap. That is the whole
  * check: whatever the string sounds, its NAME must spell that pitch. Covers the
- * key-rooted scale modes, the chord-rooted ones, the custom scale and the
+ * key-rooted scale modes, the chord-rooted ones and the
  * chord-tone default, with and without a chord held.
  */
 function harpStrings(patch, hold) {
@@ -206,13 +206,13 @@ function harpStrings(patch, hold) {
 
 const CHORD_C = [60, 64, 67, 72];        // a C major shape, button C in key C
 let harpChecked = 0;
-const MODES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+const MODES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 phaseDone("pad labels");
 for (let key = 0; key < 21; key++) {
   step("harp strings", key, 21);
   for (const mode of MODES) {
     for (const held of [null, CHORD_C]) {
-      const patch = { 35: key, 36: mode, 236: 0b101010110101 };
+      const patch = { 35: key, 36: mode };
       const strings = harpStrings(patch, held);
       strings.forEach((st, i) => {
         harpChecked++;
@@ -388,4 +388,4 @@ if (bad.length) {
   if (bad.length > 25) console.error(`  ... and ${bad.length - 25} more`);
   process.exit(1);
 }
-console.log(`spelling: ${checked} pad labels across 21 keys x 13 transposes and ${harpChecked} harp labels across 12 modes and ${voiceChecked} chord voices across inversions and spacings, all agree with the pitch played (${voiceSkipped} voicings unmatched, skipped), and ${scaleChecked} chord-rooted scales spell as reviewed`);
+console.log(`spelling: ${checked} pad labels across 21 keys x 13 transposes and ${harpChecked} harp labels across ${MODES.length} modes and ${voiceChecked} chord voices across inversions and spacings, all agree with the pitch played (${voiceSkipped} voicings unmatched, skipped), and ${scaleChecked} chord-rooted scales spell as reviewed`);

@@ -202,7 +202,7 @@
   const PLAY_SETTING_CARDS = [
     { title: "Scale & harmony", addrs: [30, 35, 34, 33, 31, 109] },
     { title: "Chord behaviour", addrs: [23, 21, 22, 120, 37, 38, 39] },
-    { title: "Harp", addrs: [99, 40, 98, 36, 236] },
+    { title: "Harp", addrs: [99, 40, 98, 36] },
   ];
 
   // second-level navigation inside Customize: groups belong to a voice/section domain
@@ -1480,7 +1480,6 @@
     el.className = "param" + (opts.compact ? " compact" : "");
 
     const control = p.targetSelect ? selectControl(p, targetOptions(), { crumb: true })
-      : p.type === "degrees" ? degreesControl(p)
       : p.options ? (segWorthy(p) ? segControl(p) : selectControl(p)) : sliderControl(p);
 
     const main = document.createElement("div");
@@ -1680,44 +1679,6 @@
     if (labels.length > 8) seg.el.classList.add("seg-grid");   // e.g. the 12 key signatures
     seg.set(patch[p.addr]);
     return { el: seg.el, onChange: fn => { cb = fn; }, set: v => seg.set(v) };
-  }
-
-  // a set of chromatic degrees held as a bitmask in one parameter. Same
-  // {el, onChange, set} contract as the other controls, so renderParam and
-  // controls[] treat it like anything else. Value = the mask, bit 0 = root.
-  function degreesControl(p) {
-    let cb = () => {};
-    let mask = patch[p.addr] || 0;
-    const wrap = document.createElement("div");
-    wrap.className = "param-degrees";
-    const boxes = (p.degrees || []).map((label, bit) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "degree-btn";
-      b.textContent = label;
-      b.setAttribute("aria-pressed", "false");
-      b.title = "Degree " + label;
-      b.addEventListener("click", () => {
-        mask ^= (1 << bit);
-        paint();
-        cb(mask);
-      });
-      wrap.appendChild(b);
-      return b;
-    });
-    function paint() {
-      boxes.forEach((b, bit) => {
-        const on = (mask & (1 << bit)) !== 0;
-        b.classList.toggle("on", on);
-        b.setAttribute("aria-pressed", on ? "true" : "false");
-      });
-    }
-    paint();
-    return {
-      el: wrap,
-      onChange: fn => { cb = fn; },
-      set: v => { mask = v || 0; paint(); },
-    };
   }
 
   // a single enum dropdown may be open at a time (shared with outside-click/Esc)
@@ -2499,9 +2460,9 @@
   // 108 (single port) doesn't change note mapping but drives the mirror's warning chip
   // addresses the Play mirror draws from: editing one of these relabels the grid
   // and the strings straight away. 36 is the harp scale mode, 39 the chord
-  // layout and 202-208 its slot assignments, 236 the custom scale.
+  // layout and 202-208 its slot assignments.
   const DEVICEMAP_ADDRS = new Set([35, 30, 34, 33, 31, 98, 40, 120, 23, 108, 99, 198,
-    36, 37, 38, 39, 236, 202, 203, 204, 205, 206, 207, 208]);
+    36, 37, 38, 39, 202, 203, 204, 205, 206, 207, 208]);
   function onPatchChange(p, value) {
     if (p) {   // undo/redo: every committed change records against the previous value
       const before = prevPatch[p.addr];

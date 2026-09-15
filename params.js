@@ -880,10 +880,10 @@ const PARAM_GROUPS = [
         options: ["C", "G", "D", "A", "E", "B", "F", "B♭", "E♭", "A♭", "D♭", "G♭",
           "F♯", "C♯", "G♯", "D♯", "A♯", "E♯", "B♯", "F♭", "C♭"],
         explain: { is: "Automatically sharpens/flattens chords to fit a chosen key.", does: "Picks the key the chord buttons are interpreted in, so the right accidentals come out.", tips: "Set this to your song's key and the chord buttons stay diatonic." } },
-      { addr: 36, name: "Harp scale mode", card: "Scale & harmony", unit: "", min: 0, max: 11, step: 1, type: "int", curve: "linear", def: 0,
+      { addr: 36, name: "Harp scale mode", card: "Scale & harmony", unit: "", min: 0, max: 9, step: 1, type: "int", curve: "linear", def: 0,
         options: ["Follow chord", "Major", "Major pentatonic", "Minor pentatonic", "Diminished 6th",
           "Relative natural minor", "Relative harmonic minor", "Relative minor pentatonic",
-          "Scale per chord", "Scale per chord \u00b7 pentatonic", "Custom \u00b7 on the key", "Custom \u00b7 on the chord"],
+          "Scale per chord", "Scale per chord \u00b7 pentatonic"],
         optionNotes: [
           "The strings follow the chord you are holding, as they always have.",
           "A plain major scale rooted on the key signature, whatever chord you play.",
@@ -895,13 +895,8 @@ const PARAM_GROUPS = [
           "The five-note version of the relative minor.",
           "The scale changes to suit each chord: Lydian on major sevenths, Mixolydian on dominants, Dorian on minor sevenths, octatonic on diminished, whole tone on augmented.",
           "The same idea, but pentatonic, so fewer notes and less to avoid.",
-          "Your own scale, rooted on the key signature. Set it below.",
-          "Your own scale, rooted on whichever chord you are holding.",
         ],
-        explain: { is: "What the harp strings play.", does: "Either follows the chord as before, runs a fixed scale from the key, picks a scale to suit each chord, or plays a scale you define yourself.", tips: "Modes 8 and 9 are the interesting ones for improvising: hold any chord and the strings are already the right notes for it." } },
-      { addr: 236, name: "Custom scale", card: "Scale & harmony", unit: "", min: 0, max: 4095, step: 1, type: "degrees", curve: "linear", def: 2741,
-        degrees: ["1", "\u266d2", "2", "\u266d3", "3", "4", "\u266d5", "5", "\u266d6", "6", "\u266d7", "7"],
-        explain: { is: "A scale of your own, one tick per chromatic degree.", does: "Defines the notes used by harp scale modes 10 and 11. Everything else ignores it.", tips: "Try 1 \u266d2 4 5 \u266d7 for in sen, or 1 \u266d2 3 4 5 \u266d6 \u266d7 for hijaz. Ticking nothing leaves just the root." } },
+        explain: { is: "What the harp strings play.", does: "Either follows the chord as before, runs a fixed scale from the key, or picks a scale to suit each chord.", tips: "Modes 8 and 9 are the interesting ones for improvising: hold any chord and the strings are already the right notes for it." } },
       { addr: 38, name: "Chord spacing", card: "Scale & harmony", unit: "", min: 0, max: 4, step: 1, type: "int", curve: "linear", def: 0,
         options: ["Close", "Drop 2", "Drop 3", "Drop 2+4", "Spread"],
         optionNotes: [
@@ -1542,8 +1537,8 @@ const PARAM_FIRMWARE = {
   106: 8, 107: 8, 108: 8,                 // MIDI channels, single-port
   198: 3,                                 // chord octave change
   199: 7,                                 // chord glide
-  36: 9, 37: 9, 38: 9, 39: 9, 236: 9,
-  200: 9, 201: 9, 202: 9, 203: 9, 204: 9, 205: 9, 206: 9, 207: 9, 208: 9,           // harp scale modes, chord inversion, custom scale
+  36: 9, 37: 9, 38: 9, 39: 9,
+  200: 9, 201: 9, 202: 9, 203: 9, 204: 9, 205: 9, 206: 9, 207: 9, 208: 9,           // harp scale modes, chord inversion
   109: 10,                                // master tuning
 };
 
@@ -1605,7 +1600,6 @@ const ADDR_NAMES = {
   208: "Chord layout · alt all three",
   200: "Chord layout · double tap target",
   201: "Chord layout · double tap value",
-  236: "Scale & harmony · custom scale",
   109: "Settings · master tuning",
   21: "Settings · retrigger chords",
   22: "Settings · change held strings",

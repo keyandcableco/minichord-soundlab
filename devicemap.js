@@ -446,7 +446,6 @@
       inversion: Math.min(3, Math.max(0, g(37, 0))),    // chord inversion
       spacing:   Math.min(4, Math.max(0, g(38, 0))),    // chord spacing
       harpMode:  g(36, 0),                              // scalar harp mode, 0 = follow the chord
-      customScale: g(236, 0b101010110101),              // the player's own scale, one bit per degree
       transpose: g(30, 0),                              // semitones
       shift:     Math.min(6, Math.max(0, g(34, 0))),    // chord frame shift
       barry:     !!g(33, 0),                            // barry harris mode
@@ -636,8 +635,7 @@
 
   /* ---- scalar harp modes --------------------------------------------------
    * A port of the firmware's scale tables. Modes 1-7 run a fixed scale from the
-   * key, 8 and 9 pick a scale to suit the held chord, 10 and 11 run the player's
-   * own scale rooted on the key or on the chord. Mode 0 is the original
+   * key, and 8 and 9 pick a scale to suit the held chord. Mode 0 is the original
    * chord-following behaviour, handled below.                                 */
   const SCALE_ROOT_OFFSETS = [
     0, 7, 2, 9, 4, 11,       // C, G, D, A, E, B
@@ -687,29 +685,12 @@
     six_nine: [0, 12], half_dim: [17, 18],
     sus_fourth: [15, 13], sus_second: [15, 10], seventh_sus: [16, 13],
   };
-  const CUSTOM_SCALE_MAX_OCTAVE = 3;
-
-  // the twelve-bit mask expanded to an ascending interval list, as
-  // rebuild_custom_scale does on the device
-  function customScaleIntervals(mask) {
-    const out = [];
-    for (let i = 0; i < 12; i++) if (mask & (1 << i)) out.push(i);
-    return out.length ? out : [0];
-  }
-
   function staticScaleNote(string, mode, key) {
     const scale = SCALE_INTERVALS[mode - 1];
     const octave = Math.floor(string / scale.length);
     let root = SCALE_ROOT_OFFSETS[key] || 0;
     if (mode >= 5 && mode <= 7) root = (root + 12 - 3) % 12;   // the relative minor
     return root + scale[string % scale.length] + octave * 12 + 12;
-  }
-
-  function customScaleNote(string, rootNote, sharpOffset, mask) {
-    const scale = customScaleIntervals(mask);
-    let octave = Math.floor(string / scale.length);
-    if (octave > CUSTOM_SCALE_MAX_OCTAVE) octave = CUSTOM_SCALE_MAX_OCTAVE;
-    return rootNote + sharpOffset + scale[string % scale.length] + octave * 12;
   }
 
   function chordSpecificNote(string, rootNote, sharpOffset, type, pentatonic) {
@@ -745,24 +726,13 @@
       const idx = string % scale.length;
       return spellInterval(tonic, scaleDegrees(scale, null)[idx], scale[idx]);
     }
-    if (mode === 10) {
-      const scale = customScaleIntervals(s.customScale);
-      const tonic = spellTonic(s, false);
-      const iv = scale[string % scale.length];
-      return spellInterval(tonic, CHROMATIC_DEGREE[iv], iv);
-    }
-    if (mode === 11 || mode === 8 || mode === 9) {
-      // rooted on the chord, and on the slash bass when one is held
+    if (mode === 8 || mode === 9) {
+      // rooted on the chord, and on the slash bass when one is held; the scale
+      // takes its degrees from the chord it belongs to
       const root = spellRoot(s, held.slash ? held.slash.button : held.button, !!held.sharp);
-      const custom = mode === 11;
-      const scale = custom ? customScaleIntervals(s.customScale)
-        : CHORD_SCALE_INTERVALS[(CHORD_SCALE_INDEX[held.type] || CHORD_SCALE_INDEX.major)[mode === 9 ? 0 : 1]];
+      const scale = CHORD_SCALE_INTERVALS[(CHORD_SCALE_INDEX[held.type] || CHORD_SCALE_INDEX.major)[mode === 9 ? 0 : 1]];
       const idx = string % scale.length;
-      const iv = scale[idx];
-      // the player's own mask keeps its own labels; a named scale takes its
-      // degrees from the chord it belongs to
-      const deg = custom ? CHROMATIC_DEGREE[iv] : scaleDegrees(scale, held.type)[idx];
-      return spellInterval(root, deg, iv);
+      return spellInterval(root, scaleDegrees(scale, held.type)[idx], scale[idx]);
     }
 
     // mode 0: the harp plays the chord's own tones, so they take the chord's degrees
@@ -787,16 +757,9 @@
     if (mode >= 1 && mode <= 7) {
       return MIDI_BASE + s.transpose + staticScaleNote(string, mode, s.key);
     }
-    if (mode === 10) {
-      return MIDI_BASE + s.transpose
-        + customScaleNote(string, (SCALE_ROOT_OFFSETS[s.key] || 0) + 12, 0, s.customScale);
-    }
-    if (mode === 11 || mode === 8 || mode === 9) {
+    if (mode === 8 || mode === 9) {
       // these root on the chord, and on the slash bass when one is held
       const rootNote = rootButton(s, held.slash ? held.slash.button : held.button);
-      if (mode === 11) {
-        return MIDI_BASE + s.transpose + customScaleNote(string, rootNote, sharpOff, s.customScale);
-      }
       return MIDI_BASE + s.transpose
         + chordSpecificNote(string, rootNote, sharpOff, held.type, mode === 9);
     }

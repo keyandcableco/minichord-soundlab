@@ -1967,36 +1967,6 @@ body.controls-large .trig-every { width: 6.2rem; }
 .bank-step:hover { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
 .bank-step:disabled { opacity: 0.4; cursor: default; }
 
-/* ---- chromatic degree set -------------------------------------------------
-   A bitmask parameter shown as one latching chip per degree. Deliberately
-   built from the same tokens as .seg-btn so it reads as the same family of
-   control, but it latches independently rather than picking one of a set. */
-.param-control .param-degrees { width: 100%; }
-
-.param-degrees {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(2rem, 1fr));
-  gap: 4px;
-}
-
-.degree-btn {
-  font-family: var(--font); font-size: 0.74rem; font-weight: 600;
-  color: var(--text-dim); background: var(--panel-2);
-  border: 0.5px solid var(--line); border-radius: var(--radius-sm);
-  padding: 4px 6px; text-align: center; cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  transition: color .12s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease;
-}
-
-.degree-btn:hover { color: var(--text); border-color: var(--accent-line); }
-
-.degree-btn.on {
-  color: var(--accent); background: var(--accent-bg); border-color: var(--accent-line);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,.25);
-}
-
-body.controls-large .degree-btn { padding: 8px 6px; }
-
 /* longer chord names in the alternate layout: the pads are sized for a root and
    a short suffix, so step the type down rather than let "C#7sus4" overflow */
 .dm-chord.dm-chord-long  { font-size: clamp(0.58rem, 4.8cqw, 0.88rem); }
