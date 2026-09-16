@@ -2139,7 +2139,10 @@ body.controls-large .dm-harp.dm-harp-plate .dm-string { font-size: 0.76rem; min-
   font-family: var(--font);
   font-size: 10px;
   font-style: italic;
-  font-weight: 600;/* the cached banks no longer match the device */
+  font-weight: 600;
+}
+
+/* the cached banks no longer match the device */
 .bank-sheet-stale {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin: 0 0 0.8rem; padding: 6px 8px;
