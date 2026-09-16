@@ -559,7 +559,7 @@
   function createRhythmSync() {
     let active = false, locked = false, step = -1, paused = true;   // playhead starts paused by default
     let anchorT = 0, anchorStep = 0, haveAnchor = false, offT = 0, hits = 0, lastOnsetT = 0;
-    let tickT = null, burst = null, burstT = null, voices = null, recent = [], outsiderCount = 0;
+    let tickT = null, burst = null, burstT = null, burstStartT = 0, voices = null, recent = [], outsiderCount = 0;
     let pausedChangeCb = null;   // set by the pattern graph so its button follows
     const nowMs = () => Date.now();
     const connected = () => !!(controller && controller.isConnected());
@@ -636,6 +636,33 @@
       for (let s = 0; s < c; s++) { const pm = maskAt(s); if (pm && (mask & pm) === mask) { found = s; n++; } }
       return n === 1 ? found : -1;
     }
+    // The rhythm engine and a player pressing chords send the same thing on the
+    // chord port, so a lock rests on what only the engine does: onsets on the
+    // step grid of the tempo and shuffle sliders to within a few tens of ms, each
+    // firing exactly as many notes as its step has voices, several in a row. A
+    // looser rule locks onto ordinary playing, and the lock is what starts the
+    // playhead, stops the chord lights and marks the staff notes as rhythm.
+    const LOCK_HITS = 4;             // consecutive consistent onsets before a lock
+    const LOCK_TOL_STEPS = 0.15;     // how far off the grid an onset may land, in steps
+    const LOCK_TOL_MIN_MS = 25;      // floor for fast tempos, where 15% of a step is tiny
+    const lockTol = sm => Math.max(LOCK_TOL_STEPS, LOCK_TOL_MIN_MS / sm);
+    // The firmware alternates a long and a short step (shuffle x half a beat, then
+    // the rest of the beat), so every second step lands off the even grid by
+    // (shuffle - 1) steps, early or late depending on which half the phase began on.
+    function gridMiss(kFloat, k) {
+      const d = Math.abs(kFloat - k);
+      if (k % 2 === 0) return d;
+      const sh = patch[190], off = sh >= 0.5 && sh <= 1.5 ? Math.abs(sh - 1) : 0;
+      return Math.min(d, Math.abs(kFloat - k - off), Math.abs(kFloat - k + off));
+    }
+    // The engine fires every active step, so two onsets in a row can only be
+    // separated by rests. A player's chords a second apart skip over steps that
+    // would have sounded, which is the clearest sign they are not the engine.
+    function onlyRestsBetween(fromStep, k) {
+      const c = cyc();
+      for (let i = 1; i < k; i++) if (maskAt((fromStep + i) % c)) return false;
+      return true;
+    }
     // popcount = voices firing on a step / distinct notes in a burst
     function popcount(m) { let n = 0; while (m) { n += m & 1; m >>= 1; } return n; }
     // the step whose voice COUNT is unique in the pattern, else -1 — a phase pin that needs NO
@@ -668,14 +695,16 @@
     // playing), so a chord change (pitches change, beat doesn't) never drops the lock. PHASE is
     // pinned by DISTINCTIVE notes (a voice that fires at exactly one step); a note that breaks a
     // repeating pattern becomes the anchor. Rests are counted (the step index can jump by >1).
-    function onBurst(notes) {
+    function onBurst(notes, startT) {
       // Deliberately not gated on `paused`. That flag says whether to DRAW the
       // playhead, which is a display preference; whether the device is playing a
       // rhythm is a fact about the device. Conflating them meant the mirror only
       // stopped chewing through rhythm notes if the player had found and pressed
       // the playhead button first, and the button defaults to paused.
       if (!active || !connected()) return;
-      const t = nowMs();
+      // the first note's arrival, not the flush timer 40 ms later, which a busy
+      // page can delay by more than the grid tolerance below
+      const t = startT || nowMs();
       lastOnsetT = t;
 
       // a note that's for SURE not in the current best-guess chord MAY mean the chord changed, but a
@@ -732,10 +761,16 @@
         // confirming a stale phase. No-op when it already agrees; a corrective jump when it doesn't;
         // either way the lock streak keeps building and a live lock is kept (just re-phased).
         if (pin >= 0) {
-          const predicted = (((anchorStep + Math.round((t - anchorT) / sm)) % c) + c) % c;
+          // it counts toward a lock only if it lands where the running phase put that
+          // step, on the grid, with the step's own number of notes
+          const kPin = (t - anchorT) / sm, kRound = Math.round(kPin);
+          let onGrid = false;
+          for (let k = Math.max(1, kRound - 1); k <= kRound + 1; k++) {
+            if ((((anchorStep + k) % c) + c) % c === pin && gridMiss(kPin, k) <= lockTol(sm) && onlyRestsBetween(anchorStep, k)) onGrid = true;
+          }
           anchorStep = pin; anchorT = t;
-          hits = predicted === pin ? hits + 1 : Math.max(hits, 1);
-          if (!locked && hits >= 3) { locked = true; api.onLock(); if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(true); showChord(); }
+          hits = onGrid && notes.length === popcount(maskAt(pin)) ? hits + 1 : 1;
+          if (!locked && hits >= LOCK_HITS) { locked = true; api.onLock(); if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(true); showChord(); }
           return;
         }
         // CONFIRM the phase by onset TIMING + step ACTIVITY (pitch-independent): does the predicted
@@ -748,14 +783,17 @@
           if (k < 1) continue;
           const pm = maskAt((((anchorStep + k) % c) + c) % c);
           if (!pm) continue;                                  // predicted step is a rest, skip
-          const d = Math.abs(kFloat - k);
+          if (notes.length !== popcount(pm)) continue;        // the engine fires exactly the step's voices
+          if (!locked && !onlyRestsBetween(anchorStep, k)) continue;   // it never skips a step that sounds
+          const d = gridMiss(kFloat, k);
           const voiceFit = (mask & pm) === mask;              // does this note's voice live on that step?
           if (voiceFit && !bestVoiceFit) { bestVoiceFit = true; bestD = d; bestK = k; }
           else if (voiceFit === bestVoiceFit && d < bestD) { bestD = d; bestK = k; }
         }
-        if (bestK >= 1 && bestD <= 0.6) {                      // fits → confirm + re-anchor (no jump)
+        // once locked, keep the old slack so a late note never drops a real lock
+        if (bestK >= 1 && bestD <= (locked ? 0.6 : lockTol(sm))) {   // fits → confirm + re-anchor (no jump)
           anchorStep = (((anchorStep + bestK) % c) + c) % c; anchorT = t; hits++;
-          if (!locked && hits >= 3) { locked = true; api.onLock(); if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(true); showChord(); }
+          if (!locked && hits >= LOCK_HITS) { locked = true; api.onLock(); if (deviceMap && deviceMap.setRhythmActive) deviceMap.setRhythmActive(true); showChord(); }
           return;
         }
         if (locked) return;                                   // ambiguous mismatch while locked → ignore
@@ -812,10 +850,10 @@
         // an ARRAY, not a Set: a slash voicing can sound the same pitch on TWO voices at once
         // (C6/G at voicing 4 doubles G4, the slash bass collides with the 5th), and that doubled
         // note is the only thing separating C6/G from C6. Duplicates are evidence.
-        if (!burst) burst = [];
+        if (!burst) { burst = []; burstStartT = nowMs(); }   // a burst is timed by its first note
         burst.push(note);
         clearTimeout(burstT);
-        burstT = setTimeout(() => { const b = burst; burst = null; onBurst(b); }, 40);
+        burstT = setTimeout(() => { const b = burst; burst = null; onBurst(b, burstStartT); }, 40);
       },
       // The device has no way to say "I am in rhythm mode now" — it toggles on a
       // long button hold and reports nothing — so the playhead follows the only
