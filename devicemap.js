@@ -43,6 +43,8 @@
     harmonic_ninth:   [0, 2, 4, 10, 7, 6, 8],   // 4:5:6:7:9, fifth in the extras
     neutral_seventh:  [0, 3, 7, 10, 2, 6, 9],   // 1 11/9 3/2 11/6
     otonal_hexad:     [0, 4, 7, 10, 2, 6, 12],  // 4:5:6:7:9:11
+    just_augmented:   [0, 4, 8, 12, 2, 6, 12],  // 16:20:25, 125/64 rounding onto the octave
+    supermajor_seventh: [0, 4, 7, 11, 2, 5, 9], // 14:18:21:27
     major_ninth: [0, 4, 11, 2, 7, 5, 9],
     minor_ninth: [0, 3, 10, 2, 7, 5, 8],
     added_ninth: [0, 4, 7, 2, 5, 9, 11],
@@ -354,6 +356,8 @@
     harmonic_ninth:   [0, 1, 2, 6, 4, 3, 5],
     neutral_seventh:  [0, 2, 4, 6, 1, 3, 5],
     otonal_hexad:     [0, 2, 4, 6, 1, 3, 7],
+    just_augmented:   [0, 2, 4, 7, 1, 3, 7],   // 45/32 a raised 4th, 125/64 the octave's seat
+    supermajor_seventh: [0, 2, 4, 6, 1, 3, 5],
     major_ninth: [0, 2, 6, 1, 4, 3, 5],
     minor_ninth: [0, 2, 6, 1, 4, 3, 5],
     added_ninth: [0, 2, 4, 1, 3, 5, 6],
@@ -409,7 +413,7 @@
     major_ninth: "maj9", minor_ninth: "m9", added_ninth: "add9", six_nine: "6/9",
     neutral: "neut", harmonic_7th: "h7", subminor: "sub", supermajor: "sup",
     subminor_seventh: "sub7", utonal_tetrad: "ut", harmonic_ninth: "h9", neutral_seventh: "neut7",
-    otonal_hexad: "hex" };
+    otonal_hexad: "hex", just_augmented: "jaug", supermajor_seventh: "sup7" };
 
   // The alternate layout points each of the seven button combinations at one of
   // these, mirroring the firmware's chord_catalogue. Index 0 means "the slot's
@@ -422,7 +426,9 @@
     // counterparts: triads, then the sevenths as dominant, major, minor, then
     // m7b5's seat, the ninths, and the hexad last
     "supermajor", "subminor", "neutral", "harmonic_7th",
-    "neutral_seventh", "subminor_seventh", "utonal_tetrad", "harmonic_ninth", "otonal_hexad"];
+    "neutral_seventh", "subminor_seventh", "utonal_tetrad", "harmonic_ninth", "otonal_hexad",
+    // appended, so the entries before keep their meaning
+    "just_augmented", "supermajor_seventh"];
   const ALT_SLOT_DEFAULT = [11, 12, 13, 14, 15, 16, 17];
   // which slot each set of held rows selects, in the same order as COMBOS
   const ALT_SLOT_BY_ROWS = { "0": 0, "1": 1, "2": 2, "0,2": 3, "1,2": 4, "0,1": 5, "0,1,2": 6 };
@@ -744,30 +750,56 @@
     major_ninth: [1, 12], minor_ninth: [2, 11], added_ninth: [0, 10],
     six_nine: [0, 12], half_dim: [17, 18],
     sus_fourth: [15, 13], sus_second: [15, 10], seventh_sus: [16, 13],
-    // the ratio-built triads and the harmonic seventh. A neutral third is neither
-    // major nor minor, so it takes the suspended pentatonic; the septimal ones
-    // lean the way their third leans. Their scales are then retuned to the
-    // chord's own tones (see RETUNED_TYPES). The five larger just chords are not
-    // mapped on the device either, so they fall to major like any unknown type.
-    neutral: [15, 10], harmonic_7th: [3, 13], subminor: [2, 14], supermajor: [0, 10],
+    // the ratio-built chords, each on its twelve-tone counterpart's scale, then
+    // retuned to its own tones (chordScale below). The neutral chords take the
+    // major rows and their neutral tones take the third's and seventh's seats;
+    // the subminor seventh takes the minor pentatonic, which has a seventh to
+    // retune where m7's dorian one voices a sixth
+    neutral: [0, 10], harmonic_7th: [3, 13], subminor: [2, 14], supermajor: [0, 10],
+    subminor_seventh: [2, 11], utonal_tetrad: [17, 18], harmonic_ninth: [3, 13],
+    neutral_seventh: [0, 10], otonal_hexad: [3, 13],
+    // the just augmented keeps aug's whole tone rows, whose steps its thirds
+    // already sit on; the supermajor seventh takes maj7's lydian rows
+    just_augmented: [6, 6], supermajor_seventh: [1, 12],
   };
-  // substitute_chord_tones: for each chord tone, the nearest scale degree is
-  // replaced by it, the upper neighbour on a tie. Only these types go through it
-  // on the device, so only these do here.
-  const RETUNED_TYPES = new Set(["neutral", "harmonic_7th", "subminor", "supermajor"]);
+  // the letter degree each CHORD_SCALE_INTERVALS entry names (the firmware's
+  // chord_scale_degrees); null where a row names a degree twice or not at all
+  const CHORD_SCALE_DEGREES = [
+    [0, 1, 2, 4, 5], [0, 1, 2, 3, 5], [0, 2, 3, 4, 6], [0, 1, 2, 4, 6], [0, 2, 3, 4, 5],
+    null, null, null, null, null,
+    [0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6],
+    [0, 1, 3, 4, 5], [0, 1, 3, 4, 6], [0, 2, 3, 4, 6], [0, 1, 2, 3, 4, 5, 6],
+  ];
+  // substitute_chord_tones: each of the chord's four voices takes the seat of
+  // the scale entry naming its degree (its third the third, its seventh the
+  // seventh); a tone with no such seat takes the nearest entry, the upper on a
+  // tie. A voice repeating a pitch class already placed is skipped. Only the
+  // ratio-built chords go through it on the device, so only they do here.
+  const RETUNED_TYPES = new Set(["neutral", "harmonic_7th", "subminor", "supermajor",
+    "subminor_seventh", "utonal_tetrad", "harmonic_ninth", "neutral_seventh", "otonal_hexad",
+    "just_augmented", "supermajor_seventh"]);
   function chordScale(type, pentatonic) {
     const pair = CHORD_SCALE_INDEX[type] || CHORD_SCALE_INDEX.major;
-    const base = CHORD_SCALE_INTERVALS[pair[pentatonic ? 0 : 1]];
+    const index = pair[pentatonic ? 0 : 1];
+    const base = CHORD_SCALE_INTERVALS[index];
     if (!RETUNED_TYPES.has(type) || !CHORD[type]) return base;
-    const scale = base.slice();
-    chordTones(CHORD[type]).forEach(t => {
-      let best = 0, bestDist = Infinity;
-      scale.forEach((iv, j) => {
-        const d = Math.abs(iv - t);
-        if (d < bestDist || (d === bestDist && iv > t)) { bestDist = d; best = j; }
-      });
-      scale[best] = t;
-    });
+    const scale = base.slice(), seats = CHORD_SCALE_DEGREES[index];
+    const table = CHORD[type], degrees = CHORD_DEGREE[type];
+    const placed = new Set();
+    for (let v = 0; v < 4; v++) {
+      const t = ((table[v] % 12) + 12) % 12;
+      if (placed.has(t)) continue;
+      placed.add(t);
+      let seat = seats ? seats.indexOf(degrees[v] % 7) : -1;
+      if (seat < 0) {
+        let bestDist = Infinity;
+        scale.forEach((iv, j) => {
+          const d = Math.abs(iv - t);
+          if (d < bestDist || (d === bestDist && iv > t)) { bestDist = d; seat = j; }
+        });
+      }
+      scale[seat] = t;
+    }
     return scale;
   }
   const CUSTOM_SCALE_MAX_OCTAVE = 3;

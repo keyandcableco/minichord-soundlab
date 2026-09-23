@@ -349,20 +349,28 @@ const SCALE_SPELLING = {
   // the reported case: a lydian pentatonic over a ninth chord, which spelled its
   // #4 as a ♭5 and read C D E G♭ A
   "major_ninth:9": "C D E F# A",           "major_ninth:8": "C D E F# G A B",
-  // a ratio chord's scale is retuned to its own tones: the neutral triad is a
-  // minor triad in twelve, so its E becomes E♭, and in the suspended pentatonic
-  // the E♭ displaces the D, its nearer neighbour
-  "neutral:9":     "C E♭ F G A",           "neutral:8":     "C D E♭ F G A B",
+  // a ratio chord's scale is retuned to its own tones, each taking the seat of
+  // its degree: the neutral triad is a minor triad in twelve, so its third is
+  // E♭ in the third's seat, pentatonic or not
+  "neutral:9":     "C D E♭ G A",           "neutral:8":     "C D E♭ F G A B",
+  // the subminor seventh is an m7 in twelve, and takes the minor pentatonic so
+  // its seventh has a seat; the utonal tetrad is m7♭5's
+  "subminor_seventh:9": "C E♭ F G B♭",     "subminor_seventh:8": "C D E♭ F G A B♭",
+  "utonal_tetrad:9":    "C E♭ F G♭ B♭",    "utonal_tetrad:8":    "C D♭ E♭ F G♭ A♭ B♭",
+  // the supermajor seventh on maj7's lydian rows: its fifth takes the ♯4's
+  // seat in the pentatonic, which has no fifth, and its seventh the sixth's
+  "supermajor_seventh:9": "C D E G B",     "supermajor_seventh:8": "C D E F# G A B",
 };
 // the alternate layout REPLACES the standard chords, so only its own types want it
-const ALT_TYPE = new Set(["major_ninth", "neutral"]);
+const ALT_TYPE = new Set(["major_ninth", "neutral", "subminor_seventh", "utonal_tetrad", "supermajor_seventh"]);
 // a type outside the slot defaults has to be assigned to a slot first; the
 // major button's slot (202) takes it, by its catalogue value
-const ALT_SLOT_VALUE = { neutral: 21 };
+const ALT_SLOT_VALUE = { neutral: 21, subminor_seventh: 24, utonal_tetrad: 25, supermajor_seventh: 29 };
 const CHORD_VOICING = {
   major: [0,4,7,12], maj_seventh: [0,4,11,7], minor: [0,3,7,12], seventh: [0,4,10,7],
   min_seventh: [0,3,10,7], dim: [0,3,6,12], aug: [0,4,8,12],
   major_ninth: [0,4,11,2], neutral: [0,3,7,12],
+  subminor_seventh: [0,3,7,10], utonal_tetrad: [0,3,6,10], supermajor_seventh: [0,4,7,11],
 };
 function harpScale(type, mode) {
   const patch = { 35: 0, 36: mode };
