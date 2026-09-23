@@ -349,17 +349,25 @@ const SCALE_SPELLING = {
   // the reported case: a lydian pentatonic over a ninth chord, which spelled its
   // #4 as a ♭5 and read C D E G♭ A
   "major_ninth:9": "C D E F# A",           "major_ninth:8": "C D E F# G A B",
+  // a ratio chord's scale is retuned to its own tones: the neutral triad is a
+  // minor triad in twelve, so its E becomes E♭, and in the suspended pentatonic
+  // the E♭ displaces the D, its nearer neighbour
+  "neutral:9":     "C E♭ F G A",           "neutral:8":     "C D E♭ F G A B",
 };
 // the alternate layout REPLACES the standard chords, so only its own types want it
-const ALT_TYPE = new Set(["major_ninth"]);
+const ALT_TYPE = new Set(["major_ninth", "neutral"]);
+// a type outside the slot defaults has to be assigned to a slot first; the
+// major button's slot (202) takes it, by its catalogue value
+const ALT_SLOT_VALUE = { neutral: 21 };
 const CHORD_VOICING = {
   major: [0,4,7,12], maj_seventh: [0,4,11,7], minor: [0,3,7,12], seventh: [0,4,10,7],
   min_seventh: [0,3,10,7], dim: [0,3,6,12], aug: [0,4,8,12],
-  major_ninth: [0,4,11,2],
+  major_ninth: [0,4,11,2], neutral: [0,3,7,12],
 };
 function harpScale(type, mode) {
   const patch = { 35: 0, 36: mode };
   if (ALT_TYPE.has(type)) patch[39] = 1;
+  if (ALT_SLOT_VALUE[type]) patch[202] = ALT_SLOT_VALUE[type];
   const dm = DeviceMap.create({ getPatch: () => patch, getHue: () => 210 });
   dm.setConnected(true); dm.rebuild();
   CHORD_VOICING[type].forEach(t => dm.onNote("chord", "on", 60 + t));
@@ -382,10 +390,32 @@ for (const key of Object.keys(SCALE_SPELLING)) {
 }
 
 phaseDone("scale spellings");
+
+/* ---- voice-led chords --------------------------------------------------
+ * With voice leading on (addr 111) the device picks each chord's octaves from
+ * the chord before, so the mirror reads it by pitch class. A C major led to
+ * G3 C4 E4 G4 is no note set the lookup holds; it must still read as C, and the
+ * readout must list the notes actually played, spelled.
+ */
+let ledChecked = 0;
+for (const [patch, notes, want, names] of [
+  [{ 35: 0, 111: 1 }, [55, 60, 64, 67], "C", "G C E G"],
+  [{ 35: 8, 111: 1 }, [58, 63, 67, 70], "E\u266d", "B\u266d E\u266d G B\u266d"],
+  [{ 35: 0, 111: 1 }, [57, 60, 62, 65], "Dm7", "A C D F"],
+]) {
+  const labels = readout(patch, notes);
+  ledChecked++;
+  if (readout.matched !== want || labels.join(" ") !== names)
+    bad.push(`voice led ${notes.join(",")}: read "${readout.matched}" as "${labels.join(" ")}", expected "${want}" as "${names}"`);
+}
+// and with it off, the same notes are not a chord the buttons play
+if (readout({ 35: 0 }, [55, 60, 64, 67]).length && readout.matched === "C")
+  bad.push("voice led G3 C4 E4 G4 read as C with voice leading off");
+phaseDone("voice-led chords");
 if (bad.length) {
-  console.error(`spelling: ${bad.length} failure(s) of ${checked} pad labels and ${harpChecked} harp labels and ${voiceChecked} chord voices and ${scaleChecked} scale spellings\n`);
+  console.error(`spelling: ${bad.length} failure(s) of ${checked} pad labels and ${harpChecked} harp labels and ${voiceChecked} chord voices and ${scaleChecked} scale spellings and ${ledChecked} voice-led chords\n`);
   bad.slice(0, 25).forEach(b => console.error("  " + b));
   if (bad.length > 25) console.error(`  ... and ${bad.length - 25} more`);
   process.exit(1);
 }
-console.log(`spelling: ${checked} pad labels across 21 keys x 13 transposes and ${harpChecked} harp labels across 12 modes and ${voiceChecked} chord voices across inversions and spacings, all agree with the pitch played (${voiceSkipped} voicings unmatched, skipped), and ${scaleChecked} chord-rooted scales spell as reviewed`);
+console.log(`spelling: ${checked} pad labels across 21 keys x 13 transposes and ${harpChecked} harp labels across 12 modes and ${voiceChecked} chord voices across inversions and spacings, all agree with the pitch played (${voiceSkipped} voicings unmatched, skipped), and ${scaleChecked} chord-rooted scales spell as reviewed, and ${ledChecked} voice-led chords read by pitch class`);

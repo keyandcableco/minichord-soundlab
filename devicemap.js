@@ -36,6 +36,13 @@
     harmonic_7th: [0, 4, 10, 7, 2, 5, 9],
     subminor:     [0, 3, 7, 12, 2, 5, 9],
     supermajor:   [0, 4, 7, 12, 2, 5, 9],
+    // the just sonorities the divided octaves are for, as the firmware's twelve
+    // note tables; in 12 most of them sound as a chord already on this list
+    subminor_seventh: [0, 3, 7, 10, 2, 5, 9],   // 12:14:18:21
+    utonal_tetrad:    [0, 3, 6, 10, 2, 5, 8],   // 1/7:1/6:1/5:1/4
+    harmonic_ninth:   [0, 2, 4, 10, 7, 6, 8],   // 4:5:6:7:9, fifth in the extras
+    neutral_seventh:  [0, 3, 7, 10, 2, 6, 9],   // 1 11/9 3/2 11/6
+    otonal_hexad:     [0, 4, 7, 10, 2, 6, 12],  // 4:5:6:7:9:11
     major_ninth: [0, 4, 11, 2, 7, 5, 9],
     minor_ninth: [0, 3, 10, 2, 7, 5, 8],
     added_ninth: [0, 4, 7, 2, 5, 9, 11],
@@ -340,6 +347,13 @@
     harmonic_7th: [0, 2, 6, 4, 1, 3, 5],
     subminor:     [0, 2, 4, 7, 1, 3, 5],
     supermajor:   [0, 2, 4, 7, 1, 3, 5],
+    // 11/8 is an augmented eleventh (a raised 4th), 13/8 a flat thirteenth and
+    // 12/11 a second, whatever division they round into
+    subminor_seventh: [0, 2, 4, 6, 1, 3, 5],
+    utonal_tetrad:    [0, 2, 4, 6, 1, 3, 5],
+    harmonic_ninth:   [0, 1, 2, 6, 4, 3, 5],
+    neutral_seventh:  [0, 2, 4, 6, 1, 3, 5],
+    otonal_hexad:     [0, 2, 4, 6, 1, 3, 7],
     major_ninth: [0, 2, 6, 1, 4, 3, 5],
     minor_ninth: [0, 2, 6, 1, 4, 3, 5],
     added_ninth: [0, 2, 4, 1, 3, 5, 6],
@@ -393,7 +407,9 @@
   const TYPE_NAME = { major: "", minor: "m", seventh: "7", maj_seventh: "maj7", min_seventh: "m7", dim: "dim", aug: "aug", maj_sixth: "6", min_sixth: "m6", full_dim: "°7",
     half_dim: "m7\u266d5", sus_fourth: "sus4", sus_second: "sus2", seventh_sus: "7sus4",
     major_ninth: "maj9", minor_ninth: "m9", added_ninth: "add9", six_nine: "6/9",
-    neutral: "neut", harmonic_7th: "h7", subminor: "sub", supermajor: "sup" };
+    neutral: "neut", harmonic_7th: "h7", subminor: "sub", supermajor: "sup",
+    subminor_seventh: "sub7", utonal_tetrad: "ut", harmonic_ninth: "h9", neutral_seventh: "neut7",
+    otonal_hexad: "hex" };
 
   // The alternate layout points each of the seven button combinations at one of
   // these, mirroring the firmware's chord_catalogue. Index 0 means "the slot's
@@ -402,7 +418,11 @@
     "maj_sixth", "min_sixth", "full_dim", "half_dim",
     "sus_fourth", "sus_second", "seventh_sus",
     "major_ninth", "minor_ninth", "added_ninth", "six_nine",
-    "neutral", "harmonic_7th", "subminor", "supermajor"];
+    // past eighteen, the just chords in the order of their twelve-tone
+    // counterparts: triads, then the sevenths as dominant, major, minor, then
+    // m7b5's seat, the ninths, and the hexad last
+    "supermajor", "subminor", "neutral", "harmonic_7th",
+    "neutral_seventh", "subminor_seventh", "utonal_tetrad", "harmonic_ninth", "otonal_hexad"];
   const ALT_SLOT_DEFAULT = [11, 12, 13, 14, 15, 16, 17];
   // which slot each set of held rows selects, in the same order as COMBOS
   const ALT_SLOT_BY_ROWS = { "0": 0, "1": 1, "2": 2, "0,2": 3, "1,2": 4, "0,1": 5, "0,1,2": 6 };
@@ -429,6 +449,8 @@
     120: { name: "chord voicing",     affects: "chords", inferred: true  },
     37:  { name: "chord inversion",   affects: "chords", inferred: true  },
     38:  { name: "chord spacing",     affects: "chords", inferred: true  },
+    111: { name: "voice leading",     affects: "chords", inferred: true  },
+    112: { name: "voice leading range", affects: "chords", inferred: true },
     30:  { name: "transpose",         affects: "both",   inferred: false },
     35:  { name: "key",               affects: "both",   inferred: false },
     34:  { name: "register shift",    affects: "both",   inferred: false },
@@ -446,6 +468,28 @@
     const rows = []; for (let r = 0; r < count; r++) rows.push(r); return rows;
   }
 
+  // voice leading (addr 111) keeps each chord's tones but picks their octaves by
+  // the chord before, inside a range around root position. That is a function of
+  // history, so the mirror does not re-run the search: when it is on, or a knob
+  // could have turned it on, a chord that matches no exact note set is matched by
+  // its pitch classes instead. Slash chords are never led, so they stay exact.
+  const voiceLeadingPossible = s => s.voiceLeading || s.potTargets.has(111);
+  const pcOf = n => ((n % 12) + 12) % 12;
+  function pcListFromLookup(map) {
+    const byKey = new Map();
+    map.forEach((cands, key) => {
+      const plain = cands.filter(c => !c.slash);
+      if (!plain.length) return;
+      const pcs = new Set(key.split(",").map(Number).map(pcOf));
+      if (pcs.size < 3) return;
+      const k = [...pcs].sort((a, b) => a - b).join(",");
+      if (!byKey.has(k)) byKey.set(k, { pcs, cands: [] });
+      const e = byKey.get(k);
+      plain.forEach(c => { if (!e.cands.some(x => sameChord(x, c))) e.cands.push(c); });
+    });
+    return [...byKey.values()];
+  }
+
   /* ---- note engine -------------------------------------------------------- */
   // read the layout-affecting device settings out of the live patch
   function readSettings(patch) {
@@ -456,6 +500,9 @@
       altSlots:  [g(202, 0), g(203, 0), g(204, 0), g(205, 0), g(206, 0), g(207, 0), g(208, 0)],
       inversion: Math.min(3, Math.max(0, g(37, 0))),    // chord inversion
       spacing:   Math.min(4, Math.max(0, g(38, 0))),    // chord spacing
+      // voice leading places each chord nearest the one before it, so its octaves
+      // depend on history the dump does not carry; matched by pitch class instead
+      voiceLeading: !!g(111, 0),
       harpMode:  g(36, 0),                              // scalar harp mode, 0 = follow the chord
       customScale: g(236, 0b101010110101),              // the player's own scale, one bit per degree
       transpose: g(30, 0),                              // semitones
@@ -697,7 +744,32 @@
     major_ninth: [1, 12], minor_ninth: [2, 11], added_ninth: [0, 10],
     six_nine: [0, 12], half_dim: [17, 18],
     sus_fourth: [15, 13], sus_second: [15, 10], seventh_sus: [16, 13],
+    // the ratio-built triads and the harmonic seventh. A neutral third is neither
+    // major nor minor, so it takes the suspended pentatonic; the septimal ones
+    // lean the way their third leans. Their scales are then retuned to the
+    // chord's own tones (see RETUNED_TYPES). The five larger just chords are not
+    // mapped on the device either, so they fall to major like any unknown type.
+    neutral: [15, 10], harmonic_7th: [3, 13], subminor: [2, 14], supermajor: [0, 10],
   };
+  // substitute_chord_tones: for each chord tone, the nearest scale degree is
+  // replaced by it, the upper neighbour on a tie. Only these types go through it
+  // on the device, so only these do here.
+  const RETUNED_TYPES = new Set(["neutral", "harmonic_7th", "subminor", "supermajor"]);
+  function chordScale(type, pentatonic) {
+    const pair = CHORD_SCALE_INDEX[type] || CHORD_SCALE_INDEX.major;
+    const base = CHORD_SCALE_INTERVALS[pair[pentatonic ? 0 : 1]];
+    if (!RETUNED_TYPES.has(type) || !CHORD[type]) return base;
+    const scale = base.slice();
+    chordTones(CHORD[type]).forEach(t => {
+      let best = 0, bestDist = Infinity;
+      scale.forEach((iv, j) => {
+        const d = Math.abs(iv - t);
+        if (d < bestDist || (d === bestDist && iv > t)) { bestDist = d; best = j; }
+      });
+      scale[best] = t;
+    });
+    return scale;
+  }
   const CUSTOM_SCALE_MAX_OCTAVE = 3;
 
   // the twelve-bit mask expanded to an ascending interval list, as
@@ -724,8 +796,7 @@
   }
 
   function chordSpecificNote(string, rootNote, sharpOffset, type, pentatonic) {
-    const pair = CHORD_SCALE_INDEX[type] || CHORD_SCALE_INDEX.major;
-    const scale = CHORD_SCALE_INTERVALS[pair[pentatonic ? 0 : 1]];
+    const scale = chordScale(type, pentatonic);
     const octave = Math.floor(string / scale.length);
     return rootNote + sharpOffset + scale[string % scale.length] + octave * 12;
   }
@@ -767,7 +838,7 @@
       const root = spellRoot(s, held.slash ? held.slash.button : held.button, !!held.sharp);
       const custom = mode === 11;
       const scale = custom ? customScaleIntervals(s.customScale)
-        : CHORD_SCALE_INTERVALS[(CHORD_SCALE_INDEX[held.type] || CHORD_SCALE_INDEX.major)[mode === 9 ? 0 : 1]];
+        : chordScale(held.type, mode === 9);
       const idx = string % scale.length;
       const iv = scale[idx];
       // the player's own mask keeps its own labels; a named scale takes its
@@ -930,13 +1001,38 @@
   // voicing), built with the chord lookup (same inputs: key/shift/transpose/voicing/potTargets). The
   // rhythm scans these every burst instead of regenerating 70+ sets each time, mirroring how the grid
   // precomputes buildChordLookup. identifyChord only shifts by Δ + the slash bass on top.
+  // The chord types the rhythm identifier may name. It used to scan every table
+  // in CHORD, which was harmless while the alternate-only types were small: a
+  // suspended triad or a ninth with its fifth dropped covers no more than the
+  // standard chords do. The just chords are not small. The harmonic ninth sounds
+  // seven distinct tones in twelve, so it explained arpeggios of chords the
+  // player never pressed and outscored them. Only what the buttons can reach is a
+  // candidate now: the standard family always (as before, Barry's sixths and full
+  // diminished included), and the alternate slots' types when the alternate
+  // layout is on or something can switch it on. A knob or the double tap aimed at
+  // a slot address means any slot could hold anything, so then the whole
+  // catalogue is in.
+  const STANDARD_FAMILY = ["major", "minor", "seventh", "maj_seventh", "min_seventh", "dim", "aug",
+    "maj_sixth", "min_sixth", "full_dim"];
+  function rhythmTypes(s) {
+    const types = STANDARD_FAMILY.slice();
+    const add = t => { if (CHORD[t] && types.indexOf(t) === -1) types.push(t); };
+    if (shuffleRows(s.potTargets, 39, s.altLayout, 2).indexOf(1) !== -1) {
+      let anySlotDriven = false;
+      for (let a = 202; a <= 208; a++) if (s.potTargets.has(a)) anySlotDriven = true;
+      if (anySlotDriven) ALT_CATALOGUE.forEach(add);
+      else for (let slot = 0; slot < 7; slot++) add(altSlotType(slot, s));
+    }
+    return types;
+  }
   function buildRhythmBases(s) {
     const rows = shuffleRows(s.potTargets, 120, s.chordShuf, CHORD_SHUF.length);
     const out = [];
     // both natural AND sharp voicings, mirroring buildChordLookup: the sharp button raises every
     // chord voice a semitone, so an F#-chord arpeggio (F+sharp) is only reachable as a sharp base.
     // Natural FIRST so it stays the default reading of an enharmonic collision (C ≡ B#+sharp).
-    for (let b = 0; b < 7; b++) for (const type in CHORD) {
+    const types = rhythmTypes(s);
+    for (let b = 0; b < 7; b++) for (const type of types) {
       const press = pressOf(type, s.barry);
       for (const row of rows) for (const sharp of [false, true]) {
         out.push({ b, type, press, row, sharp, notes: voiceSet(b, CHORD[type], s, { row, sharp }) });
@@ -970,8 +1066,11 @@
     // the grid lookup, its flat matching list, and the rhythm base table are all derived from `s` and
     // ALWAYS rebuilt together (one helper, three call sites: init, rebuild, chordNoteOn transpose-adopt)
     // so the rhythm bases can never drift from the chord lookup they share inputs with.
-    let chordLookup, lookupList, rhythmBases;
-    const rebuildLookups = () => { chordLookup = buildChordLookup(s); lookupList = listFromLookup(chordLookup); rhythmBases = buildRhythmBases(s); };
+    let chordLookup, lookupList, pcList, rhythmBases;
+    const rebuildLookups = () => {
+      chordLookup = buildChordLookup(s); lookupList = listFromLookup(chordLookup); rhythmBases = buildRhythmBases(s);
+      pcList = voiceLeadingPossible(s) ? pcListFromLookup(chordLookup) : null;
+    };
     rebuildLookups();
     let held = { button: 0, type: "major", sharp: false, slash: null }; // resting harp context = B major (matches firmware fundamental=0)
     // the harp's OWN context when it diverges from `held` (the chord-port truth). Firmware race:
@@ -1019,6 +1118,7 @@
     const heldWatch = new Map();     // note → watchdog timer; force-releases a note whose note-off was missed
     let curChord = null;             // currently shown chord candidate
     let curCounts = null;            // its note multiset (Map note→count)
+    let ledNotes = null;             // the held notes of a voice-led match, low to high, else null
     // a slash/combo (multi-button) chord must persist briefly before it shows, so a transient
     // two-column overlap during a fast change can't flash a phantom (e.g. C→F → Dm7/G).
     let pendingCand = null;
@@ -1609,12 +1709,52 @@
           if (!best || lexLess(score, bestScore)) { best = c; bestCounts = e.counts; bestScore = score; }
         }
       }
-      return best ? { c: best, counts: bestCounts } : null;
+      if (best) return { c: best, counts: bestCounts };
+      return pcList ? matchLedChord(avail, sharpAllowed) : null;
+    }
+
+    // the voice-led reading: every held note is a tone of the chord, and every
+    // tone of the chord is available. The counts are the notes actually held,
+    // since the octaves are the device's own choice.
+    function matchLedChord(avail, sharpAllowed) {
+      if (heldNotes.size < 3) return null;
+      const heldPc = new Set(), availPc = new Set();
+      heldNotes.forEach((c, n) => heldPc.add(pcOf(n)));
+      avail.forEach((c, n) => availPc.add(pcOf(n)));
+      let best = null, bestScore = null;
+      for (const e of pcList) {
+        let ok = true;
+        heldPc.forEach(p => { if (!e.pcs.has(p)) ok = false; });
+        if (!ok) continue;
+        let borrowed = 0;
+        e.pcs.forEach(p => { if (!availPc.has(p)) ok = false; else if (!heldPc.has(p)) borrowed++; });
+        if (!ok) continue;
+        const newest = (lastOnNote != null && e.pcs.has(pcOf(lastOnNote))) ? 0 : 1;
+        const hasNatural = e.cands.some(c => !c.sharp);
+        for (const c of e.cands) {
+          if (c.sharp && !sharpAllowed(c) && hasNatural) continue;
+          const d = lastCol == null ? 0 : Math.abs(colOf(c.button) - lastCol);
+          const score = [borrowed, typeRows(c.type, s).length, newest, Math.min(d, 7 - d), c.sharp ? 1 : 0];
+          if (!best || lexLess(score, bestScore)) { best = c; bestScore = score; }
+        }
+      }
+      if (!best) return null;
+      const counts = new Map();
+      heldNotes.forEach((c, n) => counts.set(n, c));
+      return { c: best, counts, led: [...counts.keys()].sort((a, b) => a - b) };
     }
 
     function applyChord(r) {
+      // A chord losing notes as fingers lift is still the chord that was played.
+      // The exact matcher never re-reads a thinning chord, since a partial set
+      // matches nothing; the pitch-class reading would, and would redraw the note
+      // list smaller each time a finger came up. Treat that like no match: keep
+      // what is shown and let it fade, as an exactly matched chord does.
+      if (r && r.led && curChord && sameChord(curChord, r.c)
+          && r.led.every(n => (ledNotes ? ledNotes.indexOf(n) !== -1 : !!(curCounts && curCounts.has(n))))) r = null;
       // commit r ({c,counts}) as the shown chord (r=null keeps the current one for the fade)
       if (r) {
+        ledNotes = r.led || null;   // before anything below redraws the readout from it
         freshChord = false;   // a chord is committed/shown; further reads are edits, not fresh presses
         if (!curChord || !sameChord(curChord, r.c)) {
           curChord = r.c; lastCol = colOf(r.c.button); lastSharp = r.c.sharp;
@@ -1670,9 +1810,17 @@
     // reading pushes the current one into history ONLY when the button actually changes, i.e. a
     // different chord. Re-readings of the SAME chord (a transpose/type refinement getting better)
     // share the tag and just replace in place. No timers, no delay.
+    let roLedKey = "";   // the voice-led notes the note list was last drawn from
     function setReadoutChord(button, type, off, slashButton, sharp) {
       const name = chordLabel(button, type, off, slashButton, sharp);
-      if (name === roCur) return;
+      // the same chord can gain a voice after it is first read (a strum fills in,
+      // a led chord's fourth note lands): the name stays, the note list must not
+      const ledKey = ledNotes ? ledNotes.join(",") : "";
+      if (name === roCur) {
+        if (ledKey !== roLedKey) { roLedKey = ledKey; renderReadoutDetail(button, type, off, slashButton, sharp); onLabels(); }
+        return;
+      }
+      roLedKey = ledKey;
       if (roCur != null && button !== roCurBtn) {   // a genuinely different chord → keep the old in history
         roSlot(roPrev3, roPrev2.innerHTML);
         roSlot(roPrev2, roPrev.innerHTML);
@@ -1696,14 +1844,25 @@
       const voices = voiceSet(button, table, s, {
         count: 4, off: off || 0, sharp: !!sharp, slash,
       });
+      // a voice-led chord sounds the same tones in octaves of the device's
+      // choosing: show the notes it really played, each spelled as the voice
+      // that carries its pitch class
+      const led = (!slash && !rhythmActive && ledNotes && ledNotes.length >= 3
+        && curChord && curChord.button === button && curChord.type === type) ? ledNotes : null;
+      const shown = led || voices;
+      const voiceOf = (n, v) => {
+        if (!led) return v;
+        const i = voices.findIndex(x => pcOf(x) === pcOf(n));
+        return i < 0 ? 0 : i;
+      };
       // the octave still comes from the MIDI, which is the sounding truth; only
       // the NAME comes from the chord's own degrees
       const lbl = (n, v) => {
-        const csp = chordVoiceSpell(v, button, type, s, slash, undefined, sharp);
+        const csp = chordVoiceSpell(voiceOf(n, v), button, type, s, slash, undefined, sharp);
         spellMap.set("chord:" + n, csp);
         return spellText(csp) + '<sub class="dm-ro-oct">' + (Math.floor(n / 12) - 1) + "</sub>";
       };
-      roNotesEl.innerHTML = voices.map(lbl).join('<span class="dm-ro-sep">·</span>');
+      roNotesEl.innerHTML = shown.map(lbl).join('<span class="dm-ro-sep">·</span>');
       const ctx = [];
       if (s.key) ctx.push("key " + (KEY_NAMES[s.key] || "?"));
       if (s.transpose) ctx.push((s.transpose > 0 ? "+" : "") + s.transpose + " st");
@@ -1754,7 +1913,7 @@
       // Use `held` (built by applyChord) so the type is barry-resolved (a Barry major reads "6", etc.).
       // Idle keeps the last chord shown (never blanks); the key is always displayed.
       if (showing) setReadoutChord(held.button, held.type, 0, held.slash ? held.slash.button : null, held.sharp);
-      if (!anyLive()) { if (curChord) emitChordOff(); curChord = null; curCounts = null; }   // chord LEAVE re-arms triggers
+      if (!anyLive()) { if (curChord) emitChordOff(); curChord = null; curCounts = null; ledNotes = null; }   // chord LEAVE re-arms triggers
       if (dbg()) {
         const shown = (curChord && curCounts && heldHas(curCounts)) ? describeChord(curChord) : "—";
         if (shown !== lastLoggedChord) {
@@ -2063,7 +2222,7 @@
       harp.classList.remove("dm-hit");
       heldNotes.clear(); harpLit.clear(); activeHarp.clear();
       recentHarp.length = 0; effHarpShuf = s.harpShuf; effChromatic = s.chromatic; effChordTranspose = s.transpose;
-      curChord = null; curCounts = null; previewSel = null; lastCol = null; lastSharp = false; lastOnNote = null; lastHarpPos = null; lastHarpT = 0; harpDir = 0; freshChord = true;
+      curChord = null; curCounts = null; ledNotes = null; previewSel = null; lastCol = null; lastSharp = false; lastOnNote = null; lastHarpPos = null; lastHarpT = 0; harpDir = 0; freshChord = true;
       harpHeld = null; harpDesync.style.display = "none";   // clear() never relabels, hide the badge explicitly
       clearChordLit();
       resetReadout();

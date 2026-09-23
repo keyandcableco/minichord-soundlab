@@ -207,7 +207,7 @@
   // voicing with Chord behaviour
   const PLAY_SETTING_CARDS = [
     { title: "Scale & harmony", addrs: [30, 35, 237, 34, 33, 31, 109] },
-    { title: "Chord behaviour", addrs: [23, 21, 22, 120, 37, 38, 39] },
+    { title: "Chord behaviour", addrs: [23, 21, 22, 120, 37, 38, 111, 112, 39] },
     { title: "Harp", addrs: [99, 40, 98, 36, 236] },
   ];
 
@@ -2596,9 +2596,10 @@
   // 108 (single port) doesn't change note mapping but drives the mirror's warning chip
   // addresses the Play mirror draws from: editing one of these relabels the grid
   // and the strings straight away. 36 is the harp scale mode, 39 the chord
-  // layout and 202-208 its slot assignments, 236 the custom scale.
+  // layout and 202-208 its slot assignments, 236 the custom scale, 111 voice
+  // leading (which switches the mirror to reading chords by pitch class).
   const DEVICEMAP_ADDRS = new Set([35, 30, 34, 33, 31, 98, 40, 120, 23, 108, 99, 198,
-    36, 37, 38, 39, 236, 202, 203, 204, 205, 206, 207, 208]);
+    36, 37, 38, 39, 236, 202, 203, 204, 205, 206, 207, 208, 111]);
   function onPatchChange(p, value) {
     if (p) {   // undo/redo: every committed change records against the previous value
       const before = prevPatch[p.addr];
@@ -2684,7 +2685,7 @@
    */
   const ROUTING_ADDRS = [
     10, 11, 12, 13, 14, 15, 16, 17,          // knob targets and ranges
-    106, 107, 108,                            // MIDI channels and single-port mode
+    106, 107, 108, 110,                       // MIDI channels, single-port mode and MPE
     200, 201,                                 // double tap target and value
     202, 203, 204, 205, 206, 207, 208,        // the seven alternate-layout slots
   ];
