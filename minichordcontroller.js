@@ -26,7 +26,8 @@ class MiniChordController {
       };
       this.onConnectionChange = null;
       this.onDataReceived = null;
-      this.onNoteEvent = null;   // (role, type, note, velocity) for the live "Play" view
+      this.onNoteEvent = null;   // (role, type, note, velocity, channel) for the live "Play" view
+      this.onBendEvent = null;   // (role, channel, 14-bit value): MPE pitch bends
       this.json_reference="../json/minichord.json";
     }
 
@@ -120,9 +121,16 @@ class MiniChordController {
       if (d.length === this.parameter_size * 2 + 2) { this.processCurrentData(midiMessage); return; }
       if (d.length < 3) return;
       const status = d[0] & 0xF0;
-      if (status !== 0x90 && status !== 0x80) return;   // note messages only
+      const channel = (d[0] & 0x0F) + 1;   // 1-16, as the device numbers them
+      // With MPE output (addr 110) each voice has its own member channel, and a
+      // pitch bend before its note-on carries the pitch the note number rounds.
+      if (status === 0xE0) {
+        if (this.onBendEvent) this.onBendEvent(role, channel, d[1] | (d[2] << 7));
+        return;
+      }
+      if (status !== 0x90 && status !== 0x80) return;   // otherwise note messages only
       const type = (status === 0x90 && d[2] > 0) ? "on" : "off";
-      if (this.onNoteEvent) this.onNoteEvent(role, type, d[1], d[2]);
+      if (this.onNoteEvent) this.onNoteEvent(role, type, d[1], d[2], channel);
     }
 
     // Process incoming MIDI data

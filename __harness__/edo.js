@@ -207,6 +207,47 @@ for (let e = 0; e < 3; e++) {
   });
 }
 
+/* ---- MPE: the bends settle what the rounding merged ----------------------
+ * With MPE output (addr 110) each voice goes out on its own member channel,
+ * chord voices on 2 to 5, with a bend sent before its note-on that holds the
+ * exact pitch: 48 + steps * 12 / EDO, less the note number. Sent that way,
+ * every chord must read as itself -- no identical-MIDI rival accepted.
+ */
+function mpeRead(e, patch, steps) {
+  const dm = deviceFor(patch);
+  const n = FW.steps[e];
+  const voices = steps.map((x, i) => {
+    const note = toMidi(e, x), exact = 48 + x * 12 / n;
+    return { ch: 2 + i, note, value: Math.round((exact - note) * 8192 / 48) + 8192 };
+  });
+  voices.forEach(v => { dm.onBend("chord", v.ch, v.value); dm.onNote("chord", "on", v.note, 100, v.ch); });
+  settle();
+  let cur = "";
+  (function walk(x) { if (!x) return;
+    if (/dm-ro-cur/.test(x.className || "")) cur = x.innerHTML || x.textContent || "";
+    (x.nodeKids || []).forEach(walk); })(dm.el);
+  voices.forEach(v => dm.onNote("chord", "off", v.note, 0, v.ch));
+  settle();
+  return cur.replace(/<sub[^>]*>.*?<\/sub>/g, "").replace(/<[^>]*>/g, "").trim();
+}
+let mpeChecked = 0;
+for (let e = 0; e < 3; e++) {
+  for (let button = 0; button < 7; button++) for (const type of STANDARD) {
+    mpeChecked++;
+    const got = mpeRead(e, { 35: 0, 237: TEMPERAMENT[e], 110: 1 }, chordSteps(e, button, type));
+    const want = BTN_NAME[button] + TYPE_NAME[type];
+    if (got !== want) bad.push(`${EDO_NAME[e]}-EDO MPE ${want}: read as "${got}"`);
+  }
+  FW.catalogue.forEach((type, i) => {
+    for (let button = 0; button < 7; button++) {
+      mpeChecked++;
+      const got = mpeRead(e, { 35: 0, 237: TEMPERAMENT[e], 110: 1, 39: 1, 202: i + 1 }, chordSteps(e, button, type));
+      const want = BTN_NAME[button] + TYPE_NAME[type];
+      if (got !== want) bad.push(`${EDO_NAME[e]}-EDO MPE ${want}: read as "${got}"`);
+    }
+  });
+}
+
 /* ---- the pads, every key and transpose ----------------------------------
  * A pad names its button's root. The device moves the audio by
  * transpose_steps, (semitones * EDO + 6) / 12, which in 19 and 31 is a
@@ -335,9 +376,9 @@ for (const [e, type, want] of HAND) {
 }
 
 if (bad.length) {
-  console.log(`edo: ${bad.length} failure(s) of ${idChecked} chords, ${spellChecked} spelled notes, ${padChecked} pads, ${harpChecked} harp strings and ${handChecked} hand spellings\n`);
+  console.log(`edo: ${bad.length} failure(s) of ${idChecked} chords, ${mpeChecked} over MPE, ${spellChecked} spelled notes, ${padChecked} pads, ${harpChecked} harp strings and ${handChecked} hand spellings\n`);
   bad.slice(0, 40).forEach(b => console.log("  " + b));
   if (bad.length > 40) console.log(`  ... and ${bad.length - 40} more`);
   process.exit(1);
 }
-console.log(`edo: ${idChecked} chords in 12, 19 and 31 read back as themselves (${ambiguous} as a chord sending identical MIDI: ${ambiguousPairs.join(", ")}), their ${spellChecked} notes spell the step that sounds, as do ${padChecked} pad roots across every key and transpose and ${harpChecked} harp strings, and ${handChecked} chords spell as worked by hand`);
+console.log(`edo: ${idChecked} chords in 12, 19 and 31 read back as themselves (${ambiguous} as a chord sending identical MIDI: ${ambiguousPairs.join(", ")}; over MPE all ${mpeChecked} read exactly as themselves), their ${spellChecked} notes spell the step that sounds, as do ${padChecked} pad roots across every key and transpose and ${harpChecked} harp strings, and ${handChecked} chords spell as worked by hand`);

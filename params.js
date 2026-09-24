@@ -1040,7 +1040,7 @@ const PARAM_GROUPS = [
           "Chords and harp each send on their one channel, as always.",
           "Every voice gets its own member channel and its own pitch bend (\u00b148 semitones, declared to the host by RPN 6), so glide records as a real bend curve, and the tempered and divided-octave pitches arrive exactly instead of rounded to the nearest semitone.",
         ],
-        explain: { is: "Whether the minichord sends MPE, one MIDI channel per voice.", does: "Chord voices go out on member channels 2 to 5 and the harp strings on 2 to 13 of their own port; with single port mode on they share one, chord on 2 to 5 and strings on 6 to 16. Replaces the chord and harp channels above while it is on.", tips: "Turn it on to record glide, a temperament or 19/31-EDO into an MPE-aware host. The Play mirror still reads the notes, which are unchanged; Sound Lab's own MIDI recorder keeps the notes but not the bends." } },
+        explain: { is: "Whether the minichord sends MPE, one MIDI channel per voice.", does: "Chord voices go out on member channels 2 to 5 and the harp strings on 2 to 13 of their own port; with single port mode on they share one, chord on 2 to 5 and strings on 6 to 16. Replaces the chord and harp channels above while it is on.", tips: "Turn it on to record glide, a temperament or 19/31-EDO into an MPE-aware host. The Play mirror reads the bends too: in 19 and 31 they tell apart chords whose notes round to the same semitones (19-EDO B aug and B major), and in single port mode the channels tell the harp from the chords. Sound Lab's own MIDI recorder keeps the notes but not the bends." } },
     ]
   },
   /* ---------------------------------------------------------------------- */

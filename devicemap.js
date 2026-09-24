@@ -1314,6 +1314,14 @@
     let curChord = null;             // currently shown chord candidate
     let curCounts = null;            // its note multiset (Map note→count)
     let ledNotes = null;             // the held notes of a voice-led match, low to high, else null
+    // MPE (addr 110): every voice on its own member channel, with a bend sent
+    // before its note-on that carries what the rounding to a semitone threw
+    // away. chordVoices maps a chord channel to the note it last started and
+    // its exact pitch in semitones; chordBend is each channel's latest bend.
+    const chordVoices = new Map();   // channel -> { note, exact }
+    const chordBend = new Map();     // channel -> semitones
+    const MPE_BEND_RANGE = 48;       // MPE_BEND_RANGE_SEMITONES, declared by RPN 0
+    const EXACT_TOL = 0.12;          // semitones: well inside 31's 0.39-semitone step
     // a slash/combo (multi-button) chord must persist briefly before it shows, so a transient
     // two-column overlap during a fast change can't flash a phantom (e.g. C→F → Dm7/G).
     let pendingCand = null;
@@ -1865,8 +1873,50 @@
     // (a plain triad beats a 7th beats a slash), then the chord being newly played, then
     // column proximity (breaks E#≡F / B#≡C). Needs ≥3 voices and a tight fit, so a loose
     // soup of decaying notes never lights a phantom chord.
+    /* In 19 and 31 rounding can send two chords as the same MIDI: 19-EDO B aug
+     * and B major, B maj7 and B7. With MPE the bends give each held note back
+     * its exact pitch, and a candidate is kept only if every held note lands,
+     * as a pitch class, on one of its tones. Pitch classes because the lookup
+     * key already fixed the octaves, and inversion, spacing and voice leading
+     * move only octaves. When nothing survives (a glide still sliding in, a
+     * bend not yet arrived) the candidates are left as the MIDI gave them.
+     * In twelve nothing collides, so none of this runs. */
+    function heldExactPcs() {
+      if (!s.edoIdx || !chordVoices.size) return null;
+      const out = [];
+      let covered = 0;
+      chordVoices.forEach(v => {
+        if (heldNotes.has(v.note)) covered++;
+        if (heldNotes.has(v.note) || dropped.has(v.note)) out.push(((v.exact % 12) + 12) % 12);
+      });
+      let held = 0;
+      heldNotes.forEach(c => { held += c; });
+      return covered >= held ? out : null;   // only when every held voice has its bend
+    }
+    function candExactPcs(c) {
+      const n = N(s);
+      const t = s.chordTranspose == null ? s.transpose : s.chordTranspose;
+      const lift = Math.trunc(((t | 0) * n + 6) / 12);
+      const sh = c.sharp ? (s.flat ? -1 : 1) * SH(s) : 0;
+      const root = rootButton(s, c.button) + sh;
+      const pc = steps => (((MIDI_BASE + (steps + lift) * 12 / n) % 12) + 12) % 12;
+      const out = edoType(c.type, s).slice(0, 4).map(v => pc(root + v));
+      if (c.slash) out.push(pc(rootButton(s, c.slash.button) + sh));
+      return out;
+    }
+    const pcNear = (a, b) => { const d = Math.abs(a - b) % 12; return Math.min(d, 12 - d) < EXACT_TOL; };
+    function exactFilter(cands, exact) {
+      if (!exact || cands.length < 2) return cands;
+      const kept = cands.filter(c => {
+        const want = candExactPcs(c);
+        return exact.every(x => want.some(w => pcNear(x, w)));
+      });
+      return kept.length ? kept : cands;
+    }
+
     function matchChord() {
       if (!heldNotes.size) return null;       // a chord needs at least one note physically held
+      const exact = heldExactPcs();
       // sharp spellings are allowed right after a sharp chord, OR on the column
       // already held. Pressing # while holding F must read as the sharp button
       // (F♭/F#), never relabel to the neighboring natural column (E)
@@ -1891,8 +1941,9 @@
         e.counts.forEach((c, n) => { if ((avail.get(n) || 0) < c) ok = false; droppedUsed += Math.max(0, c - (heldNotes.get(n) || 0)); });
         if (!ok) continue;
         const newest = (lastOnNote != null && e.counts.has(lastOnNote)) ? 0 : 1;
-        const hasNatural = e.cands.some(c => !c.sharp);
-        for (const c of e.cands) {
+        const cands = exactFilter(e.cands, exact);
+        const hasNatural = cands.some(c => !c.sharp);
+        for (const c of cands) {
           if (c.sharp && !sharpAllowed(c) && hasNatural) continue;   // enharmonic sharps need context (see above)
           const d = lastCol == null ? 0 : Math.abs(colOf(c.button) - lastCol);
           const colDist = Math.min(d, 7 - d);   // circle-of-fifths distance
@@ -1903,13 +1954,13 @@
         }
       }
       if (best) return { c: best, counts: bestCounts };
-      return pcList ? matchLedChord(avail, sharpAllowed) : null;
+      return pcList ? matchLedChord(avail, sharpAllowed, exact) : null;
     }
 
     // the voice-led reading: every held note is a tone of the chord, and every
     // tone of the chord is available. The counts are the notes actually held,
     // since the octaves are the device's own choice.
-    function matchLedChord(avail, sharpAllowed) {
+    function matchLedChord(avail, sharpAllowed, exact) {
       if (heldNotes.size < 3) return null;
       const heldPc = new Set(), availPc = new Set();
       heldNotes.forEach((c, n) => heldPc.add(pcOf(n)));
@@ -1923,8 +1974,9 @@
         e.pcs.forEach(p => { if (!availPc.has(p)) ok = false; else if (!heldPc.has(p)) borrowed++; });
         if (!ok) continue;
         const newest = (lastOnNote != null && e.pcs.has(pcOf(lastOnNote))) ? 0 : 1;
-        const hasNatural = e.cands.some(c => !c.sharp);
-        for (const c of e.cands) {
+        const cands = exactFilter(e.cands, exact);
+        const hasNatural = cands.some(c => !c.sharp);
+        for (const c of cands) {
           if (c.sharp && !sharpAllowed(c) && hasNatural) continue;
           const d = lastCol == null ? 0 : Math.abs(colOf(c.button) - lastCol);
           const score = [borrowed, typeRows(c.type, s).length, newest, Math.min(d, 7 - d), c.sharp ? 1 : 0];
@@ -2301,7 +2353,13 @@
     }
     // handle a MIDI note from the device. role = "chord" | "harp".
     let lastMidiT = 0;
-    function onNote(role, type, note) {
+    function onNote(role, type, note, vel, channel) {
+      if (role === "chord" && channel != null) {
+        // a released voice keeps its exact pitch for as long as the note still
+        // counts as recently dropped: a chord thinning as fingers lift is read
+        // from what was held, and must not lose the bends that told it apart
+        if (type === "on") chordVoices.set(channel, { note, exact: note + (chordBend.get(channel) || 0) });
+      }
       if (dbg()) {
         const now = Date.now(), dt = lastMidiT ? now - lastMidiT : 0;
         lastMidiT = now;
@@ -2312,6 +2370,20 @@
         return;
       }
       if (type === "on") chordNoteOn(note); else chordNoteOff(note);
+    }
+
+    // An MPE pitch bend (14-bit, centre 8192). The device sends one before each
+    // note-on and again while a voice glides, so a later bend can settle a chord
+    // the first one could not: the read is redone when a held voice moves.
+    function onBend(role, channel, value) {
+      if (role !== "chord") return;
+      const semis = (value - 8192) * MPE_BEND_RANGE / 8192;
+      chordBend.set(channel, semis);
+      const v = chordVoices.get(channel);
+      if (v) {
+        v.exact = v.note + semis;
+        if (s.edoIdx && heldNotes.has(v.note)) paintChord();
+      }
     }
 
     /* offline interactive preview --------------------------------------- */
@@ -2415,7 +2487,7 @@
       dropped.forEach(d => clearTimeout(d.timer)); dropped.clear();
       heldWatch.forEach(w => clearTimeout(w)); heldWatch.clear();
       harp.classList.remove("dm-hit");
-      heldNotes.clear(); harpLit.clear(); activeHarp.clear();
+      heldNotes.clear(); harpLit.clear(); activeHarp.clear(); chordVoices.clear(); chordBend.clear();
       recentHarp.length = 0; effHarpShuf = s.harpShuf; effChromatic = s.chromatic; effChordTranspose = s.transpose;
       curChord = null; curCounts = null; ledNotes = null; previewSel = null; lastCol = null; lastSharp = false; lastOnNote = null; lastHarpPos = null; lastHarpT = 0; harpDir = 0; freshChord = true;
       harpHeld = null; harpDesync.style.display = "none";   // clear() never relabels, hide the badge explicitly
@@ -2684,7 +2756,7 @@
     // spellSounding gives {letter, alt} for a sounding note, or null when the
     // engine has not worked out what is being played — callers fall back then
     const spellSounding = (role, midi) => spellMap.get(role + ":" + midi) || null;
-    return { el: root, rebuild, onNote, setConnected, identifyChord, setRhythmActive, showRhythmChord, setHarpShape, spellSounding };
+    return { el: root, rebuild, onNote, onBend, setConnected, identifyChord, setRhythmActive, showRhythmChord, setHarpShape, spellSounding };
   }
 
   const VERSION = "play-engine-2026-07-01-r60-sharp-enharmonic";
