@@ -27,6 +27,10 @@ class MiniChordController {
       this.onConnectionChange = null;
       this.onDataReceived = null;
       this.onNoteEvent = null;   // (role, type, note, velocity) for the live "Play" view
+      // when this app last asked for a dump, and the bank the last dump carried;
+      // together they tell a bank being loaded from the device reporting its state
+      this.dumpRequestedAt = 0;
+      this.lastDumpBank = null;
       this.json_reference="../json/minichord.json";
     }
 
@@ -57,6 +61,7 @@ class MiniChordController {
           );
           this.device = output;
           const sysex_message = [0xF0, 0, 0, 0, 0, 0xF7];
+          this.dumpRequestedAt = Date.now();
           this.device.send(sysex_message);
         } else {
           console.log(
@@ -169,17 +174,33 @@ class MiniChordController {
         processedData.rawParameters = processedData.parameters.slice();
 
         // Re-centre the pot pickup memory (addrs 4-6) and section volumes (2-3)
-        // on every dump: a stale saved pot position would otherwise fight the
-        // editor's values until the physical knob is moved. Mirrors the
-        // behaviour of the official minicontrol app. (MINICHORD-REFERENCE.md §6.2)
-        for (const i of this.potentiometer_memory_adress) {
-          this.sendParameter(i, 512);
-          processedData.parameters[i] = 512;
-        }
-
-        for (const i of this.volume_memory_adress) {
-          this.sendParameter(i, 0.5 * 100);
-          processedData.parameters[i] = 0.5 * 100;
+        // when a bank is being loaded: a stale saved pot position would
+        // otherwise fight the editor's values until the physical knob is moved.
+        // Mirrors the official minicontrol app (MINICHORD-REFERENCE.md §6.2),
+        // where a dump only ever arrived because the app had asked for one.
+        //
+        // The firmware now also sends a dump unasked, to report a change the
+        // player made on the device -- the double tap, the key change combo --
+        // and those arrive mid-performance, on the same bank. Re-centring then
+        // wrote five parameters back into a playing instrument: the gain and
+        // each knob's alternate target jumped to their centre values until the
+        // knobs took over again, an audible blip on every double tap. So only
+        // a dump this app asked for, or one carrying a different bank (the
+        // preset buttons), is a bank load. A report is read and left alone.
+        const solicited = this.dumpRequestedAt && (Date.now() - this.dumpRequestedAt < 2000);
+        const newBank = this.lastDumpBank !== processedData.bankNumber;
+        this.dumpRequestedAt = 0;
+        this.lastDumpBank = processedData.bankNumber;
+        processedData.report = !solicited && !newBank;
+        if (!processedData.report) {
+          for (const i of this.potentiometer_memory_adress) {
+            this.sendParameter(i, 512);
+            processedData.parameters[i] = 512;
+          }
+          for (const i of this.volume_memory_adress) {
+            this.sendParameter(i, 0.5 * 100);
+            processedData.parameters[i] = 0.5 * 100;
+          }
         }
 
         if (this.onDataReceived) {
@@ -190,6 +211,7 @@ class MiniChordController {
 
     // Send parameter to device
     sendParameter(address, value) {
+      if (address === 0 && value === 0) this.dumpRequestedAt = Date.now();   // command 0 asks for a dump
       if (!this.device) return false;
       const first_byte = parseInt(value % 128);
       const second_byte = parseInt(value / 128);
@@ -206,6 +228,7 @@ class MiniChordController {
     // hardware-side preset change that the device does not auto-report.
     requestCurrentData() {
       if (!this.device) return false;
+      this.dumpRequestedAt = Date.now();
       this.device.send([0xF0, 0, 0, 0, 0, 0xF7]);
       return true;
     }
@@ -215,6 +238,7 @@ class MiniChordController {
     // without this a remote cannot walk the banks to read them.
     loadBank(bankNumber) {
       if (!this.device) return false;
+      this.dumpRequestedAt = Date.now();   // the device reports the bank it loads
       this.device.send([0xF0, 0, 0, 4, bankNumber, 0xF7]);
       return true;
     }
