@@ -2597,9 +2597,10 @@
   // addresses the Play mirror draws from: editing one of these relabels the grid
   // and the strings straight away. 36 is the harp scale mode, 39 the chord
   // layout and 202-208 its slot assignments, 236 the custom scale, 111 voice
-  // leading (which switches the mirror to reading chords by pitch class).
+  // leading (which switches the mirror to reading chords by pitch class), 237
+  // the temperament, whose 19 and 31 rebuild every note in steps.
   const DEVICEMAP_ADDRS = new Set([35, 30, 34, 33, 31, 98, 40, 120, 23, 108, 99, 198,
-    36, 37, 38, 39, 236, 202, 203, 204, 205, 206, 207, 208, 111]);
+    36, 37, 38, 39, 236, 202, 203, 204, 205, 206, 207, 208, 111, 237]);
   function onPatchChange(p, value) {
     if (p) {   // undo/redo: every committed change records against the previous value
       const before = prevPatch[p.addr];

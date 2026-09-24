@@ -37,6 +37,7 @@
 
   // ---- spelling -----------------------------------------------------------
   // letter index and alteration for each pitch class, sharp-side and flat-side
+  const LETTER_PC = [0, 2, 4, 5, 7, 9, 11];   // natural pitch class of C D E F G A B
   const SHARP_SPELL = [[0,0],[0,1],[1,0],[1,1],[2,0],[3,0],[3,1],[4,0],[4,1],[5,0],[5,1],[6,0]];
   const FLAT_SPELL  = [[0,0],[1,-1],[1,0],[2,-1],[2,0],[3,0],[4,-1],[4,0],[5,-1],[5,0],[6,-1],[6,0]];
 
@@ -86,12 +87,22 @@
     const [letter, alt] = spelled
       ? [spelled.letter, spelled.alt]
       : (flatSide(key) ? FLAT_SPELL : SHARP_SPELL)[pc];
-    // the octave the LETTER belongs to: B#3 and Cb4 cross the boundary
-    let octave = Math.floor(midi / 12) - 1;
-    if (alt > 0 && letter === 6) octave -= 1;        // B# belongs with the B below
-    if (alt < 0 && letter === 0) octave += 1;        // Cb with the C above
+    // the octave the LETTER belongs to: the one whose natural letter lies
+    // nearest the sounding pitch. B#3 and Cb4 cross the octave boundary, and so
+    // do the double and quarter-tone alterations the divided octaves spell:
+    // B half-sharp in 31 rounds to B and stays with it, where a rule keyed on
+    // the sign of the alteration dropped it an octave.
+    const octave = Math.round((midi - LETTER_PC[letter]) / 12) - 1;
     return { step: octave * 7 + letter, alt };
   }
+
+  // the sign an alteration is drawn with. Alterations count sharps; in 31 a
+  // single step is half of one, drawn as a Stein-Zimmermann quarter-tone sign.
+  const ACC_TEXT = { "-3": "\u266d\ud834\udd2b", "-2.5": "\ud834\udd2b\ud834\udd33", "-2": "\ud834\udd2b",
+    "-1.5": "\u266d\ud834\udd33", "-1": "\u266d", "-0.5": "\ud834\udd33", "0": "\u266e",
+    "0.5": "\ud834\udd32", "1": "\u266f", "1.5": "\u266f\ud834\udd32", "2": "\ud834\udd2a",
+    "2.5": "\ud834\udd2a\ud834\udd32", "3": "\u266f\ud834\udd2a" };
+  const accText = alt => ACC_TEXT[String(alt)] || (alt > 0 ? "\u266f" : "\u266d");
 
   // ---- roman numerals -----------------------------------------------------
   const TONIC = [0,7,2,9,4,11,5,10,3,8,1,6,6,1,8,3,10,5,0,4,11];
@@ -363,7 +374,7 @@
           const letter = ((drawStep % 7) + 7) % 7;
           const fromKey = altered.get(letter) || 0;
           if (alt !== fromKey) {
-            sl.acc.textContent = alt === 0 ? "\u266e" : (alt > 0 ? "\u266f" : "\u266d");
+            sl.acc.textContent = accText(alt);
             sl.acc.setAttribute("x", (isChord ? chordX() : x) - 13 - accCol[i] * 8);
             sl.acc.setAttribute("y", y + 3.6);
             sl.acc.setAttribute("visibility", "visible");

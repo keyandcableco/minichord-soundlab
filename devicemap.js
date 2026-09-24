@@ -194,8 +194,16 @@
   // relative minor is G-double-sharp minor, whose harmonic leading tone is F triple
   // sharp. Absurd to read, but it is what the key asks for, and rendering a bare "F"
   // there would name the wrong pitch — which is worse than an ugly name.
+  // An alteration counts SHARPS, not steps. In 12 and 19 a sharp is one step;
+  // in 31 it is two, and a single step is half a sharp: E half-flat is the
+  // neutral third, E half-sharp the supermajor. These half accidentals are the
+  // Stein-Zimmermann quarter-tone signs, drawn from the Unicode musical symbols
+  // for now, until the staff has a proper music font.
   const ALT_TEXT = { "-3": "\u266d\u266d\u266d", "-2": "\u266d\u266d", "-1": "\u266d",
-                     "0": "", "1": "#", "2": "x", "3": "#x" };
+                     "0": "", "1": "#", "2": "x", "3": "#x",
+                     "0.5": "\ud834\udd32", "-0.5": "\ud834\udd33",
+                     "1.5": "#\ud834\udd32", "-1.5": "\u266d\ud834\udd33",
+                     "2.5": "x\ud834\udd32", "-2.5": "\u266d\u266d\ud834\udd33" };
   const SHARP_ORDER = [3, 0, 4, 1, 5, 2, 6];             // F C G D A E B, as letters
   const FLAT_ORDER = [6, 2, 5, 1, 4, 0, 3];              // B E A D G C F
   const BTN_LETTER = [6, 2, 5, 1, 4, 0, 3];              // the buttons, as letters
@@ -208,7 +216,8 @@
   // pitch-class name, which is at least the right note
   const spellText = sp => (String(sp.alt) in ALT_TEXT)
     ? LETTER_NAME[sp.letter] + ALT_TEXT[String(sp.alt)]
-    : NOTE_SHARP[spelledPc(sp)];
+    : (Number.isInteger(sp.alt) ? NOTE_SHARP[spelledPc(sp)]
+      : LETTER_NAME[sp.letter] + (sp.alt > 0 ? "+" : "") + sp.alt);
 
   function keyAlt(acc, count, letter) {
     const order = acc > 0 ? SHARP_ORDER : FLAT_ORDER;
@@ -221,14 +230,22 @@
   // letters move with it: in C transposed up one, the B button plays C. The key
   // itself is taken exactly as selected when there is no transpose, so C# major
   // stays C# major rather than being quietly respelled as Db.
-  function spellingKey(key, semis) {
+  //
+  // In 19 and 31 the device transposes the audio by transpose_steps, which is
+  // not always the same letter move twelve would make: one semitone up is three
+  // steps in 31, a diatonic semitone, so C goes to D♭ and never to C#; six is
+  // sixteen steps, G♭ and not F#. So the key is chosen by where the tonic
+  // actually lands in steps, which in twelve is exactly the old rule.
+  function spellingKey(key, semis, s) {
     const k = Math.max(0, Math.min(20, key | 0));
     if (!semis) return { acc: KEY_FIFTHS[k] >= 0 ? 1 : -1, count: Math.abs(KEY_FIFTHS[k]),
                          tonic: KEY_TONIC[k], base: k };
-    const from = KEY_FIFTHS[k], want = from + 7 * semis;
+    const e = (s && s.edoIdx) || 0, n = EDO_STEPS[e], fifth = EDO_FIFTH[e];
+    const from = KEY_FIFTHS[k];
+    const lands = e ? Math.trunc((semis * n + 6) / 12) : semis;
     let best = null;
-    for (let f = -8; f <= 12; f++) {
-      if ((((f - want) % 12) + 12) % 12 !== 0) continue;
+    for (let f = e ? -20 : -8; f <= (e ? 20 : 12); f++) {
+      if ((((((f - from) * fifth - lands) % n) + n) % n) !== 0) continue;
       if (best === null || Math.abs(f) < Math.abs(best)
           || (Math.abs(f) === Math.abs(best) && (from >= 0 ? f > best : f < best))) best = f;
     }
@@ -240,7 +257,7 @@
   // alteration from the key signature, plus the modifier when it is held
   function spellRoot(s, button, sharpHeld, semis) {
     const tr = semis == null ? (s.transpose | 0) : semis;
-    const sk = spellingKey(s.key, tr);
+    const sk = spellingKey(s.key, tr, s);
     const shift = (((sk.tonic - KEY_TONIC[Math.max(0, Math.min(20, s.key | 0))]) % 7) + 7) % 7;
     const letter = (BTN_LETTER[button] + shift) % 7;
     let alt = keyAlt(sk.acc, sk.count, letter);
@@ -282,16 +299,17 @@
    *     minor pentatonic's ♭7 becomes a #6.
    */
   const scaleDegreeCache = new Map();
-  function scaleDegrees(scale, type) {
-    const key = scale.join(",") + "|" + (type || "");
+  function scaleDegrees(scale, type, s) {
+    const e = (s && s.edoIdx) || 0, n = EDO_STEPS[e], sh = EDO_SHARP[e], L = LETTER_STEPS[e];
+    const key = scale.join(",") + "|" + (type || "") + "|" + n;
     const hit = scaleDegreeCache.get(key);
     if (hit) return hit;
 
     const candidates = iv => {
       const out = [];
       for (let d = 0; d < 7; d++) {
-        const nat = (((LETTER_PC[d] - LETTER_PC[0]) % 12) + 12) % 12;
-        const alt = ((((iv - nat) % 12) + 12 + 6) % 12) - 6;
+        const nat = (((L[d] - L[0]) % n) + n) % n;
+        const alt = (((((iv - nat) % n) + n + Math.floor(n / 2)) % n) - Math.floor(n / 2)) / sh;
         if (Math.abs(alt) <= 2) out.push({ d, alt });
       }
       return out;
@@ -304,12 +322,12 @@
       return b[b.length - 1] - b[0] + 1 === b.length ? 0 : 1;
     };
 
-    const table = CHORD[type], degrees = CHORD_DEGREE[type];
+    const table = CHORD[type] ? (e ? EDO_CHORD[type][e] : CHORD[type]) : null, degrees = CHORD_DEGREE[type];
     const chordDeg = new Map();
     if (table && degrees) {
       scale.forEach(iv => {
         for (let k = 0; k < table.length; k++) {
-          if ((((table[k] % 12) + 12) % 12) === iv) { chordDeg.set(iv, degrees[k]); break; }
+          if ((((table[k] % n) + n) % n) === iv) { chordDeg.set(iv, degrees[k] % 7); break; }
         }
       });
     }
@@ -326,7 +344,7 @@
           || (chordDeg.get(iv) === a.d ? 0 : 1) - (chordDeg.get(iv) === b.d ? 0 : 1)
           || (used.has(a.d) ? 1 : 0) - (used.has(b.d) ? 1 : 0)
           || breaksRun(used, a.d) - breaksRun(used, b.d)
-          || Math.abs(a.d - iv * 7 / 12) - Math.abs(b.d - iv * 7 / 12)
+          || Math.abs(a.d - iv * 7 / n) - Math.abs(b.d - iv * 7 / n)
           || a.d - b.d)[0];
         used.add(pick.d);
         out[i] = pick.d;
@@ -368,18 +386,40 @@
     full_dim:    [0, 2, 4, 6, 1, 3, 7],
   };
 
-  function spellInterval(root, deg, semis) {
+  // `semis` is the interval in steps of the live division (semitones in 12);
+  // the alteration comes back in sharps, so half a sharp in 31 is one step
+  function spellInterval(root, deg, semis, s) {
+    const e = (s && s.edoIdx) || 0, n = EDO_STEPS[e], half = Math.floor(n / 2), L = LETTER_STEPS[e];
     const letter = (root.letter + deg) % 7;
-    const natSpan = (((LETTER_PC[letter] - LETTER_PC[root.letter]) % 12) + 12) % 12;
-    const want = (((semis % 12) + 12) % 12);
-    const diff = ((((want - natSpan) % 12) + 12 + 6) % 12) - 6;
-    return { letter, alt: root.alt + diff };
+    const natSpan = (((L[letter] - L[root.letter]) % n) + n) % n;
+    const want = (((semis % n) + n) % n);
+    const diff = ((((want - natSpan) % n) + n + half) % n) - half;
+    return { letter, alt: root.alt + diff / EDO_SHARP[e] };
   }
+  // the chromatic reading of an interval with no chord to name it: the letter
+  // needing the least alteration, the upper one (the flat) on a tie. In twelve
+  // this is exactly CHROMATIC_DEGREE; it is computed so 19 and 31 get the same.
+  function chromaticDegree(iv, s) {
+    const e = (s && s.edoIdx) || 0;
+    if (!e) return CHROMATIC_DEGREE[((iv % 12) + 12) % 12];
+    const n = EDO_STEPS[e], half = Math.floor(n / 2), L = LETTER_STEPS[e];
+    let best = 0, bestAlt = Infinity;
+    for (let d = 0; d < 7; d++) {
+      const alt = Math.abs((((((iv - L[d]) % n) + n + half) % n) - half));
+      if (alt <= bestAlt) { bestAlt = alt; best = d; }
+    }
+    return best;
+  }
+  // a spelled note's step in the live division, within the octave
+  const spelledStep = (sp, s) => {
+    const e = (s && s.edoIdx) || 0, n = EDO_STEPS[e];
+    return (((LETTER_STEPS[e][sp.letter] + sp.alt * EDO_SHARP[e]) % n) + n) % n;
+  };
 
   // the key's own tonic, spelled; `third` drops a minor third for the relative
   // minor modes, which is two letters down and so keeps the letter honest
   function spellTonic(s, minor) {
-    const sk = spellingKey(s.key, s.transpose | 0);
+    const sk = spellingKey(s.key, s.transpose | 0, s);
     const letter = minor ? (sk.tonic + 5) % 7 : sk.tonic;
     return { letter, alt: keyAlt(sk.acc, sk.count, letter) };
   }
@@ -500,7 +540,7 @@
   // read the layout-affecting device settings out of the live patch
   function readSettings(patch) {
     const g = (a, d) => { const v = patch ? patch[a] : null; return v == null ? d : v | 0; };
-    return {
+    const s = {
       key:       Math.min(20, Math.max(0, g(35, 0))),   // chord key signature
       altLayout: g(39, 0) ? 1 : 0,                      // 0 standard chords, 1 the alternate set
       altSlots:  [g(202, 0), g(203, 0), g(204, 0), g(205, 0), g(206, 0), g(207, 0), g(208, 0)],
@@ -511,6 +551,8 @@
       voiceLeading: !!g(111, 0),
       harpMode:  g(36, 0),                              // scalar harp mode, 0 = follow the chord
       customScale: g(236, 0b101010110101),              // the player's own scale, one bit per degree
+      // the division of the octave the temperament (addr 237) selects
+      edoIdx:    edoIndexOf(g(237, 0)),
       transpose: g(30, 0),                              // semitones
       shift:     Math.min(6, Math.max(0, g(34, 0))),    // chord frame shift
       barry:     !!g(33, 0),                            // barry harris mode
@@ -538,7 +580,96 @@
       // trusting it.
       potTargets: new Set([g(10, 0), g(12, 0), g(14, 0), g(16, 0), g(200, 0)]),
     };
+    s.edo = EDO_STEPS[s.edoIdx];
+    s.sharpStep = EDO_SHARP[s.edoIdx];
+    return s;
   }
+
+  /* ---- the divided octaves -------------------------------------------------
+   * The firmware's tables for 19- and 31-EDO (gen_edo.py, from interval names),
+   * beside the twelve-note ones above, which are their first rows. The device
+   * builds every note in steps of the live division and rounds to the nearest
+   * semitone only on the way out to MIDI, so the mirror does the same: every
+   * pitch below is computed in steps and converted by toMidi() at the end. The
+   * twelve-note temperaments (1-9) retune the same twelve steps and change
+   * nothing here. */
+  const EDO_STEPS = [12, 19, 31];
+  const EDO_SHARP = [1, 1, 2];          // steps a sharp or flat moves a letter
+  const EDO_FIFTH = [7, 11, 18];
+  // natural steps of C D E F G A B: the same letters in any meantone division
+  const LETTER_STEPS = [[0, 2, 4, 5, 7, 9, 11], [0, 3, 6, 8, 11, 14, 17], [0, 5, 10, 13, 18, 23, 28]];
+  const EDO_CHORD = {
+    major: [[0, 4, 7, 12, 2, 5, 9], [0, 6, 11, 19, 3, 8, 14], [0, 10, 18, 31, 5, 13, 23]],
+    minor: [[0, 3, 7, 12, 1, 5, 8], [0, 5, 11, 19, 2, 8, 13], [0, 8, 18, 31, 3, 13, 21]],
+    maj_sixth: [[0, 4, 7, 9, 2, 5, 12], [0, 6, 11, 14, 3, 8, 19], [0, 10, 18, 23, 5, 13, 31]],
+    min_sixth: [[0, 3, 7, 9, 1, 5, 12], [0, 5, 11, 14, 2, 8, 19], [0, 8, 18, 23, 3, 13, 31]],
+    seventh: [[0, 4, 10, 7, 2, 5, 9], [0, 6, 16, 11, 3, 8, 14], [0, 10, 26, 18, 5, 13, 23]],
+    maj_seventh: [[0, 4, 11, 7, 2, 5, 9], [0, 6, 17, 11, 3, 8, 14], [0, 10, 28, 18, 5, 13, 23]],
+    half_dim: [[0, 3, 6, 10, 2, 5, 8], [0, 5, 10, 16, 3, 8, 13], [0, 8, 16, 26, 5, 13, 21]],
+    sus_fourth: [[0, 5, 7, 12, 2, 9, 10], [0, 8, 11, 19, 3, 14, 16], [0, 13, 18, 31, 5, 23, 26]],
+    sus_second: [[0, 2, 7, 12, 5, 9, 4], [0, 3, 11, 19, 8, 14, 6], [0, 5, 18, 31, 13, 23, 10]],
+    seventh_sus: [[0, 5, 10, 7, 2, 9, 4], [0, 8, 16, 11, 3, 14, 6], [0, 13, 26, 18, 5, 23, 10]],
+    major_ninth: [[0, 4, 11, 2, 7, 5, 9], [0, 6, 17, 3, 11, 8, 14], [0, 10, 28, 5, 18, 13, 23]],
+    subminor_seventh: [[0, 3, 7, 10, 2, 5, 9], [0, 4, 11, 15, 3, 7, 14], [0, 7, 18, 25, 5, 12, 23]],
+    utonal_tetrad: [[0, 3, 6, 10, 2, 5, 8], [0, 4, 9, 15, 3, 8, 13], [0, 7, 15, 25, 5, 13, 21]],
+    harmonic_ninth: [[0, 2, 4, 10, 7, 6, 8], [0, 3, 6, 15, 11, 9, 13], [0, 5, 10, 25, 18, 14, 22]],
+    neutral_seventh: [[0, 3, 7, 10, 2, 6, 9], [0, 6, 11, 17, 2, 9, 13], [0, 9, 18, 27, 4, 14, 22]],
+    otonal_hexad: [[0, 4, 7, 10, 2, 6, 12], [0, 6, 11, 15, 3, 9, 19], [0, 10, 18, 25, 5, 14, 31]],
+    just_augmented: [[0, 4, 8, 12, 2, 6, 12], [0, 6, 12, 19, 3, 9, 18], [0, 10, 20, 31, 5, 15, 30]],
+    supermajor_seventh: [[0, 4, 7, 11, 2, 5, 9], [0, 7, 11, 18, 4, 8, 15], [0, 11, 18, 29, 6, 13, 24]],
+    minor_ninth: [[0, 3, 10, 2, 7, 5, 8], [0, 5, 16, 3, 11, 8, 13], [0, 8, 26, 5, 18, 13, 21]],
+    added_ninth: [[0, 4, 7, 2, 5, 9, 11], [0, 6, 11, 3, 8, 14, 17], [0, 10, 18, 5, 13, 23, 28]],
+    six_nine: [[0, 4, 9, 2, 7, 5, 11], [0, 6, 14, 3, 11, 8, 17], [0, 10, 23, 5, 18, 13, 28]],
+    min_seventh: [[0, 3, 10, 7, 1, 5, 8], [0, 5, 16, 11, 2, 8, 13], [0, 8, 26, 18, 3, 13, 21]],
+    aug: [[0, 4, 8, 12, 2, 5, 9], [0, 6, 12, 19, 3, 8, 14], [0, 10, 20, 31, 5, 13, 23]],
+    dim: [[0, 3, 6, 12, 2, 5, 9], [0, 5, 10, 19, 3, 8, 14], [0, 8, 16, 31, 5, 13, 23]],
+    full_dim: [[0, 3, 6, 9, 2, 5, 12], [0, 5, 10, 15, 3, 8, 19], [0, 8, 16, 24, 5, 13, 31]],
+    neutral: [[0, 3, 7, 12, 2, 5, 9], [0, 6, 11, 19, 3, 8, 14], [0, 9, 18, 31, 5, 13, 23]],
+    harmonic_7th: [[0, 4, 10, 7, 2, 5, 9], [0, 6, 15, 11, 3, 8, 14], [0, 10, 25, 18, 5, 13, 23]],
+    subminor: [[0, 3, 7, 12, 2, 5, 9], [0, 4, 11, 19, 3, 8, 14], [0, 7, 18, 31, 5, 13, 23]],
+    supermajor: [[0, 4, 7, 12, 2, 5, 9], [0, 7, 11, 19, 3, 8, 14], [0, 11, 18, 31, 5, 13, 23]],
+  };
+  const EDO_BASE_NOTES = [[11, 4, 9, 2, 7, 0, 5], [17, 6, 14, 3, 11, 0, 8], [28, 10, 23, 5, 18, 0, 13]];
+  const EDO_SCALE_ROOT_OFFSETS = [
+    [0, 7, 2, 9, 4, 11, 5, 10, 3, 8, 1, 6, 6, 1, 8, 3, 10, 5, 0, 4, 11],
+    [0, 11, 3, 14, 6, 17, 8, 16, 5, 13, 2, 10, 9, 1, 12, 4, 15, 7, 18, 7, 18],
+    [0, 18, 5, 23, 10, 28, 13, 26, 8, 21, 3, 16, 15, 2, 20, 7, 25, 12, 30, 11, 29]];
+  const EDO_SCALE_INTERVALS = [[[0, 2, 4, 5, 7, 9, 11], [0, 2, 4, 7, 9], [0, 2, 3, 7, 10], [0, 2, 4, 5, 7, 8, 9, 11], [0, 2, 3, 5, 7, 8, 10], [0, 2, 3, 5, 7, 8, 11], [0, 2, 3, 7, 10]],
+    [[0, 3, 6, 8, 11, 14, 17], [0, 3, 6, 11, 14], [0, 3, 5, 11, 16], [0, 3, 6, 8, 11, 13, 14, 17], [0, 3, 5, 8, 11, 13, 16], [0, 3, 5, 8, 11, 13, 17], [0, 3, 5, 11, 16]],
+    [[0, 5, 10, 13, 18, 23, 28], [0, 5, 10, 18, 23], [0, 5, 8, 18, 26], [0, 5, 10, 13, 18, 21, 23, 28], [0, 5, 8, 13, 18, 21, 26], [0, 5, 8, 13, 18, 21, 28], [0, 5, 8, 18, 26]]];
+  const EDO_CHORD_SCALE_INTERVALS = [[[0, 2, 4, 7, 9], [0, 2, 4, 6, 9], [0, 3, 5, 7, 10], [0, 2, 4, 7, 10], [0, 3, 5, 7, 9], [0, 1, 3, 4, 6, 7, 9, 10], [0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 7, 8, 9, 11], [0, 2, 3, 5, 7, 8, 9, 11], [0, 2, 3, 4, 6, 7, 9, 11], [0, 2, 4, 5, 7, 9, 11], [0, 2, 3, 5, 7, 9, 10], [0, 2, 4, 6, 7, 9, 11], [0, 2, 4, 5, 7, 9, 10], [0, 2, 3, 5, 7, 8, 10], [0, 2, 5, 7, 9], [0, 2, 5, 7, 10], [0, 3, 5, 6, 10], [0, 1, 3, 5, 6, 8, 10]],
+    [[0, 3, 6, 11, 14], [0, 3, 6, 9, 14], [0, 5, 8, 11, 16], [0, 3, 6, 11, 16], [0, 5, 8, 11, 14], [0, 2, 5, 6, 10, 11, 14, 16], [0, 3, 6, 9, 12, 15], [0, 3, 6, 8, 11, 13, 14, 17], [0, 3, 5, 8, 11, 13, 14, 17], [0, 3, 5, 6, 10, 11, 15, 17], [0, 3, 6, 8, 11, 14, 17], [0, 3, 5, 8, 11, 14, 16], [0, 3, 6, 9, 11, 14, 17], [0, 3, 6, 8, 11, 14, 16], [0, 3, 5, 8, 11, 13, 16], [0, 3, 8, 11, 14], [0, 3, 8, 11, 16], [0, 5, 8, 10, 16], [0, 2, 5, 8, 10, 13, 16]],
+    [[0, 5, 10, 18, 23], [0, 5, 10, 15, 23], [0, 8, 13, 18, 26], [0, 5, 10, 18, 26], [0, 8, 13, 18, 23], [0, 3, 8, 10, 16, 18, 23, 26], [0, 5, 10, 15, 20, 25], [0, 5, 10, 13, 18, 21, 23, 28], [0, 5, 8, 13, 18, 21, 23, 28], [0, 5, 8, 10, 16, 18, 24, 28], [0, 5, 10, 13, 18, 23, 28], [0, 5, 8, 13, 18, 23, 26], [0, 5, 10, 15, 18, 23, 28], [0, 5, 10, 13, 18, 23, 26], [0, 5, 8, 13, 18, 21, 26], [0, 5, 13, 18, 23], [0, 5, 13, 18, 26], [0, 8, 13, 16, 26], [0, 3, 8, 13, 16, 21, 26]]];
+  // temperament (addr 237) → which division: 10 is 19-EDO, 11 is 31-EDO
+  const edoIndexOf = t => (t === 10 ? 1 : (t === 11 ? 2 : 0));
+  const TABLE_TYPE = new Map(Object.keys(CHORD).map(k => [CHORD[k], k]));
+  // a chord table, in steps of the live division
+  function edoTable(table, s) {
+    if (!s.edoIdx) return table;
+    const type = TABLE_TYPE.get(table);
+    return type ? EDO_CHORD[type][s.edoIdx] : table;
+  }
+  const edoType = (type, s) => (s.edoIdx ? EDO_CHORD[type][s.edoIdx] : CHORD[type]);
+  // midi_out_note(): steps to the nearest semitone. Never lands on a half:
+  // neither 19 nor 31 divides 24 steps' worth evenly.
+  const toMidi = (steps, s) => (s.edoIdx ? Math.round(steps * 12 / s.edo) : steps);
+  const N = s => s.edo || 12;             // steps per octave
+  // The pitch class a colored type's signature tone (TYPE_SIG) arrives at over
+  // MIDI, above a root voice at rootMidi. In twelve that is rootMidi + sig; in
+  // 19 and 31 the root and the tone are rounded separately, so the interval
+  // between them is whatever the rounding makes it, which is not always sig.
+  function sigPc(button, type, s, sharp, rootMidi) {
+    const sig = TYPE_SIG[type];
+    if (sig == null) return null;
+    if (!s.edoIdx) return (((rootMidi + sig) % 12) + 12) % 12;
+    const k = CHORD[type].findIndex(x => ((x % 12) + 12) % 12 === sig);
+    const r = rootButton(s, button) + (sharp ? (s.flat ? -1 : 1) * SH(s) : 0);
+    const d = toMidi(r + EDO_CHORD[type][s.edoIdx][k], s) - toMidi(r, s);
+    return (((rootMidi + d) % 12) + 12) % 12;
+  }
+  const SH = s => s.sharpStep || 1;       // steps per sharp
+  // transpose_steps = (transpose_semitones * EDO + 6) / 12, integer division
+  const transposeSteps = s => (s.edoIdx ? Math.trunc(((s.transpose | 0) * s.edo + 6) / 12) : (s.transpose | 0));
 
   // barry-harris substitutes the three triad types for their 6th equivalents
   function resolveTable(type, barry) {
@@ -550,23 +681,32 @@
   }
 
   // get_root_button(key, shift, button)
+  // In steps of the live division: a sharp is sharp_step, the octave EDO.
   function rootButton(s, button) {
-    let note = BASE_NOTES[button];
-    if (MUSICAL_INDEX[button] < s.shift) note += 12;
+    const n12 = N(s), sh = SH(s);
+    let note = s.edoIdx ? EDO_BASE_NOTES[s.edoIdx][button] : BASE_NOTES[button];
     const n = KEY_SIGNATURES[s.key];
     if (KEY_SHARP_SET.has(s.key)) {
-      for (let i = 0; i < n; i++) if (button === SHARP_BTNS[n - 1][i]) note += 1;
+      for (let i = 0; i < n; i++) if (button === SHARP_BTNS[n - 1][i]) note += sh;
     } else if (s.key >= KEY_DBL_SHARP_LO && s.key <= KEY_DBL_SHARP_HI) {
-      for (let i = 0; i < 7; i++) if (button === SHARP_BTNS[6][i]) note += 1;
+      for (let i = 0; i < 7; i++) if (button === SHARP_BTNS[6][i]) note += sh;
       const d = DBL_SHARP_BTNS[s.key - KEY_DBL_SHARP_LO];
-      for (let i = 0; i < d.length; i++) if (button === d[i]) note += 1;
+      for (let i = 0; i < d.length; i++) if (button === d[i]) note += sh;
     } else {
       for (let i = 0; i < n && i < 7; i++) {
         if (s.key === KEY_FB && button === 0) continue;   // B double-flat, applied below
-        if (button === FLAT_BTNS[Math.min(n, 7) - 1][i]) note -= 1;
+        if (button === FLAT_BTNS[Math.min(n, 7) - 1][i]) note -= sh;
       }
-      if (s.key === KEY_FB && button === 0) note -= 2;
+      if (s.key === KEY_FB && button === 0) note -= 2 * sh;
     }
+    // Double accidentals, and a flat on C, push a note below zero; the device
+    // folds it back into the octave (C's integer division truncates toward
+    // zero, hence Math.trunc) before the frame shift. C♭ in G♭, C♭ and F♭
+    // major is the B above, not the B below: the mirror had it an octave low.
+    note = (((note % n12) + n12) % n12) + Math.trunc(note / n12) * n12;
+    if (MUSICAL_INDEX[button] < s.shift) note += n12;
+    // with no frame shift, C stays the lowest button
+    if (s.shift === 0 && button !== 5 && note <= 0) note += n12;   // 5 is the C button
     return note;
   }
 
@@ -579,50 +719,55 @@
    * seventh table lists the seventh before the fifth, so rotating indices would
    * not give an inversion. Without these the lookup only ever holds root
    * position, and any inversion or spacing is matched as some other chord.   */
-  function chordTones(table) {
+  function chordTones(table, n) {
+    n = n || 12;
     const out = [];
     for (let i = 0; i < 4; i++) {
-      const pc = table[i] % 12;
+      const pc = table[i] % n;
       if (out.indexOf(pc) === -1) out.push(pc);
     }
     return out.sort((a, b) => a - b);
   }
 
-  function invertedOffset(table, voice, inversion) {
-    const t = chordTones(table);
+  function invertedOffset(table, voice, inversion, n) {
+    n = n || 12;
+    const t = chordTones(table, n);
     const k = voice + inversion;
-    return t[k % t.length] + 12 * Math.floor(k / t.length);
+    return t[k % t.length] + n * Math.floor(k / t.length);
   }
   // chordTones dedupes and sorts, which is where a voice stops knowing which
   // chord tone it is. Sorting the (offset, degree) pairs together keeps that,
   // so an inverted voice can still be spelled by its function rather than by
   // its pitch class. Indexes identically to invertedOffset above.
-  function chordTonePairs(table, degrees) {
+  function chordTonePairs(table, degrees, n) {
+    n = n || 12;
     const out = [];
     for (let i = 0; i < 4; i++) {
-      const pc = table[i] % 12;
+      const pc = table[i] % n;
       if (!out.some(o => o.pc === pc)) out.push({ pc, deg: degrees[i] });
     }
     return out.sort((a, b) => a.pc - b.pc);
   }
   function invertedDegree(table, degrees, voice, inversion) {
-    const t = chordTonePairs(table, degrees);
+    const t = chordTonePairs(table, degrees, 12);
     return t[(voice + inversion) % t.length].deg;
   }
 
   // how far each voice moves for a spacing; the numbering counts from the top,
   // and after the inversion step the voices are in pitch order
-  function spacingShift(voice, spacing) {
+  function spacingShift(voice, spacing, n) {
+    n = n || 12;
     switch (spacing) {
-      case 1: return voice === 2 ? -12 : 0;                         // drop 2
-      case 2: return voice === 1 ? -12 : 0;                         // drop 3
-      case 3: return (voice === 2 || voice === 0) ? -12 : 0;        // drop 2 and 4
-      case 4: return voice === 0 ? -12 : (voice === 3 ? 12 : 0);    // spread
+      case 1: return voice === 2 ? -n : 0;                          // drop 2
+      case 2: return voice === 1 ? -n : 0;                          // drop 3
+      case 3: return (voice === 2 || voice === 0) ? -n : 0;         // drop 2 and 4
+      case 4: return voice === 0 ? -n : (voice === 3 ? n : 0);      // spread
       default: return 0;
     }
   }
 
-  const CHORD_NOTE_FLOOR = 12, CHORD_NOTE_CEILING = 96;
+  // chord_note_floor and _ceiling: one octave and eight, in steps
+  const CHORD_NOTE_FLOOR = 1, CHORD_NOTE_CEILING = 8;
 
   /* The spelled twin of chordVoiceNote below, mirroring its branches. Spacing is
    * not handled here and does not need to be: spacingShift only ever returns
@@ -635,53 +780,61 @@
       return spellRoot(s, slash.button, false);
     }
     const root = spellRoot(s, button, !!sharpHeld);
-    const table = CHORD[type], degrees = CHORD_DEGREE[type];
-    if (!table || !degrees) return root;
+    const degrees = CHORD_DEGREE[type];
+    if (!CHORD[type] || !degrees) return root;
+    const table = edoType(type, s);
 
     const inv = s.inversion | 0, sp = s.spacing | 0;
     const useSorted = (inv > 0 || sp > 0) && voice < 4 && (level % 10) < 4;
     if (useSorted) {
       const k = voice + inv;
-      const pairs = chordTonePairs(table, degrees);
+      const pairs = chordTonePairs(table, degrees, N(s));
       const pick = pairs[k % pairs.length];
-      return spellInterval(root, pick.deg, pick.pc);
+      return spellInterval(root, pick.deg, pick.pc, s);
     }
     const idx = level % 10;
-    return spellInterval(root, degrees[idx], table[idx]);
+    return spellInterval(root, degrees[idx], table[idx], s);
   }
 
-  function chordVoiceNote(voice, button, table, s, slash, rowOverride) {
+  // calculate_note_chord, in steps, then out to MIDI as the device sends it.
+  // sharpSteps is the modifier's ±sharp_step: the device adds it before the
+  // spacing rails and before rounding, so it cannot be added to the MIDI after.
+  function chordVoiceNote(voice, button, table, s, slash, rowOverride, sharpSteps) {
     const level = CHORD_SHUF[rowOverride == null ? s.chordShuf : rowOverride][voice];
+    const n = N(s), sh = sharpSteps || 0;
 
     // transpose enters the chord MIDI only at a chord press (firmware adds it at NoteOn send-time
     // via midi_base_note_transposed; a held chord's notes are already sent and are NOT resent when
     // addr 30 changes). So the grid matches against the PRESS-TIME transpose, s.chordTranspose,
     // frozen in rebuild while a chord is held. Falls back to the live s.transpose when unset.
+    // It is added in semitones, after the rounding, exactly as the device does.
     const transpose = s.chordTranspose == null ? s.transpose : s.chordTranspose;
+    const out = steps => MIDI_BASE + transpose + toMidi(steps, s);
     if (slash && (level % 10) === s.slashLevel) {
-      return MIDI_BASE + transpose + 12 * Math.floor(level / 10) + rootButton(s, slash.button);
+      return out(n * Math.floor(level / 10) + rootButton(s, slash.button) + sh);
     }
 
+    const t = edoTable(table, s);
     const inv = s.inversion | 0, sp = s.spacing | 0;
     const useSorted = (inv > 0 || sp > 0) && voice < 4 && (level % 10) < 4;
-    const offset = useSorted ? invertedOffset(table, voice, inv) : table[level % 10];
-    let note = MIDI_BASE + transpose + 12 * Math.floor(level / 10) + rootButton(s, button) + offset;
+    const offset = useSorted ? invertedOffset(t, voice, inv, n) : t[level % 10];
+    let note = n * Math.floor(level / 10) + rootButton(s, button) + sh + offset;
 
     if (sp > 0 && voice < 4 && (level % 10) < 4) {
-      const shift = spacingShift(voice, sp);
+      const shift = spacingShift(voice, sp, n);
       if (shift) {
         const moved = note + shift;
         // a move outside the usable range is not made, and a drop may not land
         // under a slash bass unless it is another octave of the same note
-        let allowed = moved >= MIDI_BASE + CHORD_NOTE_FLOOR && moved <= MIDI_BASE + CHORD_NOTE_CEILING;
+        let allowed = moved >= CHORD_NOTE_FLOOR * n && moved <= CHORD_NOTE_CEILING * n;
         if (allowed && slash && shift < 0) {
-          const bass = MIDI_BASE + transpose + 12 * Math.floor(level / 10) + rootButton(s, slash.button);
-          if (moved < bass && (((moved - bass) % 12) + 12) % 12 !== 0) allowed = false;
+          const bass = n * Math.floor(level / 10) + rootButton(s, slash.button) + sh;
+          if (moved < bass && (((moved - bass) % n) + n) % n !== 0) allowed = false;
         }
         if (allowed) note = moved;
       }
     }
-    return note;
+    return out(note);
   }
 
   // The ONE chord-note generator every chord matcher stands on (grid lookup, rhythm identify, harp
@@ -692,9 +845,10 @@
   function voiceSet(button, table, s, opts) {
     opts = opts || {};
     const count = opts.count == null ? 7 : opts.count;
-    const shift = (opts.sharp ? (s.flat ? -1 : 1) : 0) + (opts.off || 0);
+    const sharpSteps = opts.sharp ? (s.flat ? -1 : 1) * SH(s) : 0;
+    const off = opts.off || 0;   // a MIDI-side shift (the lookup's ±1, an inferred transpose)
     const out = [];
-    for (let v = 0; v < count; v++) out.push(chordVoiceNote(v, button, table, s, opts.slash || null, opts.row) + shift);
+    for (let v = 0; v < count; v++) out.push(chordVoiceNote(v, button, table, s, opts.slash || null, opts.row, sharpSteps) + off);
     return out;
   }
 
@@ -778,16 +932,17 @@
   const RETUNED_TYPES = new Set(["neutral", "harmonic_7th", "subminor", "supermajor",
     "subminor_seventh", "utonal_tetrad", "harmonic_ninth", "neutral_seventh", "otonal_hexad",
     "just_augmented", "supermajor_seventh"]);
-  function chordScale(type, pentatonic) {
+  function chordScale(type, pentatonic, s) {
+    const e = (s && s.edoIdx) || 0, n = EDO_STEPS[e];
     const pair = CHORD_SCALE_INDEX[type] || CHORD_SCALE_INDEX.major;
     const index = pair[pentatonic ? 0 : 1];
-    const base = CHORD_SCALE_INTERVALS[index];
+    const base = e ? EDO_CHORD_SCALE_INTERVALS[e][index] : CHORD_SCALE_INTERVALS[index];
     if (!RETUNED_TYPES.has(type) || !CHORD[type]) return base;
     const scale = base.slice(), seats = CHORD_SCALE_DEGREES[index];
-    const table = CHORD[type], degrees = CHORD_DEGREE[type];
+    const table = e ? EDO_CHORD[type][e] : CHORD[type], degrees = CHORD_DEGREE[type];
     const placed = new Set();
     for (let v = 0; v < 4; v++) {
-      const t = ((table[v] % 12) + 12) % 12;
+      const t = ((table[v] % n) + n) % n;
       if (placed.has(t)) continue;
       placed.add(t);
       let seat = seats ? seats.indexOf(degrees[v] % 7) : -1;
@@ -812,25 +967,35 @@
     return out.length ? out : [0];
   }
 
-  function staticScaleNote(string, mode, key) {
-    const scale = SCALE_INTERVALS[mode - 1];
+  // the tables for the live division
+  const scaleIntervalsFor = s => (s.edoIdx ? EDO_SCALE_INTERVALS[s.edoIdx] : SCALE_INTERVALS);
+  const scaleRootOffset = (s, key) => (s.edoIdx ? EDO_SCALE_ROOT_OFFSETS[s.edoIdx] : SCALE_ROOT_OFFSETS)[key] || 0;
+  // minor_third_steps(): the relative minor sits a minor third down
+  const minorThirdSteps = s => [3, 5, 8][s.edoIdx || 0];
+
+  // All three in steps. The player's scale is a twelve-bit mask and stays
+  // twelve intervals in every division, added as steps: the firmware leaves it
+  // that way on purpose rather than reinterpreting it.
+  function staticScaleNote(string, mode, key, s) {
+    const n = N(s);
+    const scale = scaleIntervalsFor(s)[mode - 1];
     const octave = Math.floor(string / scale.length);
-    let root = SCALE_ROOT_OFFSETS[key] || 0;
-    if (mode >= 5 && mode <= 7) root = (root + 12 - 3) % 12;   // the relative minor
-    return root + scale[string % scale.length] + octave * 12 + 12;
+    let root = scaleRootOffset(s, key);
+    if (mode >= 5 && mode <= 7) root = (root + n - minorThirdSteps(s)) % n;   // the relative minor
+    return root + scale[string % scale.length] + octave * n + n;
   }
 
-  function customScaleNote(string, rootNote, sharpOffset, mask) {
+  function customScaleNote(string, rootNote, sharpOffset, mask, s) {
     const scale = customScaleIntervals(mask);
     let octave = Math.floor(string / scale.length);
     if (octave > CUSTOM_SCALE_MAX_OCTAVE) octave = CUSTOM_SCALE_MAX_OCTAVE;
-    return rootNote + sharpOffset + scale[string % scale.length] + octave * 12;
+    return rootNote + sharpOffset + scale[string % scale.length] + octave * N(s);
   }
 
-  function chordSpecificNote(string, rootNote, sharpOffset, type, pentatonic) {
-    const scale = chordScale(type, pentatonic);
+  function chordSpecificNote(string, rootNote, sharpOffset, type, pentatonic, s) {
+    const scale = chordScale(type, pentatonic, s);
     const octave = Math.floor(string / scale.length);
-    return rootNote + sharpOffset + scale[string % scale.length] + octave * 12;
+    return rootNote + sharpOffset + scale[string % scale.length] + octave * N(s);
   }
 
   // calculate_note_harp for a string, given the currently held chord (incl. slash + sharp)
@@ -840,12 +1005,14 @@
    * every mode spells the pitch harpStringNote returns — the one thing that would
    * catch these two drifting apart. */
   function harpStringSpell(string, held, s, rowOverride) {
-    const semitonesAbove = (root, note) => (((note - root) % 12) + 12) % 12;
+    const n = N(s);
+    const above = (fromStep, step) => (((step - fromStep) % n) + n) % n;
 
     if (s.chromatic) {
+      // string + 24 steps, moved by the transpose the audio hears
       const tonic = spellTonic(s, false);
-      const iv = semitonesAbove(LETTER_PC[tonic.letter] + tonic.alt, MIDI_BASE + s.transpose + string + 24);
-      return spellInterval(tonic, CHROMATIC_DEGREE[iv], iv);
+      const iv = above(spelledStep(tonic, s), string + 24 + transposeSteps(s));
+      return spellInterval(tonic, chromaticDegree(iv, s), iv, s);
     }
 
     const mode = s.harpMode | 0;
@@ -854,29 +1021,29 @@
       // seed the degrees from. None of these seven contains a tritone, so this
       // comes out the same as the old fixed rule did — it just goes through one
       // implementation now rather than two.
-      const scale = SCALE_INTERVALS[mode - 1];
+      const scale = scaleIntervalsFor(s)[mode - 1];
       const tonic = spellTonic(s, mode >= 5 && mode <= 7);
       const idx = string % scale.length;
-      return spellInterval(tonic, scaleDegrees(scale, null)[idx], scale[idx]);
+      return spellInterval(tonic, scaleDegrees(scale, null, s)[idx], scale[idx], s);
     }
     if (mode === 10) {
       const scale = customScaleIntervals(s.customScale);
       const tonic = spellTonic(s, false);
       const iv = scale[string % scale.length];
-      return spellInterval(tonic, CHROMATIC_DEGREE[iv], iv);
+      return spellInterval(tonic, chromaticDegree(iv, s), iv, s);
     }
     if (mode === 11 || mode === 8 || mode === 9) {
       // rooted on the chord, and on the slash bass when one is held
       const root = spellRoot(s, held.slash ? held.slash.button : held.button, !!held.sharp);
       const custom = mode === 11;
       const scale = custom ? customScaleIntervals(s.customScale)
-        : chordScale(held.type, mode === 9);
+        : chordScale(held.type, mode === 9, s);
       const idx = string % scale.length;
       const iv = scale[idx];
       // the player's own mask keeps its own labels; a named scale takes its
       // degrees from the chord it belongs to
-      const deg = custom ? CHROMATIC_DEGREE[iv] : scaleDegrees(scale, held.type)[idx];
-      return spellInterval(root, deg, iv);
+      const deg = custom ? chromaticDegree(iv, s) : scaleDegrees(scale, held.type, s)[idx];
+      return spellInterval(root, deg, iv, s);
     }
 
     // mode 0: the harp plays the chord's own tones, so they take the chord's degrees
@@ -886,46 +1053,41 @@
     }
     const root = spellRoot(s, held.button, !!held.sharp);
     const idx = level % 10;
-    const table = CHORD[held.type];
     const degrees = CHORD_DEGREE[held.type];
-    if (!table || !degrees) return root;
-    return spellInterval(root, degrees[idx], table[idx]);
+    if (!CHORD[held.type] || !degrees) return root;
+    return spellInterval(root, degrees[idx], edoType(held.type, s)[idx], s);
   }
 
   function harpStringNote(string, held, s, rowOverride) {
-    if (s.chromatic) return MIDI_BASE + s.transpose + string + 24;
+    // every branch works in steps; the device adds the transpose in semitones
+    // after rounding, and so does this
+    const out = steps => MIDI_BASE + s.transpose + toMidi(steps, s);
+    if (s.chromatic) return out(string + 24);
 
     // the scalar modes, in the same order the firmware tests them
     const mode = s.harpMode | 0;
-    const sharpOff = held.sharp ? (s.flat ? -1 : 1) : 0;
-    if (mode >= 1 && mode <= 7) {
-      return MIDI_BASE + s.transpose + staticScaleNote(string, mode, s.key);
-    }
+    const n = N(s);
+    const sharpOff = held.sharp ? (s.flat ? -1 : 1) * SH(s) : 0;
+    if (mode >= 1 && mode <= 7) return out(staticScaleNote(string, mode, s.key, s));
     if (mode === 10) {
-      return MIDI_BASE + s.transpose
-        + customScaleNote(string, (SCALE_ROOT_OFFSETS[s.key] || 0) + 12, 0, s.customScale);
+      return out(customScaleNote(string, scaleRootOffset(s, s.key) + n, 0, s.customScale, s));
     }
     if (mode === 11 || mode === 8 || mode === 9) {
       // these root on the chord, and on the slash bass when one is held
       const rootNote = rootButton(s, held.slash ? held.slash.button : held.button);
-      if (mode === 11) {
-        return MIDI_BASE + s.transpose + customScaleNote(string, rootNote, sharpOff, s.customScale);
-      }
-      return MIDI_BASE + s.transpose
-        + chordSpecificNote(string, rootNote, sharpOff, held.type, mode === 9);
+      if (mode === 11) return out(customScaleNote(string, rootNote, sharpOff, s.customScale, s));
+      return out(chordSpecificNote(string, rootNote, sharpOff, held.type, mode === 9, s));
     }
 
     const level = HARP_SHUF[rowOverride == null ? s.harpShuf : rowOverride][string];
-    const sharp = held.sharp ? (s.flat ? -1 : 1) : 0;   // sharp button shifts every harp note
     if (held.slash && (level % 10) === s.slashLevel) {
-      return MIDI_BASE + s.transpose + 12 * Math.floor(level / 10) + rootButton(s, held.slash.button) + sharp;
+      return out(n * Math.floor(level / 10) + rootButton(s, held.slash.button) + sharpOff);
     }
 
     // held.type is already a RESOLVED chord table (barry baked in when held was set, like the
     // firmware's current_chord at press time). Index CHORD directly, don't re-apply barry.
-    const table = CHORD[held.type];
-    return MIDI_BASE + s.transpose + 12 * Math.floor(level / 10)
-         + rootButton(s, held.button) + table[level % 10] + sharp;
+    const table = edoType(held.type, s);
+    return out(n * Math.floor(level / 10) + rootButton(s, held.button) + table[level % 10] + sharpOff);
   }
 
   // Note spelling follows the KEY SIGNATURE and nothing else.
@@ -964,7 +1126,6 @@
   // plain chord). matchChord then disambiguates by musical context.
   function buildChordLookup(s) {
     const map = new Map();
-    const sharpOffset = s.flat ? -1 : 1;
 
     // a pot can silently drive the chord voicing (addr 120), octave-shifting the emitted chord
     // notes; the dump lies, so register each chord at every reachable voicing (else just the stored
@@ -992,7 +1153,9 @@
             ? altSlotType(ALT_SLOT_BY_ROWS[combo.rows.join(",")] || 0, s)
             : resolveTable(combo.type, s.barry));
           const table = CHORD[types[0]];
-          [[0, false], [sharpOffset, true]].forEach(([off, sharp]) => {
+          // the modifier moves the root a sharp_step before anything is rounded,
+          // so it goes in as sharp and not as a ±1 on the MIDI
+          [false, true].forEach(sharp => {
             // one note-set per voicing → the SAME (voicing-agnostic) candidate; sameChord dedups
             chordRows.forEach(vrow => {
              invOpts.forEach(iv => {
@@ -1004,7 +1167,7 @@
                 // Building it once from types[0] labelled every alternate-layout note
                 // set with its standard-layout counterpart, so a 7sus4 read as a 7.
                 const cand = { button, type: ty, sharp, slash: slash || null };
-                const notes = voiceSet(button, tbl, vs, { count: 4, slash, row: vrow, off });
+                const notes = voiceSet(button, tbl, vs, { count: 4, slash, row: vrow, sharp });
                 const k = noteKey(notes);
                 if (!map.has(k)) map.set(k, [cand]);
                 else { const arr = map.get(k); if (!arr.some(x => sameChord(x, cand))) arr.push(cand); }
@@ -1500,8 +1663,7 @@
         // diagnostic string scrolling out of the last-12 window
         const sig = TYPE_SIG[type];
         if (sig != null && !(b === hc.button && type === hc.type)) {
-          const rootPc = ((voiceSet(b, CHORD[type], s)[0] % 12) + 12) % 12;
-          if (!emittedPc.has((((rootPc + sig) % 12) + 12) % 12)) continue;
+          if (!emittedPc.has(sigPc(b, type, s, false, voiceSet(b, CHORD[type], s)[0]))) continue;
         }
         if (pass === 0) { cands.push({ button: b, type, sharp: false, slash: null }); continue; }
         for (let sb = 0; sb < 7; sb++) {
@@ -1641,8 +1803,7 @@
         // is exempt so a settled read survives its diagnostic string scrolling out of the last-12 window.
         const sig = TYPE_SIG[ctx.type];
         if (sig != null && !chordActive && !(ctx.button === hc.button && ctx.type === hc.type)) {
-          const rootPc = ((voiceSet(ctx.button, CHORD[ctx.type], s)[0] % 12) + 12) % 12;
-          if (!emittedPc.has((((rootPc + sig) % 12) + 12) % 12)) continue;
+          if (!emittedPc.has(sigPc(ctx.button, ctx.type, s, false, voiceSet(ctx.button, CHORD[ctx.type], s)[0]))) continue;
         }
         for (const row of rowList) {
           const f = candFit(ctx, row, seq, emitted, playedCount);
@@ -1822,7 +1983,8 @@
       const tr = s.chordTranspose == null ? s.transpose : s.chordTranspose;
       // chordOctSemis: the explicit octave setting moves the SOUNDING pitch only.
       // Fold it into the shown octave digit (a ±12 shift never moves the pitch class)
-      const rm = MIDI_BASE + tr + rootButton(s, button) + (off || 0) + (sharp ? (s.flat ? -1 : 1) : 0) + (s.chordOctSemis || 0);
+      const rm = MIDI_BASE + tr + toMidi(rootButton(s, button) + (sharp ? (s.flat ? -1 : 1) * SH(s) : 0), s)
+        + (off || 0) + (s.chordOctSemis || 0);
       const oct = Math.floor(rm / 12) - 1;
       // the root carries its own letter, so E# stays E# rather than collapsing to F
       const rootName = spellText(spellRoot(s, button, sharp, tr + (off || 0)));
@@ -1892,7 +2054,8 @@
       const lbl = (n, v) => {
         const csp = chordVoiceSpell(voiceOf(n, v), button, type, s, slash, undefined, sharp);
         spellMap.set("chord:" + n, csp);
-        return spellText(csp) + '<sub class="dm-ro-oct">' + (Math.floor(n / 12) - 1) + "</sub>";
+        // the octave the LETTER belongs to, as the staff reckons it: B#3 is not B#4
+        return spellText(csp) + '<sub class="dm-ro-oct">' + (Math.round((n - LETTER_PC[csp.letter]) / 12) - 1) + "</sub>";
       };
       roNotesEl.innerHTML = shown.map(lbl).join('<span class="dm-ro-sep">·</span>');
       const ctx = [];
@@ -2356,7 +2519,7 @@
           // merely differs between types (the Cm→Cdim trap). notes[0] is the root voice. No prev-exemption:
           // momentary semantics mean a color whose tone has left the window should DEMOTE (D7→D6), not persist.
           const sig = TYPE_SIG[cand.type];
-          if (sig != null && !pcHeard.has((((notes[0] + sig) % 12) + 12) % 12)) continue;
+          if (sig != null && !pcHeard.has(sigPc(cand.b, cand.type, s, cand.sharp, notes[0]))) continue;
           const set = new Set(notes);
           let exact = 0; for (const p of want) if (set.has(p)) exact++;          // octave-exact onset coverage
           let hc = 0; if (harpPc.size) { const sPc = new Set(notes.map(n => (((n % 12) + 12) % 12))); for (const pc of harpPc) if (sPc.has(pc)) hc++; }
