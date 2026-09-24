@@ -855,6 +855,15 @@ const PARAM_GROUPS = [
     params: [
       { addr: 30, name: "Transpose", card: "Scale & harmony", unit: "st", min: 0, max: 12, step: 1, type: "int", curve: "linear", def: 0,
         explain: { is: "Shifts every sound up by a number of semitones.", does: "Moves the whole instrument's pitch without changing fingering, 12 = a full octave up.", tips: "Use to match a song's key without relearning chord shapes." } },
+      { addr: 111, name: "Voice leading", card: "Scale & harmony", unit: "", min: 0, max: 1, step: 1, type: "int", curve: "linear", def: 0, segmented: true,
+        options: ["Off", "On"],
+        optionNotes: [
+          "Every chord is built upward from its root, shaped by inversion and spacing.",
+          "Each chord takes the octave placement that moves its voices least from the chord already sounding, the way a choir or a pianist's left hand would.",
+        ],
+        explain: { is: "Whether chords move smoothly from one to the next.", does: "Keeps each chord's notes but chooses their octaves so the four voices travel as little as possible from the previous chord. Overrides inversion and spacing while it is on.", tips: "Slash chords are left alone, since they name their own bass. With nothing sounding, a chord starts from root position. The Play mirror reads a led chord by its notes rather than its octaves." } },
+      { addr: 112, name: "Voice leading range", card: "Scale & harmony", unit: "st", min: 0, max: 24, step: 1, type: "int", curve: "linear", def: 12,
+        explain: { is: "How far a led chord may wander from where root position would put it.", does: "In semitones, outside the root-position chord on either side. Small keeps chords anchored where the buttons say; large lets them follow the previous chord further up or down.", tips: "Only used when voice leading is on. The same interval in 12, 19 and 31, since the device converts it to steps of the live division." } },
       { addr: 35, name: "Key signature", card: "Scale & harmony", unit: "", min: 0, max: 11, step: 1, type: "int", curve: "linear", def: 0, segmented: true,
         options: ["C", "G", "D", "A", "E", "B", "F", "B♭", "E♭", "A♭", "D♭", "G♭"],
         explain: { is: "Automatically sharpens/flattens chords to fit a chosen key.", does: "Picks the key the chord buttons are interpreted in, so the right accidentals come out.", tips: "Set this to your song's key and the chord buttons stay diatonic." } },
@@ -1460,6 +1469,7 @@ const PARAM_FIRMWARE = {
   106: 8, 107: 8, 108: 8,                 // MIDI channels, single-port
   198: 3,                                 // chord octave change
   199: 7,                                 // chord glide
+  111: 10, 112: 10,                       // voice leading and its range
 };
 
 // "Inert" gates: when a gating control is turned all the way down, the whole
@@ -1522,6 +1532,8 @@ const ADDR_NAMES = {
   33: "Settings · barry harris mode",
   34: "Settings · chord frame shift",
   35: "Settings · chord key signature",
+  111: "Settings · voice leading",
+  112: "Settings · voice leading range",
   40: "Harp General · harp shuffling",
   41: "Harp Oscillator · amplitude",
   42: "Harp Oscillator · waveform",

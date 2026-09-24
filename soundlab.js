@@ -196,7 +196,7 @@
   // voicing with Chord behaviour
   const PLAY_SETTING_CARDS = [
     { title: "Scale & harmony", addrs: [30, 35, 34, 33, 31] },
-    { title: "Chord behaviour", addrs: [23, 21, 22, 120] },
+    { title: "Chord behaviour", addrs: [23, 21, 22, 120, 111, 112] },
     { title: "Harp", addrs: [99, 40, 98] },
   ];
 
@@ -2451,7 +2451,7 @@
   // Octave change (99/198) shifts audio pitch only, not the emitted MIDI notes, but
   // the labels show the SOUNDING pitch, so it relabels too (matching stays raw-MIDI).
   // 108 (single port) doesn't change note mapping but drives the mirror's warning chip
-  const DEVICEMAP_ADDRS = new Set([35, 30, 34, 33, 31, 98, 40, 120, 23, 108, 99, 198]);
+  const DEVICEMAP_ADDRS = new Set([35, 30, 34, 33, 31, 98, 40, 120, 23, 108, 99, 198, 111]);   // 111: voice leading reads chords by pitch class
   function onPatchChange(p, value) {
     if (p) {   // undo/redo: every committed change records against the previous value
       const before = prevPatch[p.addr];

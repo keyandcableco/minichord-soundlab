@@ -187,6 +187,8 @@
     31:  { name: "sharp/flat",        affects: "both",   inferred: false },
     23:  { name: "slash level",       affects: "both",   inferred: false },
     98:  { name: "chromatic mode",    affects: "harp",   inferred: false },
+    111: { name: "voice leading",     affects: "chords", inferred: true  },
+    112: { name: "voice leading range", affects: "chords", inferred: true },
   };
 
   // a pot can silently drive a "shuffling" address (harp row 40 / chord voicing 120); the dump
@@ -195,6 +197,29 @@
   function shuffleRows(potTargets, addr, stored, count) {
     if (!potTargets.has(addr)) return [stored];
     const rows = []; for (let r = 0; r < count; r++) rows.push(r); return rows;
+  }
+
+  // Voice leading (addr 111, firmware #147) keeps each chord's tones but picks
+  // their octaves by the chord before, inside a range around root position,
+  // overriding inversion and spacing. That is a function of history, so the
+  // mirror does not re-run the search: when it is on, or a knob could turn it
+  // on, a chord that matches no exact note set is matched by its pitch classes
+  // instead. Slash chords are never led, so they stay exact.
+  const voiceLeadingPossible = s => s.voiceLeading || s.potTargets.has(111);
+  const pcOf = n => ((n % 12) + 12) % 12;
+  function pcListFromLookup(map) {
+    const byKey = new Map();
+    map.forEach((cands, key) => {
+      const plain = cands.filter(c => !c.slash);
+      if (!plain.length) return;
+      const pcs = new Set(key.split(",").map(Number).map(pcOf));
+      if (pcs.size < 3) return;
+      const k = [...pcs].sort((a, b) => a - b).join(",");
+      if (!byKey.has(k)) byKey.set(k, { pcs, cands: [] });
+      const e = byKey.get(k);
+      plain.forEach(c => { if (!e.cands.some(x => sameChord(x, c))) e.cands.push(c); });
+    });
+    return [...byKey.values()];
   }
 
   /* ---- note engine -------------------------------------------------------- */
@@ -225,6 +250,9 @@
       // but never written back to the dump, so any of these addresses can be live-driven to
       // a value the dump doesn't report. Used to gate harp-row inference.
       potTargets: new Set([g(10, 0), g(12, 0), g(14, 0), g(16, 0)]),
+      // voice leading places each chord nearest the one before it, so its octaves
+      // depend on history the dump does not carry; matched by pitch class instead
+      voiceLeading: !!g(111, 0),
     };
   }
 
@@ -393,8 +421,11 @@
     // the grid lookup, its flat matching list, and the rhythm base table are all derived from `s` and
     // ALWAYS rebuilt together (one helper, three call sites: init, rebuild, chordNoteOn transpose-adopt)
     // so the rhythm bases can never drift from the chord lookup they share inputs with.
-    let chordLookup, lookupList, rhythmBases;
-    const rebuildLookups = () => { chordLookup = buildChordLookup(s); lookupList = listFromLookup(chordLookup); rhythmBases = buildRhythmBases(s); };
+    let chordLookup, lookupList, pcList, rhythmBases;
+    const rebuildLookups = () => {
+      chordLookup = buildChordLookup(s); lookupList = listFromLookup(chordLookup); rhythmBases = buildRhythmBases(s);
+      pcList = voiceLeadingPossible(s) ? pcListFromLookup(chordLookup) : null;
+    };
     rebuildLookups();
     let held = { button: 0, type: "major", sharp: false, slash: null }; // resting harp context = B major (matches firmware fundamental=0)
     // the harp's OWN context when it diverges from `held` (the chord-port truth). Firmware race:
@@ -442,6 +473,7 @@
     const heldWatch = new Map();     // note → watchdog timer; force-releases a note whose note-off was missed
     let curChord = null;             // currently shown chord candidate
     let curCounts = null;            // its note multiset (Map note→count)
+    let ledNotes = null;             // the held notes of a voice-led match, low to high, else null
     // a slash/combo (multi-button) chord must persist briefly before it shows, so a transient
     // two-column overlap during a fast change can't flash a phantom (e.g. C→F → Dm7/G).
     let pendingCand = null;
@@ -1007,12 +1039,53 @@
           if (!best || lexLess(score, bestScore)) { best = c; bestCounts = e.counts; bestScore = score; }
         }
       }
-      return best ? { c: best, counts: bestCounts } : null;
+      if (best) return { c: best, counts: bestCounts };
+      return pcList ? matchLedChord(avail, sharpAllowed) : null;
+    }
+
+    // the voice-led reading: every held note is a tone of the chord, and every
+    // tone of the chord is available. The counts are the notes actually held,
+    // since the octaves are the device's own choice.
+    function matchLedChord(avail, sharpAllowed) {
+      if (heldNotes.size < 3) return null;
+      const heldPc = new Set(), availPc = new Set();
+      heldNotes.forEach((c, n) => heldPc.add(pcOf(n)));
+      avail.forEach((c, n) => availPc.add(pcOf(n)));
+      let best = null, bestScore = null;
+      for (const e of pcList) {
+        let ok = true;
+        heldPc.forEach(p => { if (!e.pcs.has(p)) ok = false; });
+        if (!ok) continue;
+        let borrowed = 0;
+        e.pcs.forEach(p => { if (!availPc.has(p)) ok = false; else if (!heldPc.has(p)) borrowed++; });
+        if (!ok) continue;
+        const newest = (lastOnNote != null && e.pcs.has(pcOf(lastOnNote))) ? 0 : 1;
+        const hasNatural = e.cands.some(c => !c.sharp);
+        for (const c of e.cands) {
+          if (c.sharp && !sharpAllowed(c) && hasNatural) continue;
+          const d = lastCol == null ? 0 : Math.abs(colOf(c.button) - lastCol);
+          const score = [borrowed, typeRows(c.type).length, newest, Math.min(d, 7 - d), c.sharp ? 1 : 0];
+          if (!best || lexLess(score, bestScore)) { best = c; bestScore = score; }
+        }
+      }
+      if (!best) return null;
+      const counts = new Map();
+      heldNotes.forEach((c, n) => counts.set(n, c));
+      return { c: best, counts, led: [...counts.keys()].sort((a, b) => a - b) };
     }
 
     function applyChord(r) {
       // commit r ({c,counts}) as the shown chord (r=null keeps the current one for the fade)
+      //
+      // A chord losing notes as fingers lift is still the chord that was played.
+      // The exact matcher never re-reads a thinning chord, since a partial set
+      // matches nothing; the pitch-class reading would, and would redraw the note
+      // list smaller each time a finger came up. Treat that like no match: keep
+      // what is shown and let it fade, as an exactly matched chord does.
+      if (r && r.led && curChord && sameChord(curChord, r.c)
+          && r.led.every(n => (ledNotes ? ledNotes.indexOf(n) !== -1 : !!(curCounts && curCounts.has(n))))) r = null;
       if (r) {
+        ledNotes = r.led || null;   // before anything below redraws the readout from it
         freshChord = false;   // a chord is committed/shown; further reads are edits, not fresh presses
         if (!curChord || !sameChord(curChord, r.c)) {
           curChord = r.c; lastCol = colOf(r.c.button); lastSharp = r.c.sharp;
@@ -1070,9 +1143,17 @@
     // reading pushes the current one into history ONLY when the button actually changes, i.e. a
     // different chord. Re-readings of the SAME chord (a transpose/type refinement getting better)
     // share the tag and just replace in place. No timers, no delay.
+    let roLedKey = "";   // the voice-led notes the note list was last drawn from
     function setReadoutChord(button, type, off, slashButton, sharp) {
       const name = chordLabel(button, type, off, slashButton, sharp);
-      if (name === roCur) return;
+      // a led chord can gain a voice after it is first read (its fourth note
+      // lands): the name stays, the note list must not
+      const ledKey = ledNotes ? ledNotes.join(",") : "";
+      if (name === roCur) {
+        if (ledKey !== roLedKey) { roLedKey = ledKey; renderReadoutDetail(button, type, off, slashButton, sharp); }
+        return;
+      }
+      roLedKey = ledKey;
       if (roCur != null && button !== roCurBtn) {   // a genuinely different chord → keep the old in history
         roSlot(roPrev3, roPrev2.innerHTML);
         roSlot(roPrev2, roPrev.innerHTML);
@@ -1096,7 +1177,11 @@
         count: 4, off: off || 0, sharp: !!sharp,
         slash: slashButton != null ? { button: slashButton } : null,
       });
-      roNotesEl.innerHTML = voices.map(lbl).join('<span class="dm-ro-sep">·</span>');
+      // a voice-led chord sounds the same tones in octaves of the device's
+      // choosing: show the notes it really played
+      const led = (slashButton == null && !rhythmActive && ledNotes && ledNotes.length >= 3
+        && curChord && curChord.button === button && curChord.type === type) ? ledNotes : null;
+      roNotesEl.innerHTML = (led || voices).map(lbl).join('<span class="dm-ro-sep">·</span>');
       const ctx = [];
       if (s.key) ctx.push("key " + (KEY_NAMES[s.key] || "?"));
       if (s.transpose) ctx.push((s.transpose > 0 ? "+" : "") + s.transpose + " st");
@@ -1147,7 +1232,7 @@
       // Use `held` (built by applyChord) so the type is barry-resolved (a Barry major reads "6", etc.).
       // Idle keeps the last chord shown (never blanks); the key is always displayed.
       if (showing) setReadoutChord(held.button, held.type, 0, held.slash ? held.slash.button : null, held.sharp);
-      if (!anyLive()) { if (curChord) emitChordOff(); curChord = null; curCounts = null; }   // chord LEAVE re-arms triggers
+      if (!anyLive()) { if (curChord) emitChordOff(); curChord = null; curCounts = null; ledNotes = null; }   // chord LEAVE re-arms triggers
       if (dbg()) {
         const shown = (curChord && curCounts && heldHas(curCounts)) ? describeChord(curChord) : "—";
         if (shown !== lastLoggedChord) {
@@ -1451,7 +1536,7 @@
       harp.classList.remove("dm-hit");
       heldNotes.clear(); harpLit.clear(); activeHarp.clear();
       recentHarp.length = 0; effHarpShuf = s.harpShuf; effChromatic = s.chromatic; effChordTranspose = s.transpose;
-      curChord = null; curCounts = null; previewSel = null; lastCol = null; lastSharp = false; lastOnNote = null; lastHarpPos = null; lastHarpT = 0; harpDir = 0; freshChord = true;
+      curChord = null; curCounts = null; ledNotes = null; previewSel = null; lastCol = null; lastSharp = false; lastOnNote = null; lastHarpPos = null; lastHarpT = 0; harpDir = 0; freshChord = true;
       harpHeld = null; harpDesync.style.display = "none";   // clear() never relabels, hide the badge explicitly
       clearChordLit();
       resetReadout();
