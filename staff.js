@@ -26,7 +26,7 @@
   const TREBLE_TOP_STEP = 38;
   const BASS_TOP_STEP = 26;
   const CLEF_X = 8;              // clefs sit hard left
-  const KEYACC_W = 7;            // width of one key-signature accidental
+  const KEYACC_W = 10;           // width of one key-signature accidental: a Bravura sharp, one staff space, and a pixel
   const LEFT = 52;               // fallback content start, before the clefs are measured
   const RIGHT_PAD = 14;
   const WIDTH = 360;
@@ -37,6 +37,7 @@
 
   // ---- spelling -----------------------------------------------------------
   // letter index and alteration for each pitch class, sharp-side and flat-side
+  const LETTER_PC = [0, 2, 4, 5, 7, 9, 11];   // natural pitch class of C D E F G A B
   const SHARP_SPELL = [[0,0],[0,1],[1,0],[1,1],[2,0],[3,0],[3,1],[4,0],[4,1],[5,0],[5,1],[6,0]];
   const FLAT_SPELL  = [[0,0],[1,-1],[1,0],[2,-1],[2,0],[3,0],[4,-1],[4,0],[5,-1],[5,0],[6,-1],[6,0]];
 
@@ -87,11 +88,39 @@
     const [letter, alt] = spelled
       ? [spelled.letter, spelled.alt]
       : (flatSide(key) ? FLAT_SPELL : SHARP_SPELL)[pc];
-    // the octave the LETTER belongs to: B#3 and Cb4 cross the boundary
-    let octave = Math.floor(midi / 12) - 1;
-    if (alt > 0 && letter === 6) octave -= 1;        // B# belongs with the B below
-    if (alt < 0 && letter === 0) octave += 1;        // Cb with the C above
+    // the octave the LETTER belongs to: the one whose natural letter lies
+    // nearest the sounding pitch. B#3 and Cb4 cross the octave boundary, and so
+    // do the double alterations the enharmonic keys spell (B-double-sharp
+    // sounds as C#), which a rule keyed on the sign of the alteration missed.
+    const octave = Math.round((midi - LETTER_PC[letter]) / 12) - 1;
     return { step: octave * 7 + letter, alt };
+  }
+
+  /* ---- accidentals ------------------------------------------------------
+   * Drawn in "Sound Lab Accidentals Staff", a subset of Steinberg's Bravura
+   * (fonts/accidentals.css), by SMuFL code point. SMuFL fixes the geometry:
+   * at a font size of four staff spaces a glyph drawn at a note's height sits
+   * exactly on it (36px here, set in soundlab.css with the font), so nothing
+   * here is nudged by eye. Alterations count sharps.
+   */
+  const STD = { "-3": "\ue266", "-2": "\ue264", "-1": "\ue260", "0": "\ue261", "1": "\ue262", "2": "\ue263", "3": "\ue265" };
+  // advance width and how far each glyph reaches above and below its note, in
+  // staff spaces, from Bravura's metadata: the width places a column, the reach
+  // decides whether two accidentals can share one
+  const ADV = { "\ue260": 0.904, "\ue261": 0.672, "\ue262": 0.996, "\ue263": 1.000, "\ue264": 1.652, "\ue265": 2.052, "\ue266": 2.400 };
+  const EXTENT = {
+    "\ue260": [1.76, -0.70], "\ue261": [1.36, -1.34], "\ue262": [1.40, -1.39], "\ue263": [0.51, -0.50],
+    "\ue264": [1.75, -0.70], "\ue265": [1.40, -1.39], "\ue266": [1.76, -0.70],
+  };
+  function accGlyphs(alt) {
+    const t = STD[String(alt)] || (alt > 0 ? STD["1"] : STD["-1"]);
+    let w = 0, up = 0, down = 0;
+    for (const ch of t) {
+      w += ADV[ch] || 1;
+      const x = EXTENT[ch] || [1.5, -1.5];
+      up = Math.max(up, x[0]); down = Math.min(down, x[1]);
+    }
+    return { text: t, width: w * GAP, up: up * GAP, down: -down * GAP };
   }
 
   // ---- roman numerals -----------------------------------------------------
@@ -262,13 +291,13 @@
       while (keyLayer.firstChild) keyLayer.removeChild(keyLayer.firstChild);
       const [acc, count, drawnAs] = KEY_SIG[key] || KEY_SIG[0];
       const order = acc > 0 ? SHARP_STEPS_TREBLE : FLAT_STEPS_TREBLE;
-      const glyph = acc > 0 ? "\u266f" : "\u266d";
+      const glyph = acc > 0 ? STD["1"] : STD["-1"];
       for (let i = 0; i < count && i < 7; i++) {
-        const t = el("text", { x: keyLeft + i * KEYACC_W, y: trebleY(order[i]) + 3.4, class: "staff-keyacc" });
+        const t = el("text", { x: keyLeft + i * KEYACC_W, y: trebleY(order[i]), class: "staff-keyacc" });
         t.textContent = glyph;
         keyLayer.appendChild(t);
         // the same accidentals sit two octaves lower on the bass stave
-        const b = el("text", { x: keyLeft + i * KEYACC_W, y: bassY(order[i] - 14) + 3.4, class: "staff-keyacc" });
+        const b = el("text", { x: keyLeft + i * KEYACC_W, y: bassY(order[i] - 14), class: "staff-keyacc" });
         b.textContent = glyph;
         keyLayer.appendChild(b);
       }
@@ -323,37 +352,55 @@
         const nudge = isChord ? seconds(placed.map(p => p.step)) : placed.map(() => 0);
         // Accidentals sit in their own column to the LEFT of the whole stack, so a
         // note nudged right by a second cannot cover the one belonging to the note
-        // below it. Two accidentals a diatonic step apart cannot share a column
-        // either — 4.5px of separation against a 12px glyph — so each collision
-        // steps one column further left, highest note first, as engraving does.
+        // below it. Two share a column only if their glyphs clear each other
+        // vertically, measured from the font's own bounding boxes: a flat reaches
+        // almost two spaces above its note, so a stack of flats a third apart
+        // needs a column each. Highest note first, as engraving does.
         const accAt = placed.map(p => {
           const a = assign(p.step);
           const drawStep = p.step + a.shift;
-          return { drawStep, treble: a.treble,
-                   need: p.alt !== (altered.get(((drawStep % 7) + 7) % 7) || 0) };
+          const need = p.alt !== (altered.get(((drawStep % 7) + 7) % 7) || 0);
+          return { drawStep, treble: a.treble, need, glyph: need ? accGlyphs(p.alt) : null };
         });
         const accCol = new Array(placed.length).fill(0);
+        const colW = [];   // each column's widest glyph, so the next sits clear of it
         if (isChord) {
           const cols = [];
           accAt.map((v, i) => i).filter(i => accAt[i].need)
             .sort((a, b) => accAt[b].drawStep - accAt[a].drawStep)
             .forEach(i => {
+              // vertical extent in px, on the note's own stave (steps are HALF apart)
+              const span = v => ({ top: -v.drawStep * HALF - v.glyph.up, bottom: -v.drawStep * HALF + v.glyph.down });
+              const me = span(accAt[i]);
               let c = 0;
-              while ((cols[c] || []).some(o => o.treble === accAt[i].treble
-                     && Math.abs(o.drawStep - accAt[i].drawStep) < 2)) c++;
+              while ((cols[c] || []).some(o => {
+                if (o.treble !== accAt[i].treble) return false;
+                const them = span(o);
+                return me.top < them.bottom + 1 && them.top < me.bottom + 1;
+              })) c++;
               (cols[c] = cols[c] || []).push(accAt[i]);
               accCol[i] = c;
+              colW[c] = Math.max(colW[c] || 0, accAt[i].glyph.width);
             });
         }
+        // the right edge of column c: clear of the notehead, then of every
+        // column to its right
+        const ACC_GAP = 2;
+        const colRight = (c, x) => { let r = x - 7; for (let k = 0; k < c; k++) r -= (colW[k] || 0) + ACC_GAP; return r; };
+        // chordX leaves 30px for accidentals; a wide stack of them (three columns,
+        // or double flats) moves the chord right rather than into the key
+        // signature
+        const accReach = 7 + colW.reduce((sum, w) => sum + (w || 0) + ACC_GAP, 0);
+        const cX = isChord ? chordX() + Math.max(0, accReach - 28) : 0;
         list.forEach((midi, i) => {
           if (slot >= POOL) return;
           const sl = slots[slot++];
-          const { step, alt } = placed[i];
+          const { step } = placed[i];
           const a = assign(step);
           const drawStep = step + a.shift;
           if (a.mark) marks.add(a.mark + (a.treble ? "-t" : "-b"));
           const y = a.treble ? trebleY(drawStep) : bassY(drawStep);
-          const x = (isChord ? chordX() : harpX(i, list.length)) + nudge[i];
+          const x = (isChord ? cX : harpX(i, list.length)) + nudge[i];
 
           sl.use.setAttribute("x", x);
           sl.use.setAttribute("y", y);
@@ -361,12 +408,11 @@
             + (isChord ? (chordIsRhythm ? "is-rhythm" : "is-chord") : "is-harp"));
           sl.g.setAttribute("display", "");
 
-          const letter = ((drawStep % 7) + 7) % 7;
-          const fromKey = altered.get(letter) || 0;
-          if (alt !== fromKey) {
-            sl.acc.textContent = alt === 0 ? "\u266e" : (alt > 0 ? "\u266f" : "\u266d");
-            sl.acc.setAttribute("x", (isChord ? chordX() : x) - 13 - accCol[i] * 8);
-            sl.acc.setAttribute("y", y + 3.6);
+          const acc = accAt[i];
+          if (acc.need) {
+            sl.acc.textContent = acc.glyph.text;
+            sl.acc.setAttribute("x", colRight(accCol[i], isChord ? cX : x) - acc.glyph.width);
+            sl.acc.setAttribute("y", y);
             sl.acc.setAttribute("visibility", "visible");
           } else {
             sl.acc.setAttribute("visibility", "hidden");

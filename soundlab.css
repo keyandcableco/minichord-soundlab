@@ -2007,7 +2007,10 @@ body.controls-large .trig-every { width: 6.2rem; }
    needs to set the colour and a starting size big enough to measure accurately */
 .staff-clef { fill: var(--text); opacity: 0.9; stroke: none; font-size: 100px; }
 
-.staff-keyacc { fill: var(--text); font-size: 13px; opacity: 0.8; }
+/* accidentals in the engraving cut of Bravura (fonts/accidentals.css): SMuFL's
+   geometry puts a glyph on its note at four staff spaces (4 x 9px), so staff.js
+   draws them at the note's own height with no offset */
+.staff-keyacc { fill: var(--text); font-family: "Sound Lab Accidentals Staff"; font-size: 36px; opacity: 0.8; }
 
 /* the head is defined once with no fill of its own, so each <use> colours it:
    chord voices in the accent, harp strings in a contrasting hue */
@@ -2021,7 +2024,7 @@ body.controls-large .trig-every { width: 6.2rem; }
 .staff-note.is-rhythm use { fill: var(--rhythm-note, #c08a52); opacity: 0.75; }
 .staff-note.is-rhythm .staff-acc { fill: var(--rhythm-note, #c08a52); opacity: 0.65; }
 
-.staff-acc { fill: var(--text-dim); font-size: 12px; }
+.staff-acc { fill: var(--text-dim); font-family: "Sound Lab Accidentals Staff"; font-size: 36px; }
 
 .staff-analysis {
   margin: 2px 0 0;
