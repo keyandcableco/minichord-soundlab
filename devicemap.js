@@ -196,14 +196,39 @@
   // there would name the wrong pitch — which is worse than an ugly name.
   // An alteration counts SHARPS, not steps. In 12 and 19 a sharp is one step;
   // in 31 it is two, and a single step is half a sharp: E half-flat is the
-  // neutral third, E half-sharp the supermajor. These half accidentals are the
-  // Stein-Zimmermann quarter-tone signs, drawn from the Unicode musical symbols
-  // for now, until the staff has a proper music font.
+  // neutral third, E half-sharp the supermajor. The half accidentals are the
+  // Stein-Zimmermann signs, SMuFL code points drawn by "Sound Lab Accidentals"
+  // (a Bravura Text subset, fonts/accidentals.css), which sits in the app's
+  // font stack after Nunito so any label can carry them as plain text.
+  const SMUFL = { flat: "\ue260", natural: "\ue261", sharp: "\ue262", dsharp: "\ue263", dflat: "\ue264",
+                  qflat: "\ue280", tqflat: "\ue281", qsharp: "\ue282", tqsharp: "\ue283" };
   const ALT_TEXT = { "-3": "\u266d\u266d\u266d", "-2": "\u266d\u266d", "-1": "\u266d",
                      "0": "", "1": "#", "2": "x", "3": "#x",
-                     "0.5": "\ud834\udd32", "-0.5": "\ud834\udd33",
-                     "1.5": "#\ud834\udd32", "-1.5": "\u266d\ud834\udd33",
-                     "2.5": "x\ud834\udd32", "-2.5": "\u266d\u266d\ud834\udd33" };
+                     "0.5": SMUFL.qsharp, "-0.5": SMUFL.qflat, "1.5": SMUFL.tqsharp, "-1.5": SMUFL.tqflat,
+                     "2.5": SMUFL.dsharp + SMUFL.qsharp, "-2.5": SMUFL.dflat + SMUFL.qflat };
+  // Helmholtz-Ellis marks (spelling C). The 5-limit arrows are fused with the
+  // accidental they sit on: E2C0 onward, five accidentals (double flat, flat,
+  // natural, sharp, double sharp) per arrow count, down then up, one to three
+  // arrows. The higher primes are separate signs placed to the left.
+  function hejiText(sp) {
+    const h = sp.heji || {};
+    let out = "";
+    const pair = (n, down, up) => (n < 0 ? down : up).repeat(Math.abs(n));
+    if (h[13]) out += pair(h[13], "\ue2e4", "\ue2e5");
+    if (h[11]) out += pair(h[11], "\ue2e2", "\ue2e3");
+    if (h[7]) {
+      const n = Math.abs(h[7]);
+      out += n === 2 ? (h[7] < 0 ? "\ue2e0" : "\ue2e1") : pair(h[7], "\ue2de", "\ue2df");
+    }
+    const arrows = h[5] || 0, alt = sp.alt;
+    if (arrows && Math.abs(arrows) <= 3 && Math.abs(alt) <= 2) {
+      const block = 0xE2C0 + (Math.abs(arrows) - 1) * 10 + (arrows > 0 ? 5 : 0);
+      out += String.fromCharCode(block + alt + 2);
+    } else {
+      out += alt ? ({ "-2": SMUFL.dflat, "-1": SMUFL.flat, "1": SMUFL.sharp, "2": SMUFL.dsharp }[String(alt)] || "") : "";
+    }
+    return out;
+  }
   const SHARP_ORDER = [3, 0, 4, 1, 5, 2, 6];             // F C G D A E B, as letters
   const FLAT_ORDER = [6, 2, 5, 1, 4, 0, 3];              // B E A D G C F
   const BTN_LETTER = [6, 2, 5, 1, 4, 0, 3];              // the buttons, as letters
@@ -214,7 +239,7 @@
   const spelledPc = sp => (((LETTER_PC[sp.letter] + sp.alt) % 12) + 12) % 12;
   // never silently drop an alteration: an unrenderable one falls back to the
   // pitch-class name, which is at least the right note
-  const spellText = sp => (String(sp.alt) in ALT_TEXT)
+  const spellText = sp => sp.heji ? LETTER_NAME[sp.letter] + hejiText(sp) : (String(sp.alt) in ALT_TEXT)
     ? LETTER_NAME[sp.letter] + ALT_TEXT[String(sp.alt)]
     : (Number.isInteger(sp.alt) ? NOTE_SHARP[spelledPc(sp)]
       : LETTER_NAME[sp.letter] + (sp.alt > 0 ? "+" : "") + sp.alt);
@@ -410,6 +435,79 @@
     }
     return best;
   }
+  /* ---- the spelling conventions ------------------------------------------
+   * The just chords are built from ratios, and three notations for them are
+   * offered (the "Microtonal spelling" preference):
+   *
+   *  degree   Each tone keeps its degree's letter and takes whatever alteration
+   *           lands it on the sounding step: the harmonic seventh over C is a B,
+   *           two steps flat in 19, a flat and a half in 31. Exact, and the
+   *           same rule as every other chord.
+   *  meantone The Huygens-Fokker convention. 19 and 31 are meantones, and a
+   *           meantone reaches 7 by ten fifths, so a ratio of 3, 5 and 7 is
+   *           spelled at its place on the chain of fifths: 7/4 an augmented
+   *           sixth (A#), 7/6 an augmented second (D#), 9/7 a diminished fourth
+   *           (F-flat). Also exact, since the chain lands on the same step. 11
+   *           and 13 have no place on the chain and keep the degree spelling.
+   *  ratio    Helmholtz-Ellis (HEJI). The ratio itself, not the tempered step:
+   *           a Pythagorean note (3 by fifths; 5 as E, 7 as B-flat, 11 as F and
+   *           13 as A over C, their anchors) plus a comma sign for each prime,
+   *           so 5/4 is E with a syntonic arrow down and 7/4 B-flat with a
+   *           septimal comma down. The same in every division.
+   *
+   * RATIO holds each just chord's tones as [numerator, denominator], in table
+   * order; edo.js checks every one rounds to the firmware's step in 12, 19 and
+   * 31. The classical chords are tempered, not ratios, and always spell by
+   * degree.
+   */
+  const R = (n, d) => [n, d];
+  const RATIO = {
+    neutral:            [R(1, 1), R(11, 9), R(3, 2), R(2, 1), R(9, 8), R(4, 3), R(5, 3)],
+    harmonic_7th:       [R(1, 1), R(5, 4), R(7, 4), R(3, 2), R(9, 8), R(4, 3), R(5, 3)],
+    subminor:           [R(1, 1), R(7, 6), R(3, 2), R(2, 1), R(9, 8), R(4, 3), R(5, 3)],
+    supermajor:         [R(1, 1), R(9, 7), R(3, 2), R(2, 1), R(9, 8), R(4, 3), R(5, 3)],
+    subminor_seventh:   [R(1, 1), R(7, 6), R(3, 2), R(7, 4), R(9, 8), R(21, 16), R(5, 3)],
+    utonal_tetrad:      [R(1, 1), R(7, 6), R(7, 5), R(7, 4), R(9, 8), R(4, 3), R(8, 5)],
+    harmonic_ninth:     [R(1, 1), R(9, 8), R(5, 4), R(7, 4), R(3, 2), R(11, 8), R(13, 8)],
+    neutral_seventh:    [R(1, 1), R(11, 9), R(3, 2), R(11, 6), R(12, 11), R(11, 8), R(18, 11)],
+    otonal_hexad:       [R(1, 1), R(5, 4), R(3, 2), R(7, 4), R(9, 8), R(11, 8), R(2, 1)],
+    just_augmented:     [R(1, 1), R(5, 4), R(25, 16), R(2, 1), R(9, 8), R(45, 32), R(125, 64)],
+    supermajor_seventh: [R(1, 1), R(9, 7), R(3, 2), R(27, 14), R(8, 7), R(4, 3), R(12, 7)],
+  };
+  // a ratio's exponents of 3, 5, 7, 11 and 13 (the 2s are octaves, and dropped)
+  function monzo(r) {
+    const out = { 3: 0, 5: 0, 7: 0, 11: 0, 13: 0 };
+    let [n, d] = r;
+    for (const p of [2, 3, 5, 7, 11, 13]) {
+      while (n % p === 0) { n /= p; if (p > 2) out[p]++; }
+      while (d % p === 0) { d /= p; if (p > 2) out[p]--; }
+    }
+    return out;
+  }
+  const letterOfFifths = f => (((4 * f) % 7) + 7) % 7;   // C G D A E B F#... as letter offsets
+  const SPELLINGS = ["degree", "meantone", "ratio"];
+
+  // A chord tone, spelled by the convention in force. `idx` is its index in
+  // the chord table, `steps` its interval above the root in the live division.
+  function chordToneSpell(root, type, idx, steps, s) {
+    const deg = CHORD_DEGREE[type][idx];
+    const conv = s.spelling || "degree";
+    if (conv === "degree" || !RATIO[type]) return spellInterval(root, deg, steps, s);
+    const m = monzo(RATIO[type][idx]);
+    if (conv === "meantone") {
+      if (m[11] || m[13]) return spellInterval(root, deg, steps, s);
+      return spellInterval(root, letterOfFifths(m[3] + 4 * m[5] + 10 * m[7]), steps, s);
+    }
+    // HEJI: the Pythagorean note, in twelve's arithmetic since it has only whole
+    // sharps and flats, and a comma sign per prime. A ratio with no primes past
+    // 3 is plain Pythagorean and takes no marks.
+    const fp = m[3] + 4 * m[5] - 2 * m[7] - m[11] + 3 * m[13];
+    const base = spellInterval(root, letterOfFifths(fp), (((fp * 7) % 12) + 12) % 12, null);
+    const heji = { 5: -m[5], 7: -m[7], 11: m[11], 13: -m[13] };
+    if (heji[5] || heji[7] || heji[11] || heji[13]) base.heji = heji;
+    return base;
+  }
+
   // a spelled note's step in the live division, within the octave
   const spelledStep = (sp, s) => {
     const e = (s && s.edoIdx) || 0, n = EDO_STEPS[e];
@@ -744,7 +842,7 @@
     const out = [];
     for (let i = 0; i < 4; i++) {
       const pc = table[i] % n;
-      if (!out.some(o => o.pc === pc)) out.push({ pc, deg: degrees[i] });
+      if (!out.some(o => o.pc === pc)) out.push({ pc, deg: degrees[i], idx: i });
     }
     return out.sort((a, b) => a.pc - b.pc);
   }
@@ -790,10 +888,10 @@
       const k = voice + inv;
       const pairs = chordTonePairs(table, degrees, N(s));
       const pick = pairs[k % pairs.length];
-      return spellInterval(root, pick.deg, pick.pc, s);
+      return chordToneSpell(root, type, pick.idx, pick.pc, s);
     }
     const idx = level % 10;
-    return spellInterval(root, degrees[idx], table[idx], s);
+    return chordToneSpell(root, type, idx, table[idx], s);
   }
 
   // calculate_note_chord, in steps, then out to MIDI as the device sends it.
@@ -1043,6 +1141,12 @@
       // the player's own mask keeps its own labels; a named scale takes its
       // degrees from the chord it belongs to
       const deg = custom ? chromaticDegree(iv, s) : scaleDegrees(scale, held.type, s)[idx];
+      // over a just chord, a scale note that IS one of its tones (the retuning
+      // put them there) spells as that tone, in whichever convention
+      if (!custom && RATIO[held.type] && (s.spelling || "degree") !== "degree") {
+        const t = edoType(held.type, s), n = N(s);
+        for (let v = 0; v < 4; v++) if (((t[v] % n) + n) % n === iv) return chordToneSpell(root, held.type, v, iv, s);
+      }
       return spellInterval(root, deg, iv, s);
     }
 
@@ -1055,7 +1159,7 @@
     const idx = level % 10;
     const degrees = CHORD_DEGREE[held.type];
     if (!CHORD[held.type] || !degrees) return root;
-    return spellInterval(root, degrees[idx], edoType(held.type, s)[idx], s);
+    return chordToneSpell(root, held.type, idx, edoType(held.type, s)[idx], s);
   }
 
   function harpStringNote(string, held, s, rowOverride) {
@@ -1256,7 +1360,9 @@
      * implementations drifting apart. */
     const spellMap = new Map();
 
+    let spelling = "degree";         // the microtonal spelling convention (see chordToneSpell)
     let s = readSettings(getPatch());
+    s.spelling = spelling;
 
     // the grid lookup, its flat matching list, and the rhythm base table are all derived from `s` and
     // ALWAYS rebuilt together (one helper, three call sites: init, rebuild, chordNoteOn transpose-adopt)
@@ -1430,6 +1536,16 @@
     // three on a lean, matching the faceplate where the strings sit in angled
     // rows. Purely how they are drawn: string indices and note matching are
     // untouched.
+    // Which convention spells the just chords. Only names change, so the
+    // lookups stand; everything that shows a name is redrawn.
+    function setSpelling(conv) {
+      if (SPELLINGS.indexOf(conv) < 0 || conv === spelling) return;
+      spelling = conv;
+      s.spelling = conv;
+      roCur = null;   // the readout keeps its name when the chord has not changed; redraw it anyway
+      rebuild();
+      onLabels();
+    }
     function setHarpShape(shape) {
       harp.classList.toggle("dm-harp-plate", shape === "plate");
     }
@@ -2451,6 +2567,7 @@
     function rebuild() {
       const prevShuf = s.harpShuf;
       s = readSettings(getPatch());
+      s.spelling = spelling;
 
       // effHarpShuf tracks the dump's stored row. PRESERVE an inferred row only when a pot can
       // actually drive addr 40 (then the stored value is a lie) AND it didn't change. Otherwise
@@ -2756,7 +2873,7 @@
     // spellSounding gives {letter, alt} for a sounding note, or null when the
     // engine has not worked out what is being played — callers fall back then
     const spellSounding = (role, midi) => spellMap.get(role + ":" + midi) || null;
-    return { el: root, rebuild, onNote, onBend, setConnected, identifyChord, setRhythmActive, showRhythmChord, setHarpShape, spellSounding };
+    return { el: root, rebuild, onNote, onBend, setSpelling, setConnected, identifyChord, setRhythmActive, showRhythmChord, setHarpShape, spellSounding };
   }
 
   const VERSION = "play-engine-2026-07-01-r60-sharp-enharmonic";

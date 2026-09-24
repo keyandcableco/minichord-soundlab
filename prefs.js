@@ -32,6 +32,10 @@ window.Prefs = (function () {
     // how the harp is drawn in the device mirror: "strip" is the twelve strings
     // in a line, "plate" is the four-by-three faceplate arrangement
     harpShape: { def: "strip",   ok: v => v === "strip" || v === "plate" },
+    // how the just chords are named in 19 and 31 (and in 12, where they are
+    // twelve-note chords): by degree, by the meantone chain of fifths, or by
+    // their ratios in Helmholtz-Ellis notation. See chordToneSpell in devicemap.
+    spelling:  { def: "degree",  ok: v => v === "degree" || v === "meantone" || v === "ratio" },
     locks:     { def: [],        ok: v => Array.isArray(v) && v.every(Number.isInteger) },   // addrs shielded from randomize
     // Named sets of bulk edits: [{ name, edits: [{ addr, value }] }]. Sparse by
     // design — a profile touches the addresses it names and leaves the other 251

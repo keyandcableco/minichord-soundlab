@@ -120,9 +120,9 @@ function chordSteps(e, button, type) {
 }
 const toMidi = (e, steps) => 48 + Math.round(steps * 12 / FW.steps[e]);
 
-// "E" "E#" "E\u266d\u266d" and the quarter-tone signs, to an alteration in sharps
-const ALT = [["\u266d\u266d\ud834\udd33", -2.5], ["\u266d\ud834\udd33", -1.5], ["x\ud834\udd32", 2.5], ["#\ud834\udd32", 1.5],
-  ["\ud834\udd33", -0.5], ["\ud834\udd32", 0.5], ["\u266d\u266d\u266d", -3], ["\u266d\u266d", -2], ["\u266d", -1],
+// "E" "E#" "E\u266d\u266d" and the SMuFL quarter-tone signs (Stein-Zimmermann), to an alteration in sharps
+const ALT = [["\ue264\ue280", -2.5], ["\ue281", -1.5], ["\ue263\ue282", 2.5], ["\ue283", 1.5],
+  ["\ue280", -0.5], ["\ue282", 0.5], ["\u266d\u266d\u266d", -3], ["\u266d\u266d", -2], ["\u266d", -1],
   ["#x", 3], ["x", 2], ["#", 1], ["", 0]];
 function parseNote(label) {
   const letter = LETTERS.indexOf(label[0]);
@@ -151,7 +151,7 @@ function readout(patch, notes) {
 }
 
 const bad = [];
-let idChecked = 0, spellChecked = 0;
+let idChecked = 0, spellChecked = 0, handChecked = 0;
 const EDO_NAME = ["12", "19", "31"];
 
 /* Rounding can make two chords send the same MIDI. In 19, B maj7's 17-step
@@ -245,6 +245,113 @@ for (let e = 0; e < 3; e++) {
       const want = BTN_NAME[button] + TYPE_NAME[type];
       if (got !== want) bad.push(`${EDO_NAME[e]}-EDO MPE ${want}: read as "${got}"`);
     }
+  });
+}
+
+/* ---- the other two spellings ---------------------------------------------
+ * The "Microtonal spelling" preference changes how the just chords are named.
+ * RATIO is the harness's own copy of each just chord's ratios, checked first
+ * against the firmware's steps so a wrong ratio cannot pass by agreeing with
+ * itself.
+ */
+const RATIO = {
+  neutral: [[1, 1], [11, 9], [3, 2], [2, 1], [9, 8], [4, 3], [5, 3]],
+  harmonic_7th: [[1, 1], [5, 4], [7, 4], [3, 2], [9, 8], [4, 3], [5, 3]],
+  subminor: [[1, 1], [7, 6], [3, 2], [2, 1], [9, 8], [4, 3], [5, 3]],
+  supermajor: [[1, 1], [9, 7], [3, 2], [2, 1], [9, 8], [4, 3], [5, 3]],
+  subminor_seventh: [[1, 1], [7, 6], [3, 2], [7, 4], [9, 8], [21, 16], [5, 3]],
+  utonal_tetrad: [[1, 1], [7, 6], [7, 5], [7, 4], [9, 8], [4, 3], [8, 5]],
+  harmonic_ninth: [[1, 1], [9, 8], [5, 4], [7, 4], [3, 2], [11, 8], [13, 8]],
+  neutral_seventh: [[1, 1], [11, 9], [3, 2], [11, 6], [12, 11], [11, 8], [18, 11]],
+  otonal_hexad: [[1, 1], [5, 4], [3, 2], [7, 4], [9, 8], [11, 8], [2, 1]],
+  just_augmented: [[1, 1], [5, 4], [25, 16], [2, 1], [9, 8], [45, 32], [125, 64]],
+  supermajor_seventh: [[1, 1], [9, 7], [3, 2], [27, 14], [8, 7], [4, 3], [12, 7]],
+};
+const cents = r => 1200 * Math.log2(r[0] / r[1]);
+let ratioChecked = 0;
+for (const type in RATIO) for (let e = 1; e < 3; e++) RATIO[type].forEach((r, i) => {
+  // in twelve the just chords are twelve-note chords, not their ratios; in 19
+  // and 31 each ratio is the nearest step (the firmware's own rule)
+  const n = FW.steps[e], want = FW.chords[type][e][i] % n;
+  const got = ((Math.round(cents(r) * n / 1200) % n) + n) % n;
+  ratioChecked++;
+  if (got !== want) bad.push(`ratio ${type}[${i}] ${r.join("/")} rounds to ${got} of ${n}, the firmware has ${want}`);
+});
+
+function readSpelled(e, type, conv, button) {
+  const i = FW.catalogue.indexOf(type);
+  const patch = { 35: 0, 237: TEMPERAMENT[e], 39: 1, 202: i + 1 };
+  deviceFor(patch).setSpelling(conv);
+  const labels = readout(patch, chordSteps(e, button, type).map(x => toMidi(e, x)));
+  deviceFor(patch).setSpelling("degree");
+  return labels;
+}
+
+// meantone: exact, like degree
+let meantoneChecked = 0;
+for (let e = 0; e < 3; e++) for (const type in RATIO) for (let button = 0; button < 7; button++) {
+  const labels = readSpelled(e, type, "meantone", button);
+  const got = labels.map(parseNote);
+  const where = `${EDO_NAME[e]}-EDO meantone ${BTN_NAME[button]}${TYPE_NAME[type]}`;
+  if (got.some(x => !x)) { bad.push(`${where}: cannot parse "${labels.join(" ")}"`); continue; }
+  const n = FW.steps[e];
+  const want = chordSteps(e, button, type).map(x => x % n).sort((a, b) => a - b).join(",");
+  const have = got.map(sp => stepOf(e, sp)).sort((a, b) => a - b).join(",");
+  meantoneChecked += got.length;
+  if (want !== have) bad.push(`${where}: "${labels.join(" ")}" = steps ${have}, sounds ${want}`);
+}
+const MEANTONE_HAND = [
+  [2, "harmonic_7th", "C E G A#"],             // 7/4 ten fifths up: an augmented sixth
+  [1, "harmonic_7th", "C E G A#"],
+  [2, "subminor", "C D# G C"],                 // 7/6: an augmented second
+  [2, "supermajor", "C F\u266d G C"],          // 9/7: a diminished fourth
+  [2, "utonal_tetrad", "C D# F# A#"],          // 7/5 an augmented fourth
+  [2, "supermajor_seventh", "C F\u266d G C\u266d"], // 27/14 a diminished octave
+  [2, "neutral", "C E\ue280 G C"],             // 11 has no meantone place: degree spelling
+  [0, "harmonic_7th", "C E G A#"],             // twelve is a meantone too
+];
+for (const [e, type, want] of MEANTONE_HAND) {
+  const labels = readSpelled(e, type, "meantone", 5);
+  handChecked++;
+  if (labels.slice().sort().join(" ") !== want.split(" ").sort().join(" "))
+    bad.push(`${EDO_NAME[e]}-EDO meantone C${TYPE_NAME[type]} by hand: "${labels.join(" ")}", expected "${want}"`);
+}
+
+// HEJI: decode each label back to cents and compare with its ratio
+const PYTH = [0, 203.910, 407.820, 498.045, 701.955, 905.865, 1109.775];   // C D E F G A B from C
+const APOTOME = 113.685, COMMA = { 5: 21.506, 7: 27.264, 11: 53.273, 13: 65.337 };
+function hejiCents(label) {
+  const letter = LETTERS.indexOf(label[0]);
+  if (letter < 0) return null;
+  let c = PYTH[letter];
+  for (const ch of label.slice(1)) {
+    const u = ch.codePointAt(0);
+    if (u >= 0xE2C0 && u <= 0xE2DD) {
+      const off = u - 0xE2C0, grp = Math.floor(off / 5);
+      c += (off % 5 - 2) * APOTOME + (grp % 2 ? 1 : -1) * (Math.floor(grp / 2) + 1) * COMMA[5];
+    } else if (u >= 0xE2DE && u <= 0xE2E1) c += [-1, 1, -2, 2][u - 0xE2DE] * COMMA[7];
+    else if (u === 0xE2E2 || u === 0xE2E3) c += (u === 0xE2E3 ? 1 : -1) * COMMA[11];
+    else if (u === 0xE2E4 || u === 0xE2E5) c += (u === 0xE2E5 ? 1 : -1) * COMMA[13];
+    else if (u >= 0xE260 && u <= 0xE264) c += [-1, 0, 1, 2, -2][u - 0xE260] * APOTOME;
+    else if (ch === "#") c += APOTOME;
+    else if (ch === "x") c += 2 * APOTOME;
+    else if (ch === "\u266d") c -= APOTOME;
+    else return null;
+  }
+  return c;
+}
+let hejiChecked = 0;
+for (let e = 0; e < 3; e++) for (const type in RATIO) {
+  const labels = readSpelled(e, type, "ratio", 5);        // over C, so the note IS the interval
+  const want = RATIO[type].slice(0, 4).map(r => ((cents(r) % 1200) + 1200) % 1200);
+  labels.forEach(label => {
+    hejiChecked++;
+    const c = hejiCents(label);
+    const where = `${EDO_NAME[e]}-EDO HEJI C${TYPE_NAME[type]} "${label}"`;
+    if (c == null) { bad.push(`${where}: cannot decode`); return; }
+    const cm = ((c % 1200) + 1200) % 1200;
+    if (!want.some(w => Math.min(Math.abs(w - cm), 1200 - Math.abs(w - cm)) < 0.05))
+      bad.push(`${where}: is ${cm.toFixed(2)} cents, not one of the chord's ratios (${want.map(w => w.toFixed(2)).join(", ")})`);
   });
 }
 
@@ -353,10 +460,10 @@ const HAND = [
   [1, "subminor",     "C E\u266d\u266d G C"],       // 7/6 is 4: two below E
   [1, "supermajor",   "C E# G C"],                  // 9/7 is 7: one above E
   [1, "neutral",      "C E G C"],                   // no neutral third in 19: it is the major
-  [2, "harmonic_7th", "C E G B\u266d\ud834\udd33"], // 25 of 31: three below B, a flat and a half
-  [2, "subminor",     "C E\u266d\ud834\udd33 G C"], // 7: three below E
-  [2, "supermajor",   "C E\ud834\udd32 G C"],       // 11: one above E, a half sharp
-  [2, "neutral",      "C E\ud834\udd33 G C"],       // 9: one below E, a half flat
+  [2, "harmonic_7th", "C E G B\ue281"], // 25 of 31: three below B, a flat and a half
+  [2, "subminor",     "C E\ue281 G C"], // 7: three below E
+  [2, "supermajor",   "C E\ue282 G C"],       // 11: one above E, a half sharp
+  [2, "neutral",      "C E\ue280 G C"],       // 9: one below E, a half flat
   [2, "major",        "C E G C"],
   [2, "seventh",      "C E G B\u266d"],
   // the named diminished and augmented tones, which 31 keeps apart from their
@@ -366,7 +473,6 @@ const HAND = [
   [2, "aug",          "C E G# C"],
   [1, "full_dim",     "C E\u266d G\u266d B\u266d\u266d"],
 ];
-let handChecked = 0;
 for (const [e, type, want] of HAND) {
   const i = FW.catalogue.indexOf(type);
   const labels = readout({ 35: 0, 237: TEMPERAMENT[e], 39: 1, 202: i + 1 }, chordSteps(e, 5, type).map(x => toMidi(e, x)));
@@ -376,9 +482,9 @@ for (const [e, type, want] of HAND) {
 }
 
 if (bad.length) {
-  console.log(`edo: ${bad.length} failure(s) of ${idChecked} chords, ${mpeChecked} over MPE, ${spellChecked} spelled notes, ${padChecked} pads, ${harpChecked} harp strings and ${handChecked} hand spellings\n`);
+  console.log(`edo: ${bad.length} failure(s) of ${idChecked} chords, ${mpeChecked} over MPE, ${ratioChecked} ratios, ${meantoneChecked} meantone and ${hejiChecked} HEJI spellings, ${spellChecked} spelled notes, ${padChecked} pads, ${harpChecked} harp strings and ${handChecked} hand spellings\n`);
   bad.slice(0, 40).forEach(b => console.log("  " + b));
   if (bad.length > 40) console.log(`  ... and ${bad.length - 40} more`);
   process.exit(1);
 }
-console.log(`edo: ${idChecked} chords in 12, 19 and 31 read back as themselves (${ambiguous} as a chord sending identical MIDI: ${ambiguousPairs.join(", ")}; over MPE all ${mpeChecked} read exactly as themselves), their ${spellChecked} notes spell the step that sounds, as do ${padChecked} pad roots across every key and transpose and ${harpChecked} harp strings, and ${handChecked} chords spell as worked by hand`);
+console.log(`edo: ${idChecked} chords in 12, 19 and 31 read back as themselves (${ambiguous} as a chord sending identical MIDI: ${ambiguousPairs.join(", ")}; over MPE all ${mpeChecked} read exactly as themselves), their ${spellChecked} notes spell the step that sounds, as do ${padChecked} pad roots across every key and transpose and ${harpChecked} harp strings, and ${handChecked} chords spell as worked by hand. The just chords' ${ratioChecked} ratios round to the firmware's steps, their ${meantoneChecked} meantone spellings name the step that sounds, and their ${hejiChecked} HEJI spellings name their ratio to the cent`);

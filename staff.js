@@ -26,7 +26,7 @@
   const TREBLE_TOP_STEP = 38;
   const BASS_TOP_STEP = 26;
   const CLEF_X = 8;              // clefs sit hard left
-  const KEYACC_W = 7;            // width of one key-signature accidental
+  const KEYACC_W = 10;           // width of one key-signature accidental: a Bravura sharp, one staff space, and a pixel
   const LEFT = 52;               // fallback content start, before the clefs are measured
   const RIGHT_PAD = 14;
   const WIDTH = 360;
@@ -93,16 +93,74 @@
     // B half-sharp in 31 rounds to B and stays with it, where a rule keyed on
     // the sign of the alteration dropped it an octave.
     const octave = Math.round((midi - LETTER_PC[letter]) / 12) - 1;
-    return { step: octave * 7 + letter, alt };
+    return { step: octave * 7 + letter, alt, heji: spelled ? spelled.heji : null };
   }
 
-  // the sign an alteration is drawn with. Alterations count sharps; in 31 a
-  // single step is half of one, drawn as a Stein-Zimmermann quarter-tone sign.
-  const ACC_TEXT = { "-3": "\u266d\ud834\udd2b", "-2.5": "\ud834\udd2b\ud834\udd33", "-2": "\ud834\udd2b",
-    "-1.5": "\u266d\ud834\udd33", "-1": "\u266d", "-0.5": "\ud834\udd33", "0": "\u266e",
-    "0.5": "\ud834\udd32", "1": "\u266f", "1.5": "\u266f\ud834\udd32", "2": "\ud834\udd2a",
-    "2.5": "\ud834\udd2a\ud834\udd32", "3": "\u266f\ud834\udd2a" };
-  const accText = alt => ACC_TEXT[String(alt)] || (alt > 0 ? "\u266f" : "\u266d");
+  /* ---- accidentals ------------------------------------------------------
+   * Drawn in "Sound Lab Accidentals Staff", a subset of Steinberg's Bravura
+   * (fonts/accidentals.css), by SMuFL code point. SMuFL fixes the geometry:
+   * at a font size of four staff spaces a glyph drawn at a note's height sits
+   * exactly on it (36px here, set in soundlab.css with the font), so nothing
+   * here is nudged by eye. Alterations count sharps;
+   * in 31 a single step is half of one, drawn as a Stein-Zimmermann sign, and a
+   * note spelled in Helmholtz-Ellis (the "ratio" spelling) carries its comma
+   * signs, the higher primes to the left and the syntonic arrows fused with the
+   * accidental.
+   */
+  const STD = { "-3": "\ue266", "-2.5": "\ue264\ue280", "-2": "\ue264", "-1.5": "\ue281", "-1": "\ue260",
+    "-0.5": "\ue280", "0": "\ue261", "0.5": "\ue282", "1": "\ue262", "1.5": "\ue283", "2": "\ue263",
+    "2.5": "\ue263\ue282", "3": "\ue265" };
+  // advance widths in staff spaces, from Bravura's metadata (the wider of the
+  // advance and the bounding box, since a few arrows overhang their advance)
+  const ADV = {
+    "\ue260": 0.904, "\ue261": 0.672, "\ue262": 0.996, "\ue263": 1.000, "\ue264": 1.652, "\ue265": 2.052,
+    "\ue266": 2.400, "\ue280": 0.908, "\ue281": 1.864, "\ue282": 0.716, "\ue283": 1.268, "\ue284": 0.656,
+    "\ue285": 1.656, "\ue2c0": 1.676, "\ue2c1": 0.912, "\ue2c2": 0.952, "\ue2c3": 1.072, "\ue2c4": 0.988,
+    "\ue2c5": 1.668, "\ue2c6": 0.904, "\ue2c7": 0.676, "\ue2c8": 1.000, "\ue2c9": 0.992, "\ue2ca": 1.676,
+    "\ue2cb": 0.912, "\ue2cc": 0.956, "\ue2cd": 1.076, "\ue2ce": 0.988, "\ue2cf": 1.668, "\ue2d0": 0.904,
+    "\ue2d1": 0.676, "\ue2d2": 1.000, "\ue2d3": 0.992, "\ue2d4": 1.676, "\ue2d5": 0.912, "\ue2d6": 0.956,
+    "\ue2d7": 1.076, "\ue2d8": 0.988, "\ue2d9": 1.668, "\ue2da": 0.904, "\ue2db": 0.676, "\ue2dc": 1.000,
+    "\ue2dd": 0.988, "\ue2de": 0.688, "\ue2df": 0.688, "\ue2e0": 0.688, "\ue2e1": 0.688, "\ue2e2": 0.908,
+    "\ue2e3": 1.084, "\ue2e4": 0.860, "\ue2e5": 1.080,
+  };
+  // how far each glyph reaches above and below its note, in staff spaces
+  // (Bravura's bounding boxes): what decides whether two can share a column
+  const EXTENT = {
+    "\ue260": [1.76, -0.70], "\ue261": [1.36, -1.34], "\ue262": [1.40, -1.39], "\ue263": [0.51, -0.50], "\ue264": [1.75, -0.70],
+    "\ue265": [1.40, -1.39], "\ue266": [1.76, -0.70], "\ue280": [1.76, -0.70], "\ue281": [1.76, -0.70], "\ue282": [1.23, -1.41],
+    "\ue283": [1.48, -1.39], "\ue284": [1.68, -0.78], "\ue285": [1.68, -0.78], "\ue2c0": [1.75, -1.41], "\ue2c1": [1.75, -1.41],
+    "\ue2c2": [1.37, -1.68], "\ue2c3": [1.40, -2.06], "\ue2c4": [0.51, -1.29], "\ue2c5": [2.14, -0.73], "\ue2c6": [2.14, -0.73],
+    "\ue2c7": [1.70, -1.33], "\ue2c8": [2.04, -1.39], "\ue2c9": [1.32, -0.50], "\ue2ca": [1.75, -1.85], "\ue2cb": [1.75, -1.85],
+    "\ue2cc": [1.37, -2.13], "\ue2cd": [1.40, -2.50], "\ue2ce": [0.51, -1.73], "\ue2cf": [2.58, -0.73], "\ue2d0": [2.58, -0.73],
+    "\ue2d1": [2.15, -1.33], "\ue2d2": [2.48, -1.39], "\ue2d3": [1.76, -0.50], "\ue2d4": [1.75, -2.29], "\ue2d5": [1.75, -2.29],
+    "\ue2d6": [1.37, -2.57], "\ue2d7": [1.40, -2.94], "\ue2d8": [0.51, -2.17], "\ue2d9": [3.02, -0.73], "\ue2da": [3.02, -0.73],
+    "\ue2db": [2.58, -1.33], "\ue2dc": [2.92, -1.39], "\ue2dd": [2.21, -0.50], "\ue2de": [1.74, -0.38], "\ue2df": [0.43, -1.68],
+    "\ue2e0": [1.60, -1.17], "\ue2e1": [1.19, -1.58], "\ue2e2": [1.75, -0.73], "\ue2e3": [1.37, -1.31], "\ue2e4": [1.74, -0.69],
+    "\ue2e5": [1.52, -1.30],
+  };
+  function accGlyphs(alt, heji) {
+    let t = "";
+    if (heji) {
+      const pair = (n, down, up) => (n < 0 ? down : up).repeat(Math.abs(n));
+      if (heji[13]) t += pair(heji[13], "\ue2e4", "\ue2e5");
+      if (heji[11]) t += pair(heji[11], "\ue2e2", "\ue2e3");
+      if (heji[7]) t += Math.abs(heji[7]) === 2 ? (heji[7] < 0 ? "\ue2e0" : "\ue2e1") : pair(heji[7], "\ue2de", "\ue2df");
+      const arrows = heji[5] || 0;
+      if (arrows && Math.abs(arrows) <= 3 && Math.abs(alt) <= 2) {
+        t += String.fromCharCode(0xE2C0 + (Math.abs(arrows) - 1) * 10 + (arrows > 0 ? 5 : 0) + alt + 2);
+      } else if (alt) t += STD[String(alt)] || "";
+      else if (!t) t = STD["0"];
+    } else {
+      t = STD[String(alt)] || (alt > 0 ? STD["1"] : STD["-1"]);
+    }
+    let w = 0, up = 0, down = 0;
+    for (const ch of t) {
+      w += ADV[ch] || 1;
+      const x = EXTENT[ch] || [1.5, -1.5];
+      up = Math.max(up, x[0]); down = Math.min(down, x[1]);
+    }
+    return { text: t, width: w * GAP, up: up * GAP, down: -down * GAP };
+  }
 
   // ---- roman numerals -----------------------------------------------------
   const TONIC = [0,7,2,9,4,11,5,10,3,8,1,6,6,1,8,3,10,5,0,4,11];
@@ -272,13 +330,13 @@
       while (keyLayer.firstChild) keyLayer.removeChild(keyLayer.firstChild);
       const [acc, count, drawnAs] = KEY_SIG[key] || KEY_SIG[0];
       const order = acc > 0 ? SHARP_STEPS_TREBLE : FLAT_STEPS_TREBLE;
-      const glyph = acc > 0 ? "\u266f" : "\u266d";
+      const glyph = acc > 0 ? STD["1"] : STD["-1"];
       for (let i = 0; i < count && i < 7; i++) {
-        const t = el("text", { x: keyLeft + i * KEYACC_W, y: trebleY(order[i]) + 3.4, class: "staff-keyacc" });
+        const t = el("text", { x: keyLeft + i * KEYACC_W, y: trebleY(order[i]), class: "staff-keyacc" });
         t.textContent = glyph;
         keyLayer.appendChild(t);
         // the same accidentals sit two octaves lower on the bass stave
-        const b = el("text", { x: keyLeft + i * KEYACC_W, y: bassY(order[i] - 14) + 3.4, class: "staff-keyacc" });
+        const b = el("text", { x: keyLeft + i * KEYACC_W, y: bassY(order[i] - 14), class: "staff-keyacc" });
         b.textContent = glyph;
         keyLayer.appendChild(b);
       }
@@ -333,37 +391,56 @@
         const nudge = isChord ? seconds(placed.map(p => p.step)) : placed.map(() => 0);
         // Accidentals sit in their own column to the LEFT of the whole stack, so a
         // note nudged right by a second cannot cover the one belonging to the note
-        // below it. Two accidentals a diatonic step apart cannot share a column
-        // either — 4.5px of separation against a 12px glyph — so each collision
-        // steps one column further left, highest note first, as engraving does.
+        // below it. Two share a column only if their glyphs clear each other
+        // vertically, measured from the font's own bounding boxes: a flat reaches
+        // almost two spaces above its note and a quarter-tone flat just as far,
+        // so a stack of thirds needs a column each. Highest note first, as
+        // engraving does.
         const accAt = placed.map(p => {
           const a = assign(p.step);
           const drawStep = p.step + a.shift;
-          return { drawStep, treble: a.treble,
-                   need: p.alt !== (altered.get(((drawStep % 7) + 7) % 7) || 0) };
+          const need = !!p.heji || p.alt !== (altered.get(((drawStep % 7) + 7) % 7) || 0);
+          return { drawStep, treble: a.treble, need, glyph: need ? accGlyphs(p.alt, p.heji) : null };
         });
         const accCol = new Array(placed.length).fill(0);
+        const colW = [];   // each column's widest glyph, so the next sits clear of it
         if (isChord) {
           const cols = [];
           accAt.map((v, i) => i).filter(i => accAt[i].need)
             .sort((a, b) => accAt[b].drawStep - accAt[a].drawStep)
             .forEach(i => {
+              // vertical extent in px, on the note's own stave (steps are HALF apart)
+              const span = v => ({ top: -v.drawStep * HALF - v.glyph.up, bottom: -v.drawStep * HALF + v.glyph.down });
+              const me = span(accAt[i]);
               let c = 0;
-              while ((cols[c] || []).some(o => o.treble === accAt[i].treble
-                     && Math.abs(o.drawStep - accAt[i].drawStep) < 2)) c++;
+              while ((cols[c] || []).some(o => {
+                if (o.treble !== accAt[i].treble) return false;
+                const them = span(o);
+                return me.top < them.bottom + 1 && them.top < me.bottom + 1;
+              })) c++;
               (cols[c] = cols[c] || []).push(accAt[i]);
               accCol[i] = c;
+              colW[c] = Math.max(colW[c] || 0, accAt[i].glyph.width);
             });
         }
+        // the right edge of column c: clear of the notehead, then of every
+        // column to its right
+        const ACC_GAP = 2;
+        const colRight = (c, x) => { let r = x - 7; for (let k = 0; k < c; k++) r -= (colW[k] || 0) + ACC_GAP; return r; };
+        // chordX leaves 30px for accidentals; a wide stack of them (three columns
+        // of three-quarter flats, or HEJI's compound signs) moves the chord right
+        // rather than into the key signature
+        const accReach = 7 + colW.reduce((sum, w) => sum + (w || 0) + ACC_GAP, 0);
+        const cX = isChord ? chordX() + Math.max(0, accReach - 28) : 0;
         list.forEach((midi, i) => {
           if (slot >= POOL) return;
           const sl = slots[slot++];
-          const { step, alt } = placed[i];
+          const { step } = placed[i];
           const a = assign(step);
           const drawStep = step + a.shift;
           if (a.mark) marks.add(a.mark + (a.treble ? "-t" : "-b"));
           const y = a.treble ? trebleY(drawStep) : bassY(drawStep);
-          const x = (isChord ? chordX() : harpX(i, list.length)) + nudge[i];
+          const x = (isChord ? cX : harpX(i, list.length)) + nudge[i];
 
           sl.use.setAttribute("x", x);
           sl.use.setAttribute("y", y);
@@ -371,12 +448,11 @@
             + (isChord ? (chordIsRhythm ? "is-rhythm" : "is-chord") : "is-harp"));
           sl.g.setAttribute("display", "");
 
-          const letter = ((drawStep % 7) + 7) % 7;
-          const fromKey = altered.get(letter) || 0;
-          if (alt !== fromKey) {
-            sl.acc.textContent = accText(alt);
-            sl.acc.setAttribute("x", (isChord ? chordX() : x) - 13 - accCol[i] * 8);
-            sl.acc.setAttribute("y", y + 3.6);
+          const acc = accAt[i];
+          if (acc.need) {
+            sl.acc.textContent = acc.glyph.text;
+            sl.acc.setAttribute("x", colRight(accCol[i], isChord ? cX : x) - acc.glyph.width);
+            sl.acc.setAttribute("y", y);
             sl.acc.setAttribute("visibility", "visible");
           } else {
             sl.acc.setAttribute("visibility", "hidden");

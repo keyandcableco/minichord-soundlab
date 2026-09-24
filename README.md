@@ -166,7 +166,7 @@ ship beyond the folder itself. Open `index.html` and it runs.
 | `presets.js` | the shared preset bank + decoder |
 | `MINICHORD-REFERENCE.md` | the technical reference: firmware note math, sysex protocol, and the inference engine spec |
 | `__harness__/` | local regression testing for the inference engine (see its README) |
-| `json/`, `fonts/` | preset data and the bundled typeface |
+| `json/`, `fonts/` | preset data, the bundled typeface, and the accidental fonts (subsets of Bravura) |
 
 Everything Sound Lab knows about the firmware's behaviour is documented, with citations, in
 [MINICHORD-REFERENCE.md](MINICHORD-REFERENCE.md).
@@ -200,3 +200,7 @@ npm run smoke      # headless Chrome boot test (needs Chrome installed)
 
 [CC BY-NC 4.0](LICENSE): free to use, share and adapt with attribution, but not commercially. The
 same license family as the minichord hardware itself. Sound Lab is and will always be free.
+
+The accidental fonts in `fonts/` are subsets of Steinberg's [Bravura](https://github.com/steinbergmedia/bravura),
+renamed as its licence requires, and are under the [SIL Open Font License 1.1](fonts/OFL-soundlab-accidentals.txt),
+not the license above. `fonts/subset-accidentals.py` rebuilds them.

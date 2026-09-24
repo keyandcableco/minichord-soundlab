@@ -284,7 +284,9 @@
       portNoticeEl.append(pnText, pnBtn);
       middleRoot.appendChild(portNoticeEl);
       middleRoot.appendChild(deviceMap.el);
-      if (deviceMap.setHarpShape) deviceMap.setHarpShape(Prefs.get("harpShape"));      if (!staffView && window.Staff) staffView = window.Staff.create();
+      if (deviceMap.setHarpShape) deviceMap.setHarpShape(Prefs.get("harpShape"));
+      if (deviceMap.setSpelling) deviceMap.setSpelling(Prefs.get("spelling"));
+      if (!staffView && window.Staff) staffView = window.Staff.create();
       if (staffView) {
         middleRoot.appendChild(staffView.el);
         syncStaffKey();
@@ -554,7 +556,11 @@
     drawActiveGraph();   // graph strokes read --accent at draw time
   }
   Prefs.subscribe("bankAccent", applyBankAccent);
-  Prefs.subscribe("harpShape", v => { if (deviceMap && deviceMap.setHarpShape) deviceMap.setHarpShape(v); });  Prefs.subscribe("staffShow", v => {
+  Prefs.subscribe("harpShape", v => { if (deviceMap && deviceMap.setHarpShape) deviceMap.setHarpShape(v); });
+  Prefs.subscribe("spelling", v => {
+    if (deviceMap && deviceMap.setSpelling) deviceMap.setSpelling(v);
+    if (staffView && staffView.reflow) staffView.reflow();
+  });  Prefs.subscribe("staffShow", v => {
     if (!staffView) return;
     staffView.el.hidden = v === "off";
     if (v !== "off" && staffView.fit) staffView.fit();
@@ -3072,6 +3078,11 @@
     ], "harpShape"));    pop.appendChild(prefRow("Notation", "Show a staff under the Play mirror with what you are playing, its key signature and the chord's roman numeral.", [
       { label: "Show", value: "on" }, { label: "Hide", value: "off" },
     ], "staffShow"));
+    pop.appendChild(prefRow("Microtonal spelling", "How the just chords are named on the staff and in the readout, most of all in 19 and 31. The other chords always spell by degree.", [
+      { label: "Degree", value: "degree", title: "Each tone keeps its degree's letter and takes whatever accidental lands it on the step that sounds: the harmonic seventh over C is a B, three-quarter-flat in 31 (default)" },
+      { label: "Meantone", value: "meantone", title: "The Huygens-Fokker convention: 7 is ten fifths up the chain, so 7/4 is an augmented sixth (A#), 7/6 an augmented second (D#), 9/7 a diminished fourth (F-flat). 11 and 13 keep the degree spelling" },
+      { label: "Ratio", value: "ratio", title: "Helmholtz-Ellis just intonation (HEJI): the ratio itself, a Pythagorean note plus a comma sign per prime, the same in every division. 5/4 is E with a syntonic arrow down, 7/4 B-flat with a septimal comma" },
+    ], "spelling"));
     pop.appendChild(prefRow("Term highlights", "Underline glossary words in descriptions (click to define).", [
       { label: "On", value: true }, { label: "Off", value: false },
     ], "glossary"));
