@@ -515,15 +515,16 @@ html[data-text="xl"] .play-rhythm-side { flex: 0 0 auto; margin-top: 0.2rem; }
 body.pot-warn-off .pot-warn:not(.gate-warn) { display: none !important; }   /* preference: knob warnings off (gate chips aren't knob warnings) */
 
 /* single-port mode: the mirror is disabled outright (it can't tell harp from
-   chords), with the fix offered right above it */
-.play-port-notice { display: none; }
-.layout.devicemap .play-port-notice.on {
+   chords), with the fix offered right above it. 19/31-EDO without MPE uses the
+   same box but disables nothing: it says what the staff can't show */
+.play-port-notice, .play-edo-notice { display: none; }
+.layout.devicemap .play-port-notice.on, .layout.devicemap .play-edo-notice.on {
   display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap;
   margin: 0.2rem 0 0.7rem; padding: 0.55rem 0.8rem;
   background: var(--panel-2); border: 0.5px solid var(--warm); border-radius: var(--radius-sm);
 }
-.play-port-notice p { font-size: 0.78rem; color: var(--text-dim); line-height: 1.5; flex: 1 1 260px; margin: 0; }
-.play-port-notice .mini-btn { flex: 0 0 auto; }
+.play-port-notice p, .play-edo-notice p { font-size: 0.78rem; color: var(--text-dim); line-height: 1.5; flex: 1 1 260px; margin: 0; }
+.play-port-notice .mini-btn, .play-edo-notice .mini-btn { flex: 0 0 auto; }
 .devicemap-root.dm-disabled { opacity: 0.35; filter: grayscale(0.6); pointer-events: none; }
 /* the ! is drawn (stem + separated dot) — a font glyph smears at this size.
    2px widths keep 50%−1px on a whole pixel, so it can't drift off-centre */

@@ -895,7 +895,7 @@ const PARAM_GROUPS = [
         ],
         explain: { is: "How the octave is divided and tuned.",
           does: "Sets the pitch of every note. The first ten keep twelve notes and nudge each by a few cents: the meantones and well temperaments a piano tuner would set, five-limit just intonation and Pythagorean. 19-EDO and 31-EDO divide the octave into more than twelve, so sharps and flats stop being the same pitch.",
-          tips: "Hold a major chord and switch Equal to Meantone \u2014 the third stops beating. A keeps the master tuning pitch in the twelve-note tunings, which are anchored on C, so they sound progressively stranger the further you play from it. The well temperaments (Werckmeister, Kirnberger, Vallotti, Young, Kellner) keep every key usable but give each its own colour." } },
+          tips: "Hold a major chord and switch Equal to Meantone \u2014 the third stops beating. For 19 and 31, turn on MPE output (MIDI settings) too: without it the notes reach Sound Lab rounded to the nearest semitone, and the staff can't show the microtonal notation. A keeps the master tuning pitch in the twelve-note tunings, which are anchored on C, so they sound progressively stranger the further you play from it. The well temperaments (Werckmeister, Kirnberger, Vallotti, Young, Kellner) keep every key usable but give each its own colour." } },
       { addr: 35, name: "Key signature", card: "Scale & harmony", unit: "", min: 0, max: 20, step: 1, type: "int", curve: "linear", def: 0, segmented: true,
         options: ["C", "G", "D", "A", "E", "B", "F", "B♭", "E♭", "A♭", "D♭", "G♭",
           "F♯", "C♯", "G♯", "D♯", "A♯", "E♯", "B♯", "F♭", "C♭"],

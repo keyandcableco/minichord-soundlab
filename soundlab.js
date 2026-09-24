@@ -172,7 +172,9 @@
   // replaces the patch has to tell it. Missing one leaves the staff drawing the
   // key it was last told about: no signature and sharp spelling if that was C.
   // setKey early-returns when the key is unchanged, so calling this freely is free.
-  const syncStaffKey = () => { if (staffView) staffView.setKey(patch[35] || 0); };
+  // every whole-patch load (device dump, preset, undo) passes through here, so
+  // the note about what the staff can show in 19/31 follows along with the key
+  const syncStaffKey = () => { if (staffView) staffView.setKey(patch[35] || 0); updateEdoNotice(); };
   let playRhythmRefresh = null; // repaint fn for the Play tab's own rhythm grid copy
   let playRhythmSetHead = null; // setPlayhead(step|null) for the Play rhythm grid (live sync)
   const rhythmHelpUpdaters = []; // per-grid fns that re-word the play/pause help for live vs learning mode
@@ -180,6 +182,7 @@
   let playRhythmWrap = null;    // the .play-rhythm-wrap element (for bank-hue + pot-note)
   let rhythmPotNote = null;     // the rhythm ⚠ chip (shown when a pot drives BPM/cycle/shuffle)
   let portNoticeEl = null;      // single-port notice over the mirror (with the switch button)
+  let edoNoticeEl = null;       // 19/31-EDO without MPE notice over the mirror (with the switch button)
 
   // single-port mode (addr 108) breaks the mirror, grey it out and show the
   // notice + fix button instead of letting it mislabel notes
@@ -199,6 +202,18 @@
       rhythmSync.start();
       if (deviceMap) deviceMap.setConnected(!!(controller && controller.isConnected()));
     }
+  }
+
+  // 19 and 31 over plain MIDI arrive rounded to the nearest semitone, so the
+  // mirror, the readout and the staff only see the rounded notes: chords that
+  // round alike can't be told apart (19-EDO B aug and B major) and the
+  // microtonal spelling has nothing exact to spell. MPE's per-voice bends carry
+  // the exact pitch. Unlike single-port mode this doesn't disable anything, it
+  // only says what's missing and offers the switch.
+  function updateEdoNotice() {
+    if (!edoNoticeEl) return;
+    const divided = patch[237] === 10 || patch[237] === 11;
+    edoNoticeEl.classList.toggle("on", divided && patch[110] !== 1);
   }
 
   // note-affecting settings shown in the Play tab's right panel (synced with their home
@@ -283,6 +298,27 @@
       });
       portNoticeEl.append(pnText, pnBtn);
       middleRoot.appendChild(portNoticeEl);
+
+      edoNoticeEl = document.createElement("div");
+      edoNoticeEl.className = "play-edo-notice";
+      const enText = document.createElement("p");
+      enText.textContent = "In 19- and 31-EDO, plain MIDI rounds every note to the nearest semitone, "
+        + "so the mirror and the staff can't show the microtonal notation: chords that round alike "
+        + "look the same, and the in-between pitches have nothing exact to spell from. MPE output "
+        + "(MIDI settings) sends each voice's exact pitch as a bend.";
+      const enBtn = document.createElement("button");
+      enBtn.type = "button";
+      enBtn.className = "mini-btn primary";
+      enBtn.textContent = "Turn on MPE";
+      enBtn.addEventListener("click", () => {
+        const p110 = paramByAddr[110];
+        if (!p110) return;
+        (controls[110] || []).forEach(fn => fn(1));   // UI + patch (every synced copy)
+        onPatchChange(p110, 1);                       // push to device + refresh
+        updateEdoNotice();
+      });
+      edoNoticeEl.append(enText, enBtn);
+      middleRoot.appendChild(edoNoticeEl);
       middleRoot.appendChild(deviceMap.el);
       if (deviceMap.setHarpShape) deviceMap.setHarpShape(Prefs.get("harpShape"));
       if (deviceMap.setSpelling) deviceMap.setSpelling(Prefs.get("spelling"));
@@ -295,6 +331,7 @@
         if (staffView.fit && !staffView.el.hidden) staffView.fit();
       }
       updatePortNotice();
+      updateEdoNotice();
     }
     buildPlayExtras();   // Play tab: rhythm grid under the keyboard + note settings on the right
     buildAboutPanel();   // About view: one prose panel, shown by .layout.about
@@ -2623,6 +2660,7 @@
     // a new target has to redraw it
     if (p && p.addr === 200) render();    if (p && p.addr === 35) syncStaffKey();
     if (p && (p.addr === 108 || p.addr === 110)) updatePortNotice();   // MPE makes single-port mode readable
+    if (p && (p.addr === 237 || p.addr === 110)) updateEdoNotice();    // 19/31 need MPE for exact pitches
     // re-fingerprint after the edit settles (undo/redo identifies itself at
     // the end of applyHistState, don't double up mid-restore)
     if (!histApplying) scheduleIdentify();
@@ -3078,7 +3116,7 @@
     ], "harpShape"));    pop.appendChild(prefRow("Notation", "Show a staff under the Play mirror with what you are playing, its key signature and the chord's roman numeral.", [
       { label: "Show", value: "on" }, { label: "Hide", value: "off" },
     ], "staffShow"));
-    pop.appendChild(prefRow("Microtonal spelling", "How the just chords are named on the staff and in the readout, most of all in 19 and 31. The other chords always spell by degree.", [
+    pop.appendChild(prefRow("Microtonal spelling", "How the just chords are named on the staff and in the readout, most of all in 19 and 31. The other chords always spell by degree. In 19 and 31, MPE output must be on for the staff to show the microtonal notation: plain MIDI arrives rounded to the nearest semitone.", [
       { label: "Degree", value: "degree", title: "Each tone keeps its degree's letter and takes whatever accidental lands it on the step that sounds: the harmonic seventh over C is a B, three-quarter-flat in 31 (default)" },
       { label: "Meantone", value: "meantone", title: "The Huygens-Fokker convention: 7 is ten fifths up the chain, so 7/4 is an augmented sixth (A#), 7/6 an augmented second (D#), 9/7 a diminished fourth (F-flat). 11 and 13 keep the degree spelling" },
       { label: "Ratio", value: "ratio", title: "Helmholtz-Ellis just intonation (HEJI): the ratio itself, a Pythagorean note plus a comma sign per prime, the same in every division. 5/4 is E with a syntonic arrow down, 7/4 B-flat with a septimal comma" },
