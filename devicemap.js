@@ -487,7 +487,6 @@
   // get_root_button(key, shift, button)
   function rootButton(s, button) {
     let note = BASE_NOTES[button];
-    if (MUSICAL_INDEX[button] < s.shift) note += 12;
     const n = KEY_SIGNATURES[s.key];
     if (KEY_SHARP_SET.has(s.key)) {
       for (let i = 0; i < n; i++) if (button === SHARP_BTNS[n - 1][i]) note += 1;
@@ -502,6 +501,15 @@
       }
       if (s.key === KEY_FB && button === 0) note -= 2;
     }
+    // The key change combo's get_root_button folds a root that accidentals push
+    // below zero back into the octave (C's integer division truncates toward
+    // zero, hence Math.trunc) before the frame shift, and with no shift keeps C
+    // the lowest button. So C-flat in G-flat, C-flat and F-flat major is the B
+    // above, not the B below, and the mirror has to put it there too or those
+    // chords are matched an octave off.
+    note = (((note % 12) + 12) % 12) + Math.trunc(note / 12) * 12;
+    if (MUSICAL_INDEX[button] < s.shift) note += 12;
+    if (s.shift === 0 && button !== 5 && note <= 0) note += 12;   // 5 is the C button
     return note;
   }
 
@@ -1645,7 +1653,9 @@
       const lbl = (n, v) => {
         const csp = chordVoiceSpell(v, button, type, s, slash, undefined, sharp);
         spellMap.set("chord:" + n, csp);
-        return spellText(csp) + '<sub class="dm-ro-oct">' + (Math.floor(n / 12) - 1) + "</sub>";
+        // the octave the LETTER belongs to, as the staff reckons it: B#3 sounds
+        // as C4 but is written in the third octave, and Cb4 sounds as B3
+        return spellText(csp) + '<sub class="dm-ro-oct">' + (Math.round((n - LETTER_PC[csp.letter]) / 12) - 1) + "</sub>";
       };
       roNotesEl.innerHTML = voices.map(lbl).join('<span class="dm-ro-sep">·</span>');
       const ctx = [];
