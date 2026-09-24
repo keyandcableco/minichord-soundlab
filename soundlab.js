@@ -6682,7 +6682,8 @@
   }
 
   function requestDump() {
-    if (controller && controller.device) controller.device.send([0xF0, 0, 0, 0, 0, 0xF7]);
+    // through the controller, so it knows the dump that answers is a bank load
+    if (controller && controller.device) controller.requestCurrentData();
   }
 
   /* ---- MIDI recorder: capture the device's note stream, save a .mid --------
