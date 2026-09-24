@@ -855,6 +855,24 @@ const PARAM_GROUPS = [
     params: [
       { addr: 30, name: "Transpose", card: "Scale & harmony", unit: "st", min: 0, max: 12, step: 1, type: "int", curve: "linear", def: 0,
         explain: { is: "Shifts every sound up by a number of semitones.", does: "Moves the whole instrument's pitch without changing fingering, 12 = a full octave up.", tips: "Use to match a song's key without relearning chord shapes." } },
+      { addr: 237, name: "Temperament", card: "Scale & harmony", unit: "", min: 0, max: 9, step: 1,
+        type: "int", curve: "linear", def: 0,
+        options: ["Equal", "Meantone", "Just", "Pythagorean", "Werckmeister III", "Kirnberger III", "Vallotti", "Young", "Kellner", "1/6 Meantone"],
+        optionNotes: [
+          "Twelve identical steps, the default. Every key sounds the same and no interval but the octave is quite in tune: a major third is 13.7 cents wide, the faint beating in a piano chord.",
+          "Quarter-comma meantone, what most Renaissance and early Baroque keyboard music was written for. Major thirds are pure and fifths pay for it at 5.4 cents narrow. The wolf sits between G# and Eb: Eb, Bb, F, C, G, D, A and E major are sweet, B, F#, Db and Ab major unusable.",
+          "Five-limit just intonation for C major. Thirds and fifths dead in tune in the home key, noticeably out in others.",
+          "Pure 3:2 fifths from Eb round to G#. Bright, wide thirds at 21.5 cents sharp. Right for medieval music, wrong for most of what came after.",
+          "Andreas Werckmeister, 1691. Four fifths (C–G, G–D, D–A and B–F#) narrowed by a quarter of the Pythagorean comma, the rest pure. Every key is playable: C and F major have the calmest thirds, 3.9 cents wide, and Db, F# and Ab major the widest, 21.5.",
+          "Johann Philipp Kirnberger, 1779. The fifths from C to E are narrowed by a quarter of the syntonic comma, so C–E is a pure 5:4; F#–C# gives up a schisma and the rest are pure. The home keys are very sweet and the far ones pointedly bright.",
+          "Francesco Antonio Vallotti, 18th century. The six fifths from F to B are narrowed by a sixth of the Pythagorean comma and the other six are pure. Smooth and even-handed, and a common choice today for Baroque music: thirds from 5.9 cents wide in F, C and G major to 21.5 in Db, F# and B.",
+          "Thomas Young, 1800. Vallotti's shape moved up a fifth: the six fifths from C to F# are narrowed by a sixth of the Pythagorean comma, the rest pure. C, D and G major have the calmest thirds, 5.9 cents wide.",
+          "Herbert Anton Kellner's 1977 proposal for the tuning of Bach's Well-Tempered Clavier. Five fifths (C–G, G–D, D–A, A–E and B–F#) narrowed by a fifth of the Pythagorean comma. Thirds from 2.7 cents wide in C major to 21.5 in Db, F# and Ab.",
+          "Meantone with fifths narrowed by a sixth of the syntonic comma. Major thirds are 7.2 cents wide instead of pure, and the wolf between G# and Eb shrinks to 16 cents, so more keys are usable. Often associated with Gottfried Silbermann's organs.",
+        ],
+        explain: { is: "How the twelve notes are tuned.",
+          does: "Sets the pitch of every note by a few cents: equal temperament, the meantones and well temperaments a piano tuner would set, five-limit just intonation and Pythagorean. MIDI note numbers are unchanged; only the synth is retuned.",
+          tips: "Hold a major chord and switch Equal to Meantone \u2014 the third stops beating. A keeps the master tuning pitch in the twelve-note tunings, which are anchored on C, so they sound progressively stranger the further you play from it. The well temperaments (Werckmeister, Kirnberger, Vallotti, Young, Kellner) keep every key usable but give each its own colour." } },
       { addr: 35, name: "Key signature", card: "Scale & harmony", unit: "", min: 0, max: 11, step: 1, type: "int", curve: "linear", def: 0, segmented: true,
         options: ["C", "G", "D", "A", "E", "B", "F", "B♭", "E♭", "A♭", "D♭", "G♭"],
         explain: { is: "Automatically sharpens/flattens chords to fit a chosen key.", does: "Picks the key the chord buttons are interpreted in, so the right accidentals come out.", tips: "Set this to your song's key and the chord buttons stay diatonic." } },
@@ -1460,6 +1478,7 @@ const PARAM_FIRMWARE = {
   106: 8, 107: 8, 108: 8,                 // MIDI channels, single-port
   198: 3,                                 // chord octave change
   199: 7,                                 // chord glide
+  237: 10,                                // temperament
 };
 
 // "Inert" gates: when a gating control is turned all the way down, the whole
@@ -1522,6 +1541,7 @@ const ADDR_NAMES = {
   33: "Settings · barry harris mode",
   34: "Settings · chord frame shift",
   35: "Settings · chord key signature",
+  237: "Settings · temperament",
   40: "Harp General · harp shuffling",
   41: "Harp Oscillator · amplitude",
   42: "Harp Oscillator · waveform",
