@@ -1581,6 +1581,7 @@ const PARAM_FIRMWARE = {
   36: 9, 37: 9, 38: 9, 39: 9, 236: 9,
   200: 9, 201: 9, 202: 9, 203: 9, 204: 9, 205: 9, 206: 9, 207: 9, 208: 9,           // harp scale modes, chord inversion, custom scale
   109: 10,                                // master tuning
+  237: 10,                                // temperament
   110: 11,                                // MPE output
   111: 12, 112: 12,                       // voice leading and its range
 };
@@ -1645,6 +1646,7 @@ const ADDR_NAMES = {
   201: "Chord layout · double tap value",
   236: "Scale & harmony · custom scale",
   109: "Settings · master tuning",
+  237: "Settings · temperament",
   110: "MIDI · MPE output",
   111: "Settings · voice leading",
   112: "Settings · voice leading range",
