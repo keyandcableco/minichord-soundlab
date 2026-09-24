@@ -927,6 +927,13 @@ const PARAM_GROUPS = [
           "Both sections share one port (the channel tells them apart): the Play tab can't separate harp notes from chords in this mode.",
         ],
         explain: { is: "Whether chord and harp share one MIDI port or use two.", does: "Single = both on one port (channel tells them apart); Separate = two ports.", tips: "Single-port is simpler for many hosts; separate can be cleaner for routing. The Play tab's mirror needs Separate ports to tell harp notes from chord notes." } },
+      { addr: 110, name: "MPE output", card: "Channels & routing", unit: "", min: 0, max: 1, step: 1, type: "int", curve: "linear", def: 0,
+        options: ["Off", "MPE"],
+        optionNotes: [
+          "Chords and harp each send on their one channel, as always.",
+          "Every voice gets its own member channel and its own pitch bend (\u00b148 semitones, declared to the host by RPN 6), so glide records as a real bend curve, and a temperament's pitches arrive exactly instead of rounded to the nearest semitone.",
+        ],
+        explain: { is: "Whether the minichord sends MPE, one MIDI channel per voice.", does: "Chord voices go out on member channels 2 to 5 and the harp strings on 2 to 13 of their own port; with single port mode on they share one, chord on 2 to 5 and strings on 6 to 16. Replaces the chord and harp channels above while it is on.", tips: "Turn it on to record glide or a temperament into an MPE-aware host. The Play mirror reads the notes, which are unchanged, and in single port mode the channels tell it the harp from the chords. Sound Lab's own MIDI recorder keeps the notes but not the bends." } },
     ]
   },
   /* ---------------------------------------------------------------------- */
@@ -1460,6 +1467,7 @@ const PARAM_FIRMWARE = {
   106: 8, 107: 8, 108: 8,                 // MIDI channels, single-port
   198: 3,                                 // chord octave change
   199: 7,                                 // chord glide
+  110: 10,                                // MPE output
 };
 
 // "Inert" gates: when a gating control is turned all the way down, the whole
@@ -1591,6 +1599,7 @@ const ADDR_NAMES = {
   106: "MIDI · chord channel",
   107: "MIDI · harp channel",
   108: "MIDI · single port mode",
+  110: "MIDI · MPE output",
   120: "Chord General · chord shuffling",
   121: "Chord Oscillator · amplitude 1",
   122: "Chord Oscillator · waveform 1",

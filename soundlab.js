@@ -174,7 +174,8 @@
   // notice + fix button instead of letting it mislabel notes
   function updatePortNotice() {
     if (!portNoticeEl) return;
-    const single = patch[108] === 1;
+    // with MPE on, channels carry the roles and single-port mode reads fine
+    const single = singlePortBlind();
     portNoticeEl.classList.toggle("on", single);
     if (deviceMap && deviceMap.el) deviceMap.el.classList.toggle("dm-disabled", single);
 
@@ -256,7 +257,8 @@
       portNoticeEl.className = "play-port-notice";
       const pnText = document.createElement("p");
       pnText.textContent = "Single port mode is on, so harp notes arrive mixed into the chord port "
-        + "and the mirror can't tell the harp from the chords.";
+        + "and the mirror can't tell the harp from the chords. MPE output (MIDI settings) "
+        + "separates them by channel, so turning that on works too.";
       const pnBtn = document.createElement("button");
       pnBtn.type = "button";
       pnBtn.className = "mini-btn primary";
@@ -2462,7 +2464,7 @@
     updateGateFlags();
     renderProfiles();
     if (deviceMap && p && DEVICEMAP_ADDRS.has(p.addr)) deviceMap.rebuild();
-    if (p && p.addr === 108) updatePortNotice();
+    if (p && (p.addr === 108 || p.addr === 110)) updatePortNotice();   // MPE makes single-port mode readable
     // re-fingerprint after the edit settles (undo/redo identifies itself at
     // the end of applyHistState, don't double up mid-restore)
     if (!histApplying) scheduleIdentify();
@@ -6260,15 +6262,26 @@
       midiRec.connection(connected);
     };
     controller.onDataReceived = data => loadFromDevice(data);
-    controller.onNoteEvent = (role, type, note, vel) => {
+    controller.onNoteEvent = (role, type, note, vel, channel) => {
       if (type === "on") lastDeviceNoteT = Date.now();   // "is the device sounding?" proxy (rhythm lock for rolls)
       midiRec.feed(role, type, note, vel);   // the recorder hears everything, even in single-port mode
-      if (patch[108] === 1) return;   // single-port mode: the mirror can't trust roles, drop the stream
+      if (singlePortBlind()) return;   // single-port mode without MPE: the mirror can't trust roles, drop the stream
+      role = mpeRole(role, channel);
       if (deviceMap) deviceMap.onNote(role, type, note, vel);
       if (role === "chord") rhythmSync.onChordNote(type, note);
     };
   }
   buildConnectCard();
+
+  /* Single-port mode (108) puts chord and harp on one port, and the mirror
+   * tells them apart by port, so it has to go blind. With MPE output (110) the
+   * channel says it instead: the chord's voices on member channels 2 to 5 and
+   * the strings on 6 to 16 (mpe_harp_channel_for in the firmware). */
+  function singlePortBlind() { return patch[108] === 1 && patch[110] !== 1; }
+  function mpeRole(role, channel) {
+    if (patch[108] !== 1 || patch[110] !== 1 || channel == null) return role;
+    return channel >= 2 && channel <= 5 ? "chord" : "harp";
+  }
 
   // try to connect on load (like minicontrol). Chrome shows the MIDI permission
   // prompt once, then silently grants on later visits; once the session is live

@@ -26,7 +26,7 @@ class MiniChordController {
       };
       this.onConnectionChange = null;
       this.onDataReceived = null;
-      this.onNoteEvent = null;   // (role, type, note, velocity) for the live "Play" view
+      this.onNoteEvent = null;   // (role, type, note, velocity, channel) for the live "Play" view
       this.json_reference="../json/minichord.json";
     }
 
@@ -122,7 +122,9 @@ class MiniChordController {
       const status = d[0] & 0xF0;
       if (status !== 0x90 && status !== 0x80) return;   // note messages only
       const type = (status === 0x90 && d[2] > 0) ? "on" : "off";
-      if (this.onNoteEvent) this.onNoteEvent(role, type, d[1], d[2]);
+      // the channel too: with MPE output (addr 110) it says which voice, and in
+      // single port mode which of chord and harp the note belongs to
+      if (this.onNoteEvent) this.onNoteEvent(role, type, d[1], d[2], (d[0] & 0x0F) + 1);
     }
 
     // Process incoming MIDI data
