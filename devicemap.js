@@ -601,6 +601,8 @@
     33:  { name: "Barry-Harris mode", affects: "both",   inferred: false },
     31:  { name: "sharp/flat",        affects: "both",   inferred: false },
     23:  { name: "slash level",       affects: "both",   inferred: false },
+    113: { name: "slash voice",       affects: "both",   inferred: true  },
+    114: { name: "slash re-voice",    affects: "both",   inferred: true  },
     98:  { name: "chromatic mode",    affects: "harp",   inferred: false },
   };
 
@@ -616,7 +618,9 @@
   // the chord before, inside a range around root position. That is a function of
   // history, so the mirror does not re-run the search: when it is on, or a knob
   // could have turned it on, a chord that matches no exact note set is matched by
-  // its pitch classes instead. Slash chords are never led, so they stay exact.
+  // its pitch classes instead. Slash chords are led too now, keeping their bass,
+  // and slash voice (addr 113) moves the slash note between voices; the mirror
+  // does not model either yet, so a slash chord may read as its plain chord.
   const voiceLeadingPossible = s => s.voiceLeading || s.potTargets.has(111);
   const pcOf = n => ((n % 12) + 12) % 12;
   function pcListFromLookup(map) {

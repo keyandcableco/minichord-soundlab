@@ -947,7 +947,7 @@ const PARAM_GROUPS = [
           "Every chord is built upward from its root, shaped by inversion and spacing.",
           "Each chord takes the octave placement that moves its voices least from the chord already sounding, the way a choir or a pianist's left hand would.",
         ],
-        explain: { is: "Whether chords move smoothly from one to the next.", does: "Keeps each chord's notes but chooses their octaves so the four voices travel as little as possible from the previous chord. Overrides inversion and spacing while it is on.", tips: "Slash chords are left alone, since they name their own bass. With nothing sounding, a chord starts from root position. The Play mirror reads a led chord by its notes rather than its octaves." } },
+        explain: { is: "Whether chords move smoothly from one to the next.", does: "Keeps each chord's notes but chooses their octaves so the four voices travel as little as possible from the previous chord. Overrides inversion and spacing while it is on.", tips: "A slash chord is led too, with its bass kept on the note it names: the bass takes the octave nearest the chord already sounding and the voices above it are led. With nothing sounding, a chord starts from root position. The Play mirror reads a led chord by its notes rather than its octaves." } },
       { addr: 112, name: "Voice leading range", card: "Scale & harmony", unit: "st", min: 0, max: 24, step: 1, type: "int", curve: "linear", def: 12,
         explain: { is: "How far a led chord may wander from where root position would put it.", does: "In semitones, outside the root-position chord on either side. Small keeps chords anchored where the buttons say; large lets them follow the previous chord further up or down.", tips: "Only used when voice leading is on. The same interval in 12, 19 and 31, since the device converts it to steps of the live division." } },
       { addr: 109, name: "Master tuning", card: "Scale & harmony", unit: "Hz", min: 4320, max: 4460, step: 1, type: "int", curve: "linear", def: 4400,
@@ -981,7 +981,24 @@ const PARAM_GROUPS = [
         options: ["Keep held note", "Re-pitch to chord"],
         explain: { is: "Whether a held harp note re-pitches when you change chord.", does: "Keep = the note stays put; Re-pitch = held notes follow the new chord.", tips: "Re-pitch for legato lines that track chord changes." } },
       { addr: 23, name: "Slash level", card: "Chord behaviour", unit: "", min: 0, max: 2, step: 1, type: "int", curve: "linear", def: 0,
-        explain: { is: "Which scale level slash chords affect.", does: "Sets how deep into the voicing a slash (bass-note) chord reaches.", tips: "Leave at 0 unless you use slash chords and want a different bass behaviour." } },
+        explain: { is: "Which chord tone a slash chord replaces, by its place in the chord's recipe.", does: "0 replaces the root, 1 the third, 2 the chord's third tone: the fifth in triads, the seventh in the 7th, maj7 and m7 chords. The slash note sits where a root would, so at 1 or 2 it can land inside the chord.", tips: "Leave it at 0 for ordinary slash chords. Slash voice, when set, takes over for the four chord voices and chooses a voice instead." } },
+      { addr: 113, name: "Slash voice", card: "Chord behaviour", unit: "", min: 0, max: 4, step: 1, type: "int", curve: "linear", def: 0, segmented: true,
+        options: ["Off", "Bass", "Tenor", "Alto", "Soprano"],
+        optionNotes: [
+          "Slash level decides, as it always has.",
+          "A slash chord in the usual sense: the slash note in the bass and the whole chord above it.",
+          "The second voice from the bottom takes the slash note.",
+          "The third voice from the bottom takes the slash note.",
+          "The top voice takes the slash note: a melody over the chord.",
+        ],
+        explain: { is: "Which of the four chord voices a slash replaces, counted from the bottom.", does: "Hold a chord and press another line's button: that line's note goes to the voice chosen here, in the octave nearest where the voice was, and the other voices stay put. Bass keeps the whole chord above it.", tips: "Soprano plays a melody over your chords with the other lines' buttons. Tenor and alto change a note inside the chord, which is how a suspension or a passing tone sounds: hold C voiced C–E–G–C and tenor F is the 4–3 suspension. The harp follows the chord as it sounds." } },
+      { addr: 114, name: "Slash re-voice", card: "Chord behaviour", unit: "", min: 0, max: 1, step: 1, type: "int", curve: "linear", def: 0, segmented: true,
+        options: ["Hold still", "Re-voice"],
+        optionNotes: [
+          "The other voices stay where they were, so the chord gives up the note the slash replaced.",
+          "The other voices move, as little as they can, to keep the chord whole around the slash note.",
+        ],
+        explain: { is: "What the other voices do around a tenor, alto or soprano slash.", does: "Re-voice moves the two voices that are neither the slash voice nor the bass, doubling a tone rather than moving where it can. The bass never moves.", tips: "Only used with slash voice on tenor, alto or soprano; the bass always keeps the chord whole. Held still, tenor F over C is a suspension; re-voiced, the third moves up and it becomes a chord with an added fourth." } },
       { addr: 32, name: "LED brightness", card: "Hardware", unit: "", min: 0, max: 1, step: 0.01, type: "float", curve: "linear", def: 0,
         explain: { is: "Dims the device's LED. 0 = full brightness; higher = dimmer.", does: "Attenuates the LED only, purely cosmetic, no effect on sound.", tips: "Raise it if the LED is too bright in a dark room." } },
     ]
@@ -1349,9 +1366,9 @@ const VALUE_BANDS = {
     { max: Infinity, text: "Octave: up a full octave." },
   ],
   23: [ // slash level
-    { max: 0, text: "Off: slash chords unaffected." },
-    { max: 1, text: "Level 1: shallow reach." },
-    { max: Infinity, text: "Level 2: deepest reach." },
+    { max: 0, text: "Root: the slash note replaces the root." },
+    { max: 1, text: "Third: the slash note replaces the third." },
+    { max: Infinity, text: "Third tone: the fifth, or the seventh in seventh chords." },
   ],
   32: [ // led brightness (attenuation)
     { max: 0.001, text: "Full: maximum brightness." },
@@ -1584,6 +1601,7 @@ const PARAM_FIRMWARE = {
   237: 10,                                // temperament
   110: 11,                                // MPE output
   111: 12, 112: 12,                       // voice leading and its range
+  113: 13, 114: 13,                       // slash voice and slash re-voice
 };
 
 // "Inert" gates: when a gating control is turned all the way down, the whole
@@ -1653,6 +1671,8 @@ const ADDR_NAMES = {
   21: "Settings · retrigger chords",
   22: "Settings · change held strings",
   23: "Settings · slash level",
+  113: "Settings · slash voice",
+  114: "Settings · slash re-voice",
   24: "Effects · reverb size",
   25: "Effects · reverb high damping",
   26: "Effects · reverb low damping",
