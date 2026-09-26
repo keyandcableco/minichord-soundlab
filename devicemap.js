@@ -657,6 +657,7 @@
       spacing:   Math.min(4, Math.max(0, g(38, 0))),    // chord spacing
       // voice leading places each chord nearest the one before it, so its octaves
       // depend on history the dump does not carry; matched by pitch class instead
+      fw:        g(7, 0),                               // the firmware version the dump reports
       voiceLeading: !!g(111, 0),
       cantus:       !!g(115, 0),                        // the harp re-voices the chord: read it by pitch class too
       harpMode:  g(36, 0),                              // scalar harp mode, 0 = follow the chord
@@ -1463,10 +1464,11 @@
     // so the dump can lie. We infer the true row from the notes the device emits.
     let effHarpShuf = s.harpShuf;
 
-    // the chromatic state the HARP renders with. The firmware recomputes current_harp_notes
-    // only on a chord press (button_pushed) or an addr-40/99 edit, so a lone chromatic (98)
-    // toggle doesn't change the emitted harp until the next chord (§10.7). effChromatic lags
-    // s.chromatic until then, matching the device. (s.chromatic is overwritten with this in rebuild.)
+    // the chromatic state the HARP renders with. Firmware 16 recomputes current_harp_notes
+    // when chromatic mode (98) changes, as it does for the row (40) and octave (99); before
+    // it, a lone 98 toggle waited for the next chord press (§10.7). effChromatic follows
+    // s.chromatic at once on 16 and lags it until a chord before that, matching the device.
+    // (s.chromatic is overwritten with this in rebuild.)
     let effChromatic = s.chromatic;
 
     // the transpose the CHORD GRID matches against. The firmware adds transpose at NoteOn
@@ -2601,11 +2603,11 @@
       // with no pot on 40 the row can only ever equal s.harpShuf anyway.
       if (!s.potTargets.has(40) || s.harpShuf !== prevShuf) effHarpShuf = s.harpShuf;
 
-      // chromatic (addr 98) only changes the EMITTED harp once the device recomputes
-      // current_harp_notes, on a chord press, or when the row (addr 40) changes. A lone 98
-      // toggle does neither, so keep rendering the prior chromatic state until a chord is hit
-      // (a preset load that moves the row adopts it here; a chord press adopts it in chordNoteOn).
-      if (s.harpShuf !== prevShuf) effChromatic = s.chromatic;
+      // chromatic (addr 98): firmware 16 retunes the harp as soon as it changes. Before 16 it
+      // only changed the EMITTED harp once the device recomputed current_harp_notes, on a
+      // chord press or a row (addr 40) change, so keep rendering the prior chromatic state
+      // until a chord is hit there (a chord press adopts it in chordNoteOn).
+      if (s.fw >= 16 || s.harpShuf !== prevShuf) effChromatic = s.chromatic;
       s.chromatic = effChromatic;
 
       // Freeze the chord-grid transpose while a chord is physically held. The device won't move a

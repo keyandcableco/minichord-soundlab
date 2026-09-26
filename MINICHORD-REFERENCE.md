@@ -882,10 +882,12 @@ press and no threshold wait.
 (`main.cpp:997`), and the sysex methods for **40** (row) and **99** (octave) also
 recompute inline, but **98 (chromatic)**, 35 (key), 34 (shift), 33 (barry), 31
 (sharp-fn) and 23 (slash) just set their variable. So toggling chromatic changes the
-*flag* but the **emitted** harp doesn't change until the next chord. The mirror matches
-this for chromatic: `effChromatic` lags `s.chromatic` (the harp renders with
-`effChromatic`) and only adopts the new value when the row changes (addr 40 → device
-recomputed) or a chord note arrives (`chordNoteOn`). Barry is handled differently:
+*flag* but the **emitted** harp doesn't change until the next chord. From firmware 16
+(`test-allFeatures`), 98 recomputes inline too, so chromatic takes effect at once. The
+mirror matches both: `effChromatic` follows `s.chromatic` at once on 16 and later, and
+before that lags it (the harp renders with `effChromatic`), adopting the new value only
+when the row changes (addr 40 → device recomputed) or a chord note arrives
+(`chordNoteOn`). Barry is handled differently:
 it's baked into `held.type` at set time (§10.1), so it likewise doesn't move the harp
 until the next chord. Key/shift/slash share the same lazy nature in the firmware; the
 mirror doesn't currently defer them (it would matter only if they're edited mid-ring).
