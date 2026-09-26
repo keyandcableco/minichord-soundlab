@@ -71,6 +71,7 @@
     major: { short: "The bright-sounding chord quality. Its third sits four semitones above the root.", see: ["minor", "root", "interval"] },
     minor: { short: "The darker chord quality. Its third sits three semitones above the root, one lower than major.", see: ["major", "root", "interval"] },
     diminished: { short: "A tense, unstable chord quality, stacked minor thirds that pull towards resolving.", see: ["major", "minor", "interval"] },
+    cantus: { short: "The chord voice the harp is setting. From cantus firmus, the fixed line other voices are written around.", long: "With cantus on, the first string of each harp gesture gives one chord voice its note: a chord tone re-voices the chord around it, any other note is a passing tone in that voice alone.", see: ["slash chord", "voicing"] },
     "slash chord": { short: "A chord played over a different bass note, written like C/G: a C chord with a G underneath.", see: ["root", "voicing"] },
     "Barry Harris": { short: "Jazz pianist and teacher whose 'sixth-diminished' system swaps each chord for its 6th version and pairs it with a diminished chord, so harmony moves in smooth, even steps.", see: ["diminished", "voicing", "diatonic"] },
     keymaster: { short: "A harp layout made for Barry Harris playing (named for a touchplate instrument): neighbouring strings climb the same chord note through rising octaves.", see: ["Barry Harris", "octave", "touchplate"] },

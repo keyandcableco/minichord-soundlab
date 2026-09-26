@@ -1000,6 +1000,17 @@ const PARAM_GROUPS = [
           "The other voices move, as little as they can, to keep the chord whole around the slash note.",
         ],
         explain: { is: "What the other voices do around a tenor, alto or soprano slash.", does: "Re-voice moves the two voices that are neither the slash voice nor the bass, doubling a tone rather than moving where it can. The bass never moves.", tips: "Only used with slash voice on tenor, alto or soprano; the bass always keeps the chord whole. Held still, tenor F over C is a suspension; re-voiced, the third moves up and it becomes a chord with an added fourth." } },
+      { addr: 115, name: "Cantus", card: "Chord behaviour", unit: "", min: 0, max: 5, step: 1, type: "int", curve: "linear", def: 0, segmented: true,
+        options: ["Off", "Bass", "Tenor", "Alto", "Soprano", "Nearest"],
+        optionNotes: [
+          "The harp leaves the chord alone, as before.",
+          "The harp sets the bass: pick out a bass line and the chord stands on it, the whole chord above.",
+          "The harp sets the second voice from the bottom.",
+          "The harp sets the third voice from the bottom.",
+          "The harp sets the top voice: a melody, harmonised by the chord you hold.",
+          "The harp sets whichever voice can reach its note by the smallest move, so the moving part changes with the line.",
+        ],
+        explain: { is: "Which chord voice the harp sets, the way slash voice lets a slash set one. Named for the cantus firmus, the fixed line other voices are written around.", does: "The first string of each new harp gesture, a pluck after a moment of quiet, gives that voice its note; the rest of a strum is accompaniment and moves nothing. A chord tone keeps the chord whole: the other voices re-voice around it as little as they can, and in the bass it is a slash chord. Any other note is a passing tone that voice sings alone while the rest hold. The note stays through a chord change when the new chord has it, and lets go otherwise.", tips: "Soprano turns the harp into a melody over your chords; bass into a walking bass under them. The voice moves without retriggering, gliding if the preset glides, and over MPE it arrives as a new note on that voice's own channel. A slash keeps any voice it holds. The harp's own notes never change. Put it on the double tap or a knob to switch voices while playing." } },
       { addr: 32, name: "LED brightness", card: "Hardware", unit: "", min: 0, max: 1, step: 0.01, type: "float", curve: "linear", def: 0,
         explain: { is: "Dims the device's LED. 0 = full brightness; higher = dimmer.", does: "Attenuates the LED only, purely cosmetic, no effect on sound.", tips: "Raise it if the LED is too bright in a dark room." } },
     ]
@@ -1603,6 +1614,7 @@ const PARAM_FIRMWARE = {
   110: 11,                                // MPE output
   111: 12, 112: 12,                       // voice leading and its range
   113: 13, 114: 13,                       // slash voice and slash re-voice
+  115: 14,                                // cantus
 };
 
 // "Inert" gates: when a gating control is turned all the way down, the whole
@@ -1674,6 +1686,7 @@ const ADDR_NAMES = {
   23: "Settings · slash level",
   113: "Settings · slash voice",
   114: "Settings · slash re-voice",
+  115: "Settings · cantus",
   24: "Effects · reverb size",
   25: "Effects · reverb high damping",
   26: "Effects · reverb low damping",

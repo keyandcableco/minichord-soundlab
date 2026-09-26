@@ -223,7 +223,7 @@
   // voicing with Chord behaviour
   const PLAY_SETTING_CARDS = [
     { title: "Scale & harmony", addrs: [30, 35, 237, 34, 33, 31, 109] },
-    { title: "Chord behaviour", addrs: [23, 113, 114, 21, 22, 120, 37, 38, 111, 112, 39] },
+    { title: "Chord behaviour", addrs: [23, 113, 114, 115, 21, 22, 120, 37, 38, 111, 112, 39] },
     { title: "Harp", addrs: [99, 40, 98, 36, 236] },
   ];
 
@@ -2645,7 +2645,7 @@
   // leading (which switches the mirror to reading chords by pitch class), 237
   // the temperament, whose 19 and 31 rebuild every note in steps.
   const DEVICEMAP_ADDRS = new Set([35, 30, 34, 33, 31, 98, 40, 120, 23, 108, 99, 198,
-    36, 37, 38, 39, 236, 202, 203, 204, 205, 206, 207, 208, 111, 237, 113, 114]);
+    36, 37, 38, 39, 236, 202, 203, 204, 205, 206, 207, 208, 111, 237, 113, 114, 115]);
   function onPatchChange(p, value) {
     if (p) {   // undo/redo: every committed change records against the previous value
       const before = prevPatch[p.addr];

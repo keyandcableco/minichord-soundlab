@@ -603,6 +603,7 @@
     23:  { name: "slash level",       affects: "both",   inferred: false },
     113: { name: "slash voice",       affects: "both",   inferred: true  },
     114: { name: "slash re-voice",    affects: "both",   inferred: true  },
+    115: { name: "cantus",            affects: "chords", inferred: true  },
     98:  { name: "chromatic mode",    affects: "harp",   inferred: false },
   };
 
@@ -621,7 +622,12 @@
   // its pitch classes instead. Slash chords are led too now, keeping their bass,
   // and slash voice (addr 113) moves the slash note between voices; the mirror
   // does not model either yet, so a slash chord may read as its plain chord.
-  const voiceLeadingPossible = s => s.voiceLeading || s.potTargets.has(111);
+  // Cantus (addr 115) re-voices the held chord from the harp, which moves its
+  // octaves the same way, so it reads by pitch class too. A passing tone the
+  // harp puts in a voice matches no chord and the shown chord is kept, unless
+  // the notes happen to spell another chord on the grid (A over C, read Am7).
+  const voiceLeadingPossible = s => s.voiceLeading || s.cantus
+    || s.potTargets.has(111) || s.potTargets.has(115);
   const pcOf = n => ((n % 12) + 12) % 12;
   function pcListFromLookup(map) {
     const byKey = new Map();
@@ -651,6 +657,7 @@
       // voice leading places each chord nearest the one before it, so its octaves
       // depend on history the dump does not carry; matched by pitch class instead
       voiceLeading: !!g(111, 0),
+      cantus:       !!g(115, 0),                        // the harp re-voices the chord: read it by pitch class too
       harpMode:  g(36, 0),                              // scalar harp mode, 0 = follow the chord
       customScale: g(236, 0b101010110101),              // the player's own scale, one bit per degree
       // the division of the octave the temperament (addr 237) selects
