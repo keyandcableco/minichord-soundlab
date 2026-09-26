@@ -1011,6 +1011,14 @@ const PARAM_GROUPS = [
           "The harp sets whichever voice can reach its note by the smallest move, so the moving part changes with the line.",
         ],
         explain: { is: "Which chord voice the harp sets, the way slash voice lets a slash set one. Named for the cantus firmus, the fixed line other voices are written around.", does: "The first string of each new harp gesture, a pluck after a moment of quiet, gives that voice its note; the rest of a strum is accompaniment and moves nothing. A chord tone keeps the chord whole: the other voices re-voice around it as little as they can, and in the bass it is a slash chord. Any other note is a passing tone that voice sings alone while the rest hold. The note stays through a chord change when the new chord has it, and lets go otherwise.", tips: "Soprano turns the harp into a melody over your chords; bass into a walking bass under them. The voice moves without retriggering, gliding if the preset glides, and over MPE it arrives as a new note on that voice's own channel. A slash keeps any voice it holds. The harp's own notes never change. Put it on the double tap or a knob to switch voices while playing." } },
+      { addr: 116, name: "Harp rank", card: "Notes & layout", unit: "", min: 1, max: 3, step: 1, type: "int", curve: "linear", def: 1, segmented: true,
+        options: ["1", "2", "3"],
+        optionNotes: [
+          "Steps 1 to 12 of the division, from C.",
+          "Steps 13 to 24.",
+          "Steps 25 to 36, carrying on past the octave where the division ends.",
+        ],
+        explain: { is: "Which twelve steps of the division the chromatic harp plays, like the rows of strings on a triple harp.", does: "In chromatic mode the twelve strings play twelve steps in a row. In 31-EDO that is not an octave, so the division is split into ranks of twelve: 31 has three, 19 has two, and 12 only the one, where this changes nothing. The last rank carries on past the octave, so 31's third rank ends on the next octave's first five steps.", tips: "Put it on the double tap or a knob to move between ranks while playing, the way a triple harpist reaches across the rows. Only in chromatic mode." } },
       { addr: 32, name: "LED brightness", card: "Hardware", unit: "", min: 0, max: 1, step: 0.01, type: "float", curve: "linear", def: 0,
         explain: { is: "Dims the device's LED. 0 = full brightness; higher = dimmer.", does: "Attenuates the LED only, purely cosmetic, no effect on sound.", tips: "Raise it if the LED is too bright in a dark room." } },
     ]
@@ -1615,6 +1623,7 @@ const PARAM_FIRMWARE = {
   111: 12, 112: 12,                       // voice leading and its range
   113: 13, 114: 13,                       // slash voice and slash re-voice
   115: 14,                                // cantus
+  116: 15,                                // harp rank
 };
 
 // "Inert" gates: when a gating control is turned all the way down, the whole
@@ -1687,6 +1696,7 @@ const ADDR_NAMES = {
   113: "Settings · slash voice",
   114: "Settings · slash re-voice",
   115: "Settings · cantus",
+  116: "Settings · harp rank",
   24: "Effects · reverb size",
   25: "Effects · reverb high damping",
   26: "Effects · reverb low damping",

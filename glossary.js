@@ -71,6 +71,7 @@
     major: { short: "The bright-sounding chord quality. Its third sits four semitones above the root.", see: ["minor", "root", "interval"] },
     minor: { short: "The darker chord quality. Its third sits three semitones above the root, one lower than major.", see: ["major", "root", "interval"] },
     diminished: { short: "A tense, unstable chord quality, stacked minor thirds that pull towards resolving.", see: ["major", "minor", "interval"] },
+    rank: { short: "One set of twelve steps for the chromatic harp. 31-EDO has three, like the rows of strings on a triple harp.", long: "Twelve strings cover an octave in 12 but not in 19 or 31, so the chromatic harp plays one rank at a time: steps 1 to 12, 13 to 24 or 25 to 36, the last carrying on into the next octave.", see: ["chromatic"] },
     cantus: { short: "The chord voice the harp is setting. From cantus firmus, the fixed line other voices are written around.", long: "With cantus on, the first string of each harp gesture gives one chord voice its note: a chord tone re-voices the chord around it, any other note is a passing tone in that voice alone.", see: ["slash chord", "voicing"] },
     "slash chord": { short: "A chord played over a different bass note, written like C/G: a C chord with a G underneath.", see: ["root", "voicing"] },
     "Barry Harris": { short: "Jazz pianist and teacher whose 'sixth-diminished' system swaps each chord for its 6th version and pairs it with a diminished chord, so harmony moves in smooth, even steps.", see: ["diminished", "voicing", "diatonic"] },

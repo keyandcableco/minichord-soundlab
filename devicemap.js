@@ -604,6 +604,7 @@
     113: { name: "slash voice",       affects: "both",   inferred: true  },
     114: { name: "slash re-voice",    affects: "both",   inferred: true  },
     115: { name: "cantus",            affects: "chords", inferred: true  },
+    116: { name: "harp rank",         affects: "harp",   inferred: false },
     98:  { name: "chromatic mode",    affects: "harp",   inferred: false },
   };
 
@@ -667,6 +668,7 @@
       barry:     !!g(33, 0),                            // barry harris mode
       flat:      !!g(31, 0),                            // sharp button → flat
       chromatic: !!g(98, 0),                            // chromatic harp
+      harpRank:  g(116, 1),                             // which twelve steps it plays
       harpShuf:  Math.min(6, Math.max(0, g(40, 0))),    // harp shuffling
       chordShuf: Math.min(5, Math.max(0, g(120, 2))),   // chord shuffling
       slashLevel: Math.min(2, Math.max(0, g(23, 0))),   // which voice a slash replaces
@@ -763,6 +765,15 @@
   // neither 19 nor 31 divides 24 steps' worth evenly.
   const toMidi = (steps, s) => (s.edoIdx ? Math.round(steps * 12 / s.edo) : steps);
   const N = s => s.edo || 12;             // steps per octave
+  // The chromatic harp (address 98): one step a string from C two octaves up, from
+  // the start of the harp rank (address 116, firmware 15), which picks the division's
+  // first, second or third twelve steps. A division has as many ranks as it takes
+  // twelve strings to cover it, so in 12 there is only the one and it is string + 24.
+  function chromaticStep(string, s) {
+    const n = N(s), ranks = Math.ceil(n / 12);
+    const rank = Math.min(ranks, Math.max(1, s.harpRank || 1));
+    return 2 * n + 12 * (rank - 1) + string;
+  }
   // The pitch class a colored type's signature tone (TYPE_SIG) arrives at over
   // MIDI, above a root voice at rootMidi. In twelve that is rootMidi + sig; in
   // 19 and 31 the root and the tone are rounded separately, so the interval
@@ -1118,9 +1129,9 @@
     const above = (fromStep, step) => (((step - fromStep) % n) + n) % n;
 
     if (s.chromatic) {
-      // string + 24 steps, moved by the transpose the audio hears
+      // the chromatic step, moved by the transpose the audio hears
       const tonic = spellTonic(s, false);
-      const iv = above(spelledStep(tonic, s), string + 24 + transposeSteps(s));
+      const iv = above(spelledStep(tonic, s), chromaticStep(string, s) + transposeSteps(s));
       return spellInterval(tonic, chromaticDegree(iv, s), iv, s);
     }
 
@@ -1177,7 +1188,7 @@
     // every branch works in steps; the device adds the transpose in semitones
     // after rounding, and so does this
     const out = steps => MIDI_BASE + s.transpose + toMidi(steps, s);
-    if (s.chromatic) return out(string + 24);
+    if (s.chromatic) return out(chromaticStep(string, s));
 
     // the scalar modes, in the same order the firmware tests them
     const mode = s.harpMode | 0;
