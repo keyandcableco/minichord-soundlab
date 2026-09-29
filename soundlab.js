@@ -131,7 +131,7 @@
     });
   }
   function describeValue(p, v) {
-    if (p.optionNotes) return p.optionNotes[v] || "";
+    if (p.optionNotes) return optionNotesOf(p)[v] || "";
     if (p.bands) {
       for (const b of p.bands) if (v <= b.max) return b.text;
       return p.bands[p.bands.length - 1].text;
@@ -173,7 +173,7 @@
   // key it was last told about: no signature and sharp spelling if that was C.
   // setKey early-returns when the key is unchanged, so calling this freely is free.
   // every whole-patch load (device dump, preset, undo) passes through here, so
-  // the note about what the staff can show in 19/31 follows along with the key
+  // the note about what the staff can show in 19, 24 and 31 follows along with the key
   const syncStaffKey = () => { if (staffView) staffView.setKey(patch[35] || 0); updateEdoNotice(); };
   let playRhythmRefresh = null; // repaint fn for the Play tab's own rhythm grid copy
   let playRhythmSetHead = null; // setPlayhead(step|null) for the Play rhythm grid (live sync)
@@ -182,7 +182,7 @@
   let playRhythmWrap = null;    // the .play-rhythm-wrap element (for bank-hue + pot-note)
   let rhythmPotNote = null;     // the rhythm ⚠ chip (shown when a pot drives BPM/cycle/shuffle)
   let portNoticeEl = null;      // single-port notice over the mirror (with the switch button)
-  let edoNoticeEl = null;       // 19/31-EDO without MPE notice over the mirror (with the switch button)
+  let edoNoticeEl = null;       // 19/24/31-EDO without MPE notice over the mirror (with the switch button)
 
   // single-port mode (addr 108) breaks the mirror, grey it out and show the
   // notice + fix button instead of letting it mislabel notes
@@ -302,7 +302,7 @@
       edoNoticeEl = document.createElement("div");
       edoNoticeEl.className = "play-edo-notice";
       const enText = document.createElement("p");
-      enText.textContent = "In 19- and 31-EDO, plain MIDI rounds every note to the nearest semitone, "
+      enText.textContent = "In 19-, 24- and 31-EDO, plain MIDI rounds every note to the nearest semitone, "
         + "so the mirror and the staff can't show the microtonal notation: chords that round alike "
         + "look the same, and the in-between pitches have nothing exact to spell from. MPE output "
         + "(MIDI settings) sends each voice's exact pitch as a bend.";
@@ -1914,6 +1914,19 @@
   // `selOpts.crumb`: the selected label renders like a pinned row, the name on
   // top, its "Domain · Group · Card" path as a faint crumb line beneath,
   // instead of one long dotted string stretching the trigger.
+  // A setting whose list changed with a firmware (the temperaments: firmware 18 put 24-EDO
+  // between 19 and 31) shows the connected device's own list, so the value means what it does there.
+  function legacyApplies(p) {
+    return !!(p.legacyOptions && typeof deviceFirmware !== "undefined" && deviceFirmware != null && deviceFirmware < p.legacyOptions.below);
+  }
+  function optionsOf(p) {
+    if (!legacyApplies(p)) return p.options;
+    return p.options.filter((_, i) => i !== p.legacyOptions.drop);
+  }
+  function optionNotesOf(p) {
+    if (!p.optionNotes || !legacyApplies(p)) return p.optionNotes || [];
+    return p.optionNotes.filter((_, i) => i !== p.legacyOptions.drop);
+  }
   function selectControl(p, override, selOpts) {
     selOpts = selOpts || {};
     const wrap = document.createElement("div");
@@ -1936,7 +1949,7 @@
     list.className = "card-select-list";
     popup.appendChild(list);
 
-    let labels = override ? override.labels.slice() : p.options.slice();
+    let labels = override ? override.labels.slice() : optionsOf(p).slice();
     let values = override ? override.values.slice() : labels.map((_, i) => i);
     let current = patch[p.addr];
     let cb = () => {};
@@ -2660,7 +2673,7 @@
     // a new target has to redraw it
     if (p && p.addr === 200) render();    if (p && p.addr === 35) syncStaffKey();
     if (p && (p.addr === 108 || p.addr === 110)) updatePortNotice();   // MPE makes single-port mode readable
-    if (p && (p.addr === 237 || p.addr === 110)) updateEdoNotice();    // 19/31 need MPE for exact pitches
+    if (p && (p.addr === 237 || p.addr === 110)) updateEdoNotice();    // 19, 24 and 31 need MPE for exact pitches
     // re-fingerprint after the edit settles (undo/redo identifies itself at
     // the end of applyHistState, don't double up mid-restore)
     if (!histApplying) scheduleIdentify();

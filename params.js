@@ -876,9 +876,11 @@ const PARAM_GROUPS = [
     params: [
       { addr: 30, name: "Transpose", card: "Scale & harmony", unit: "st", min: 0, max: 12, step: 1, type: "int", curve: "linear", def: 0,
         explain: { is: "Shifts every sound up by a number of semitones.", does: "Moves the whole instrument's pitch without changing fingering, 12 = a full octave up.", tips: "Use to match a song's key without relearning chord shapes." } },
-      { addr: 237, name: "Temperament", card: "Scale & harmony", unit: "", min: 0, max: 11, step: 1,
+      { addr: 237, name: "Temperament", card: "Scale & harmony", unit: "", min: 0, max: 12, step: 1,
         type: "int", curve: "linear", def: 0,
-        options: ["Equal", "Meantone", "Just", "Pythagorean", "Werckmeister III", "Kirnberger III", "Vallotti", "Young", "Kellner", "1/6 Meantone", "19-EDO", "31-EDO"],
+        options: ["Equal", "Meantone", "Just", "Pythagorean", "Werckmeister III", "Kirnberger III", "Vallotti", "Young", "Kellner", "1/6 Meantone", "19-EDO", "24-EDO", "31-EDO"],
+        // firmware before 18 had 31-EDO at 11 and no 24: the editor shows its list when one is connected
+        legacyOptions: { below: 18, drop: 11 },
         optionNotes: [
           "Twelve identical steps, the default. Every key sounds the same and no interval but the octave is quite in tune: a major third is 13.7 cents wide, the faint beating in a piano chord.",
           "Quarter-comma meantone, what most Renaissance and early Baroque keyboard music was written for. Major thirds are pure and fifths pay for it at 5.4 cents narrow. The wolf sits between G# and Eb: Eb, Bb, F, C, G, D, A and E major are sweet, B, F#, Db and Ab major unusable.",
@@ -891,11 +893,12 @@ const PARAM_GROUPS = [
           "Herbert Anton Kellner's 1977 proposal for the tuning of Bach's Well-Tempered Clavier. Five fifths (C–G, G–D, D–A, A–E and B–F#) narrowed by a fifth of the Pythagorean comma. Thirds from 2.7 cents wide in C major to 21.5 in Db, F# and Ab.",
           "Meantone with fifths narrowed by a sixth of the syntonic comma. Major thirds are 7.2 cents wide instead of pure, and the wolf between G# and Eb shrinks to 16 cents, so more keys are usable. Often associated with Gottfried Silbermann's organs.",
           "Nineteen steps to the octave. The buttons mean exactly what they did, but C# and Db are now different notes a step apart, with C# the lower. Minor thirds land within a cent of pure; fifths pay 7 cents for it.",
+          "Twenty-four steps: twelve, with a quarter-tone between each pair (firmware 18). The buttons and key signatures mean what they always did, and the modifier moves a note by a quarter-tone instead of a semitone, so it plays the notes between the frets. The neutral third, halfway between major and minor, is right there, as are 11:8 and 11:6.",
           "Thirty-one steps. Major thirds essentially exact, and the augmented sixth lands within a cent of the 7:4 harmonic seventh — the interval twelve-note tuning has no room for. Sharps and flats are two steps apart here.",
         ],
         explain: { is: "How the octave is divided and tuned.",
-          does: "Sets the pitch of every note. The first ten keep twelve notes and nudge each by a few cents: the meantones and well temperaments a piano tuner would set, five-limit just intonation and Pythagorean. 19-EDO and 31-EDO divide the octave into more than twelve, so sharps and flats stop being the same pitch.",
-          tips: "Hold a major chord and switch Equal to Meantone \u2014 the third stops beating. For 19 and 31, turn on MPE output (MIDI settings) too: without it the notes reach Sound Lab rounded to the nearest semitone, and the staff can't show the microtonal notation. A keeps the master tuning pitch in the twelve-note tunings, which are anchored on C, so they sound progressively stranger the further you play from it. The well temperaments (Werckmeister, Kirnberger, Vallotti, Young, Kellner) keep every key usable but give each its own colour." } },
+          does: "Sets the pitch of every note. The first ten keep twelve notes and nudge each by a few cents: the meantones and well temperaments a piano tuner would set, five-limit just intonation and Pythagorean. 19-, 24- and 31-EDO divide the octave into more than twelve, so sharps and flats stop being the same pitch.",
+          tips: "Hold a major chord and switch Equal to Meantone \u2014 the third stops beating. For 19, 24 and 31, turn on MPE output (MIDI settings) too: without it the notes reach Sound Lab rounded to the nearest semitone, and the staff can't show the microtonal notation. A keeps the master tuning pitch in the twelve-note tunings, which are anchored on C, so they sound progressively stranger the further you play from it. The well temperaments (Werckmeister, Kirnberger, Vallotti, Young, Kellner) keep every key usable but give each its own colour." } },
       { addr: 35, name: "Key signature", card: "Scale & harmony", unit: "", min: 0, max: 20, step: 1, type: "int", curve: "linear", def: 0, segmented: true,
         options: ["C", "G", "D", "A", "E", "B", "F", "B♭", "E♭", "A♭", "D♭", "G♭",
           "F♯", "C♯", "G♯", "D♯", "A♯", "E♯", "B♯", "F♭", "C♭"],
@@ -1078,6 +1081,9 @@ const PARAM_GROUPS = [
           "Every voice gets its own member channel and its own pitch bend (\u00b148 semitones, declared to the host by RPN 6), so glide records as a real bend curve, and the tempered and divided-octave pitches arrive exactly instead of rounded to the nearest semitone.",
         ],
         explain: { is: "Whether the minichord sends MPE, one MIDI channel per voice.", does: "Chord voices go out on member channels 2 to 5 and the harp strings on 2 to 13 of their own port; with single port mode on they share one, chord on 2 to 5 and strings on 6 to 16. Replaces the chord and harp channels above while it is on.", tips: "Turn it on to record glide, a temperament or 19/31-EDO into an MPE-aware host. The Play mirror reads the bends too: in 19 and 31 they tell apart chords whose notes round to the same semitones (19-EDO B aug and B major), and in single port mode the channels tell the harp from the chords. Sound Lab's own MIDI recorder keeps the notes but not the bends." } },
+      { addr: 238, name: "Knobs send MIDI", card: "Channels & routing", unit: "", min: 0, max: 1, step: 1, type: "int", curve: "linear", def: 0,
+        options: ["Off", "On"],
+        explain: { is: "Whether the three knobs send their positions over MIDI.", does: "On: each knob sends a controller as it turns (CC 20, 21 and 22, on the chord channel), and keeps doing its usual job too. Minichord Lab's knob games use it to steer.", tips: "Leave it off unless something on the computer is listening for the knobs." } },
     ]
   },
   /* ---------------------------------------------------------------------- */
@@ -1108,6 +1114,14 @@ const PARAM_GROUPS = [
         explain: { is: "Which setting two quick taps of the modifier button toggle.", does: "Zero leaves the gesture switched off. Any other address is toggled between its stored value and the one below, and back again on the next double tap.", tips: "Set it to 39 to flip chord layouts while playing, or point it at Barry Harris mode, an inversion, a harp scale \u2014 anything with an address. The LED breathes slowly while a toggle is engaged." } },
       { addr: 201, name: "Double tap value", card: "Double tap", unit: "", min: 0, max: 4095, step: 1, type: "int", curve: "linear", def: 1, followsTarget: 200,
         explain: { is: "The value the double tap applies.", does: "Tapping again puts back whatever was there before, so it toggles away from your setting and back rather than to a fixed default.", tips: "This control follows whatever the target is set to, so once you pick a target it asks for that setting's own values rather than a number." } },
+      { addr: 209, name: "Double tap target 2", card: "Double tap", unit: "", min: 0, max: 219, step: 1, type: "int", curve: "linear", def: 0, targetSelect: true,
+        explain: { is: "A second setting the double tap toggles, at the same time as the first.", does: "One double tap applies every assigned pair and the next puts them all back, so a preset can turn over to its other side: the alternate chord layout, a harp mode and the knobs' alternates together, say. Zero leaves this pair unused.", tips: "Chord layout on the first pair, a harp mode here, and knob layer on the third makes a whole B side." } },
+      { addr: 210, name: "Double tap value 2", card: "Double tap", unit: "", min: 0, max: 4095, step: 1, type: "int", curve: "linear", def: 1, followsTarget: 209,
+        explain: { is: "The value the double tap applies to its second target.", does: "Tapping again puts back whatever was there before.", tips: "" } },
+      { addr: 211, name: "Double tap target 3", card: "Double tap", unit: "", min: 0, max: 219, step: 1, type: "int", curve: "linear", def: 0, targetSelect: true,
+        explain: { is: "A third setting the double tap toggles at the same time.", does: "Zero leaves this pair unused. A pair on a setting an earlier pair already took is skipped.", tips: "" } },
+      { addr: 212, name: "Double tap value 3", card: "Double tap", unit: "", min: 0, max: 4095, step: 1, type: "int", curve: "linear", def: 1, followsTarget: 211,
+        explain: { is: "The value the double tap applies to its third target.", does: "Tapping again puts back whatever was there before.", tips: "" } },
       { addr: 14, name: "Target", card: "Mod knob (main)", unit: "", min: 0, max: 219, step: 1, type: "int", curve: "linear", def: 0, targetSelect: true,
         explain: { is: "Which parameter the modulation knob's main function controls.", does: "Picks the target the mod knob sweeps as you turn it. 'None' leaves it unassigned.", tips: "Assign an expressive parameter (filter cutoff, vibrato depth…) for live control." } },
       { addr: 15, name: "Range", card: "Mod knob (main)", unit: "%", min: 0, max: 100, step: 1, type: "int", curve: "linear", def: 100,
@@ -1116,6 +1130,9 @@ const PARAM_GROUPS = [
         explain: { is: "Which parameter the modulation knob's alternate function controls.", does: "The second target the mod knob can sweep (alternate mode).", tips: "Pair a main + alternate target for two assignments on one knob." } },
       { addr: 17, name: "Range", card: "Mod knob (alt)", unit: "%", min: 0, max: 100, step: 1, type: "int", curve: "linear", def: 100,
         explain: { is: "Sweep range of the mod knob's alternate function.", does: "100% = full range; lower = a finer sweep.", tips: "Match to how much movement the alternate target needs." } },
+      { addr: 117, name: "Knob layer", card: "Knob layer", unit: "", min: 0, max: 1, step: 1, type: "int", curve: "linear", def: 0,
+        options: ["Main", "Alternates"],
+        explain: { is: "Which functions the three knobs play.", does: "Main: their main functions, with the modifier held for their alternates, as always. Alternates: the knobs play their alternate functions and the modifier only sharpens, so an alternate can be turned while chords sound. The LED shows the preset's colour pale while it's on Alternates.", tips: "Give the double tap this setting (value 1) to flip the knobs between layers while playing, or make it one of a double tap's three pairs to turn a whole preset over to its other side." } },
       { addr: 10, name: "Target", card: "Chord knob (alt)", unit: "", min: 0, max: 219, step: 1, type: "int", curve: "linear", def: 0, targetSelect: true,
         explain: { is: "Which parameter the chord knob's alternate function controls.", does: "Picks the target the chord knob sweeps in its alternate mode.", tips: "Useful for tweaking a chord-voice parameter live." } },
       { addr: 11, name: "Range", card: "Chord knob (alt)", unit: "%", min: 0, max: 100, step: 1, type: "int", curve: "linear", def: 100,
@@ -1624,6 +1641,9 @@ const PARAM_FIRMWARE = {
   113: 13, 114: 13,                       // slash voice and slash re-voice
   115: 14,                                // cantus
   116: 15,                                // harp rank
+  238: 17,                                // knobs send MIDI
+  117: 19,                                // knob layer
+  209: 19, 210: 19, 211: 19, 212: 19,     // the double tap's second and third pairs
 };
 
 // "Inert" gates: when a gating control is turned all the way down, the whole
@@ -1684,6 +1704,10 @@ const ADDR_NAMES = {
   208: "Chord layout · alt all three",
   200: "Chord layout · double tap target",
   201: "Chord layout · double tap value",
+  209: "Chord layout · double tap target 2",
+  210: "Chord layout · double tap value 2",
+  211: "Chord layout · double tap target 3",
+  212: "Chord layout · double tap value 3",
   236: "Scale & harmony · custom scale",
   109: "Settings · master tuning",
   237: "Settings · temperament",
@@ -1697,6 +1721,7 @@ const ADDR_NAMES = {
   114: "Settings · slash re-voice",
   115: "Settings · cantus",
   116: "Settings · harp rank",
+  117: "Settings · knob layer",
   24: "Effects · reverb size",
   25: "Effects · reverb high damping",
   26: "Effects · reverb low damping",

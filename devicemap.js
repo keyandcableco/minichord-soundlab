@@ -221,11 +221,12 @@
       out += n === 2 ? (h[7] < 0 ? "\ue2e0" : "\ue2e1") : pair(h[7], "\ue2de", "\ue2df");
     }
     const arrows = h[5] || 0, alt = sp.alt;
-    if (arrows && Math.abs(arrows) <= 3 && Math.abs(alt) <= 2) {
+    if (arrows && Math.abs(arrows) <= 3 && Math.abs(alt) <= 2 && Number.isInteger(alt)) {   // (a quarter-tone takes its own glyph, below)
       const block = 0xE2C0 + (Math.abs(arrows) - 1) * 10 + (arrows > 0 ? 5 : 0);
       out += String.fromCharCode(block + alt + 2);
     } else {
-      out += alt ? ({ "-2": SMUFL.dflat, "-1": SMUFL.flat, "1": SMUFL.sharp, "2": SMUFL.dsharp }[String(alt)] || "") : "";
+      out += alt ? ({ "-2": SMUFL.dflat, "-1": SMUFL.flat, "1": SMUFL.sharp, "2": SMUFL.dsharp,
+                      "0.5": SMUFL.qsharp, "-0.5": SMUFL.qflat, "1.5": SMUFL.tqsharp, "-1.5": SMUFL.tqflat }[String(alt)] || "") : "";
     }
     return out;
   }
@@ -286,7 +287,7 @@
     const shift = (((sk.tonic - KEY_TONIC[Math.max(0, Math.min(20, s.key | 0))]) % 7) + 7) % 7;
     const letter = (BTN_LETTER[button] + shift) % 7;
     let alt = keyAlt(sk.acc, sk.count, letter);
-    if (sharpHeld) alt += s.flat ? -1 : 1;
+    if (sharpHeld) alt += (s.flat ? -1 : 1) * ((s.modStep || 1) / (s.sharpStep || 1));   // half a sharp in 24
     return { letter, alt };
   }
 
@@ -663,7 +664,7 @@
       harpMode:  g(36, 0),                              // scalar harp mode, 0 = follow the chord
       customScale: g(236, 0b101010110101),              // the player's own scale, one bit per degree
       // the division of the octave the temperament (addr 237) selects
-      edoIdx:    edoIndexOf(g(237, 0)),
+      edoIdx:    edoIndexOf(g(237, 0), g(7, 0)),
       transpose: g(30, 0),                              // semitones
       shift:     Math.min(6, Math.max(0, g(34, 0))),    // chord frame shift
       barry:     !!g(33, 0),                            // barry harris mode
@@ -694,66 +695,66 @@
     };
     s.edo = EDO_STEPS[s.edoIdx];
     s.sharpStep = EDO_SHARP[s.edoIdx];
+    s.modStep = EDO_MODIFIER[s.edoIdx];
     return s;
   }
 
   /* ---- the divided octaves -------------------------------------------------
-   * The firmware's tables for 19- and 31-EDO (gen_edo.py, from interval names),
-   * beside the twelve-note ones above, which are their first rows. The device
+   * The firmware's tables for 19-, 31- and 24-EDO (in that order, the firmware's
+   * edo_index; gen_edo.py, from interval names), beside the twelve-note ones
+   * above, which are their first rows. 24 is twelve doubled, the just and neutral
+   * chords rounded from their ratios. The device
    * builds every note in steps of the live division and rounds to the nearest
    * semitone only on the way out to MIDI, so the mirror does the same: every
    * pitch below is computed in steps and converted by toMidi() at the end. The
    * twelve-note temperaments (1-9) retune the same twelve steps and change
    * nothing here. */
-  const EDO_STEPS = [12, 19, 31];
-  const EDO_SHARP = [1, 1, 2];          // steps a sharp or flat moves a letter
-  const EDO_FIFTH = [7, 11, 18];
+  const EDO_STEPS = [12, 19, 31, 24];
+  const EDO_SHARP = [1, 1, 2, 2];       // steps a key signature's sharp or flat moves a letter
+  // steps the MODIFIER moves a letter: the same, except in 24, where it is one step, a quarter-tone
+  // (24 holds twelve, so a semitone modifier would only double twelve; firmware 18)
+  const EDO_MODIFIER = [1, 1, 2, 1];
+  const EDO_FIFTH = [7, 11, 18, 14];
   // natural steps of C D E F G A B: the same letters in any meantone division
-  const LETTER_STEPS = [[0, 2, 4, 5, 7, 9, 11], [0, 3, 6, 8, 11, 14, 17], [0, 5, 10, 13, 18, 23, 28]];
+  const LETTER_STEPS = [[0, 2, 4, 5, 7, 9, 11], [0, 3, 6, 8, 11, 14, 17], [0, 5, 10, 13, 18, 23, 28], [0, 4, 8, 10, 14, 18, 22]];
   const EDO_CHORD = {
-    major: [[0, 4, 7, 12, 2, 5, 9], [0, 6, 11, 19, 3, 8, 14], [0, 10, 18, 31, 5, 13, 23]],
-    minor: [[0, 3, 7, 12, 1, 5, 8], [0, 5, 11, 19, 2, 8, 13], [0, 8, 18, 31, 3, 13, 21]],
-    maj_sixth: [[0, 4, 7, 9, 2, 5, 12], [0, 6, 11, 14, 3, 8, 19], [0, 10, 18, 23, 5, 13, 31]],
-    min_sixth: [[0, 3, 7, 9, 1, 5, 12], [0, 5, 11, 14, 2, 8, 19], [0, 8, 18, 23, 3, 13, 31]],
-    seventh: [[0, 4, 10, 7, 2, 5, 9], [0, 6, 16, 11, 3, 8, 14], [0, 10, 26, 18, 5, 13, 23]],
-    maj_seventh: [[0, 4, 11, 7, 2, 5, 9], [0, 6, 17, 11, 3, 8, 14], [0, 10, 28, 18, 5, 13, 23]],
-    half_dim: [[0, 3, 6, 10, 2, 5, 8], [0, 5, 10, 16, 3, 8, 13], [0, 8, 16, 26, 5, 13, 21]],
-    sus_fourth: [[0, 5, 7, 12, 2, 9, 10], [0, 8, 11, 19, 3, 14, 16], [0, 13, 18, 31, 5, 23, 26]],
-    sus_second: [[0, 2, 7, 12, 5, 9, 4], [0, 3, 11, 19, 8, 14, 6], [0, 5, 18, 31, 13, 23, 10]],
-    seventh_sus: [[0, 5, 10, 7, 2, 9, 4], [0, 8, 16, 11, 3, 14, 6], [0, 13, 26, 18, 5, 23, 10]],
-    major_ninth: [[0, 4, 11, 2, 7, 5, 9], [0, 6, 17, 3, 11, 8, 14], [0, 10, 28, 5, 18, 13, 23]],
-    subminor_seventh: [[0, 3, 7, 10, 2, 5, 9], [0, 4, 11, 15, 3, 7, 14], [0, 7, 18, 25, 5, 12, 23]],
-    utonal_tetrad: [[0, 3, 6, 10, 2, 5, 8], [0, 4, 9, 15, 3, 8, 13], [0, 7, 15, 25, 5, 13, 21]],
-    harmonic_ninth: [[0, 2, 4, 10, 7, 6, 8], [0, 3, 6, 15, 11, 9, 13], [0, 5, 10, 25, 18, 14, 22]],
-    neutral_seventh: [[0, 3, 7, 10, 2, 6, 9], [0, 6, 11, 17, 2, 9, 13], [0, 9, 18, 27, 4, 14, 22]],
-    otonal_hexad: [[0, 4, 7, 10, 2, 6, 12], [0, 6, 11, 15, 3, 9, 19], [0, 10, 18, 25, 5, 14, 31]],
-    just_augmented: [[0, 4, 8, 12, 2, 6, 12], [0, 6, 12, 19, 3, 9, 18], [0, 10, 20, 31, 5, 15, 30]],
-    supermajor_seventh: [[0, 4, 7, 11, 2, 5, 9], [0, 7, 11, 18, 4, 8, 15], [0, 11, 18, 29, 6, 13, 24]],
-    minor_ninth: [[0, 3, 10, 2, 7, 5, 8], [0, 5, 16, 3, 11, 8, 13], [0, 8, 26, 5, 18, 13, 21]],
-    added_ninth: [[0, 4, 7, 2, 5, 9, 11], [0, 6, 11, 3, 8, 14, 17], [0, 10, 18, 5, 13, 23, 28]],
-    six_nine: [[0, 4, 9, 2, 7, 5, 11], [0, 6, 14, 3, 11, 8, 17], [0, 10, 23, 5, 18, 13, 28]],
-    min_seventh: [[0, 3, 10, 7, 1, 5, 8], [0, 5, 16, 11, 2, 8, 13], [0, 8, 26, 18, 3, 13, 21]],
-    aug: [[0, 4, 8, 12, 2, 5, 9], [0, 6, 12, 19, 3, 8, 14], [0, 10, 20, 31, 5, 13, 23]],
-    dim: [[0, 3, 6, 12, 2, 5, 9], [0, 5, 10, 19, 3, 8, 14], [0, 8, 16, 31, 5, 13, 23]],
-    full_dim: [[0, 3, 6, 9, 2, 5, 12], [0, 5, 10, 15, 3, 8, 19], [0, 8, 16, 24, 5, 13, 31]],
-    neutral: [[0, 3, 7, 12, 2, 5, 9], [0, 6, 11, 19, 3, 8, 14], [0, 9, 18, 31, 5, 13, 23]],
-    harmonic_7th: [[0, 4, 10, 7, 2, 5, 9], [0, 6, 15, 11, 3, 8, 14], [0, 10, 25, 18, 5, 13, 23]],
-    subminor: [[0, 3, 7, 12, 2, 5, 9], [0, 4, 11, 19, 3, 8, 14], [0, 7, 18, 31, 5, 13, 23]],
-    supermajor: [[0, 4, 7, 12, 2, 5, 9], [0, 7, 11, 19, 3, 8, 14], [0, 11, 18, 31, 5, 13, 23]],
+    major: [[0,  4,  7,  12,  2,  5,  9],  [0,  6,  11,  19,  3,  8,  14],  [0,  10,  18,  31,  5,  13,  23],  [0,  8,  14,  24,  4,  10,  18]],
+    minor: [[0,  3,  7,  12,  1,  5,  8],  [0,  5,  11,  19,  2,  8,  13],  [0,  8,  18,  31,  3,  13,  21],  [0,  6,  14,  24,  2,  10,  16]],
+    maj_sixth: [[0,  4,  7,  9,  2,  5,  12],  [0,  6,  11,  14,  3,  8,  19],  [0,  10,  18,  23,  5,  13,  31],  [0,  8,  14,  18,  4,  10,  24]],
+    min_sixth: [[0,  3,  7,  9,  1,  5,  12],  [0,  5,  11,  14,  2,  8,  19],  [0,  8,  18,  23,  3,  13,  31],  [0,  6,  14,  18,  2,  10,  24]],
+    seventh: [[0,  4,  10,  7,  2,  5,  9],  [0,  6,  16,  11,  3,  8,  14],  [0,  10,  26,  18,  5,  13,  23],  [0,  8,  20,  14,  4,  10,  18]],
+    maj_seventh: [[0,  4,  11,  7,  2,  5,  9],  [0,  6,  17,  11,  3,  8,  14],  [0,  10,  28,  18,  5,  13,  23],  [0,  8,  22,  14,  4,  10,  18]],
+    half_dim: [[0,  3,  6,  10,  2,  5,  8],  [0,  5,  10,  16,  3,  8,  13],  [0,  8,  16,  26,  5,  13,  21],  [0,  6,  12,  20,  4,  10,  16]],
+    sus_fourth: [[0,  5,  7,  12,  2,  9,  10],  [0,  8,  11,  19,  3,  14,  16],  [0,  13,  18,  31,  5,  23,  26],  [0,  10,  14,  24,  4,  18,  20]],
+    sus_second: [[0,  2,  7,  12,  5,  9,  4],  [0,  3,  11,  19,  8,  14,  6],  [0,  5,  18,  31,  13,  23,  10],  [0,  4,  14,  24,  10,  18,  8]],
+    seventh_sus: [[0,  5,  10,  7,  2,  9,  4],  [0,  8,  16,  11,  3,  14,  6],  [0,  13,  26,  18,  5,  23,  10],  [0,  10,  20,  14,  4,  18,  8]],
+    major_ninth: [[0,  4,  11,  2,  7,  5,  9],  [0,  6,  17,  3,  11,  8,  14],  [0,  10,  28,  5,  18,  13,  23],  [0,  8,  22,  4,  14,  10,  18]],
+    subminor_seventh: [[0,  3,  7,  10,  2,  5,  9],  [0,  4,  11,  15,  3,  7,  14],  [0,  7,  18,  25,  5,  12,  23],  [0,  5,  14,  19,  4,  9,  18]],
+    utonal_tetrad: [[0,  3,  6,  10,  2,  5,  8],  [0,  4,  9,  15,  3,  8,  13],  [0,  7,  15,  25,  5,  13,  21],  [0,  5,  12,  19,  4,  10,  16]],
+    harmonic_ninth: [[0,  2,  4,  10,  7,  6,  8],  [0,  3,  6,  15,  11,  9,  13],  [0,  5,  10,  25,  18,  14,  22],  [0,  4,  8,  19,  14,  11,  17]],
+    neutral_seventh: [[0,  3,  7,  10,  2,  6,  9],  [0,  6,  11,  17,  2,  9,  13],  [0,  9,  18,  27,  4,  14,  22],  [0,  7,  14,  21,  3,  11,  17]],
+    otonal_hexad: [[0,  4,  7,  10,  2,  6,  12],  [0,  6,  11,  15,  3,  9,  19],  [0,  10,  18,  25,  5,  14,  31],  [0,  8,  14,  19,  4,  11,  24]],
+    just_augmented: [[0,  4,  8,  12,  2,  6,  12],  [0,  6,  12,  19,  3,  9,  18],  [0,  10,  20,  31,  5,  15,  30],  [0,  8,  15,  24,  4,  12,  23]],
+    supermajor_seventh: [[0,  4,  7,  11,  2,  5,  9],  [0,  7,  11,  18,  4,  8,  15],  [0,  11,  18,  29,  6,  13,  24],  [0,  9,  14,  23,  5,  10,  19]],
+    minor_ninth: [[0,  3,  10,  2,  7,  5,  8],  [0,  5,  16,  3,  11,  8,  13],  [0,  8,  26,  5,  18,  13,  21],  [0,  6,  20,  4,  14,  10,  16]],
+    added_ninth: [[0,  4,  7,  2,  5,  9,  11],  [0,  6,  11,  3,  8,  14,  17],  [0,  10,  18,  5,  13,  23,  28],  [0,  8,  14,  4,  10,  18,  22]],
+    six_nine: [[0,  4,  9,  2,  7,  5,  11],  [0,  6,  14,  3,  11,  8,  17],  [0,  10,  23,  5,  18,  13,  28],  [0,  8,  18,  4,  14,  10,  22]],
+    min_seventh: [[0,  3,  10,  7,  1,  5,  8],  [0,  5,  16,  11,  2,  8,  13],  [0,  8,  26,  18,  3,  13,  21],  [0,  6,  20,  14,  2,  10,  16]],
+    aug: [[0,  4,  8,  12,  2,  5,  9],  [0,  6,  12,  19,  3,  8,  14],  [0,  10,  20,  31,  5,  13,  23],  [0,  8,  16,  24,  4,  10,  18]],
+    dim: [[0,  3,  6,  12,  2,  5,  9],  [0,  5,  10,  19,  3,  8,  14],  [0,  8,  16,  31,  5,  13,  23],  [0,  6,  12,  24,  4,  10,  18]],
+    full_dim: [[0,  3,  6,  9,  2,  5,  12],  [0,  5,  10,  15,  3,  8,  19],  [0,  8,  16,  24,  5,  13,  31],  [0,  6,  12,  18,  4,  10,  24]],
+    neutral: [[0,  3,  7,  12,  2,  5,  9],  [0,  6,  11,  19,  3,  8,  14],  [0,  9,  18,  31,  5,  13,  23],  [0,  7,  14,  24,  4,  10,  18]],
+    harmonic_7th: [[0,  4,  10,  7,  2,  5,  9],  [0,  6,  15,  11,  3,  8,  14],  [0,  10,  25,  18,  5,  13,  23],  [0,  8,  19,  14,  4,  10,  18]],
+    subminor: [[0,  3,  7,  12,  2,  5,  9],  [0,  4,  11,  19,  3,  8,  14],  [0,  7,  18,  31,  5,  13,  23],  [0,  5,  14,  24,  4,  10,  18]],
+    supermajor: [[0,  4,  7,  12,  2,  5,  9],  [0,  7,  11,  19,  3,  8,  14],  [0,  11,  18,  31,  5,  13,  23],  [0,  9,  14,  24,  4,  10,  18]],
   };
-  const EDO_BASE_NOTES = [[11, 4, 9, 2, 7, 0, 5], [17, 6, 14, 3, 11, 0, 8], [28, 10, 23, 5, 18, 0, 13]];
-  const EDO_SCALE_ROOT_OFFSETS = [
-    [0, 7, 2, 9, 4, 11, 5, 10, 3, 8, 1, 6, 6, 1, 8, 3, 10, 5, 0, 4, 11],
-    [0, 11, 3, 14, 6, 17, 8, 16, 5, 13, 2, 10, 9, 1, 12, 4, 15, 7, 18, 7, 18],
-    [0, 18, 5, 23, 10, 28, 13, 26, 8, 21, 3, 16, 15, 2, 20, 7, 25, 12, 30, 11, 29]];
-  const EDO_SCALE_INTERVALS = [[[0, 2, 4, 5, 7, 9, 11], [0, 2, 4, 7, 9], [0, 2, 3, 7, 10], [0, 2, 4, 5, 7, 8, 9, 11], [0, 2, 3, 5, 7, 8, 10], [0, 2, 3, 5, 7, 8, 11], [0, 2, 3, 7, 10]],
-    [[0, 3, 6, 8, 11, 14, 17], [0, 3, 6, 11, 14], [0, 3, 5, 11, 16], [0, 3, 6, 8, 11, 13, 14, 17], [0, 3, 5, 8, 11, 13, 16], [0, 3, 5, 8, 11, 13, 17], [0, 3, 5, 11, 16]],
-    [[0, 5, 10, 13, 18, 23, 28], [0, 5, 10, 18, 23], [0, 5, 8, 18, 26], [0, 5, 10, 13, 18, 21, 23, 28], [0, 5, 8, 13, 18, 21, 26], [0, 5, 8, 13, 18, 21, 28], [0, 5, 8, 18, 26]]];
-  const EDO_CHORD_SCALE_INTERVALS = [[[0, 2, 4, 7, 9], [0, 2, 4, 6, 9], [0, 3, 5, 7, 10], [0, 2, 4, 7, 10], [0, 3, 5, 7, 9], [0, 1, 3, 4, 6, 7, 9, 10], [0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 7, 8, 9, 11], [0, 2, 3, 5, 7, 8, 9, 11], [0, 2, 3, 4, 6, 7, 9, 11], [0, 2, 4, 5, 7, 9, 11], [0, 2, 3, 5, 7, 9, 10], [0, 2, 4, 6, 7, 9, 11], [0, 2, 4, 5, 7, 9, 10], [0, 2, 3, 5, 7, 8, 10], [0, 2, 5, 7, 9], [0, 2, 5, 7, 10], [0, 3, 5, 6, 10], [0, 1, 3, 5, 6, 8, 10]],
-    [[0, 3, 6, 11, 14], [0, 3, 6, 9, 14], [0, 5, 8, 11, 16], [0, 3, 6, 11, 16], [0, 5, 8, 11, 14], [0, 2, 5, 6, 10, 11, 14, 16], [0, 3, 6, 9, 12, 15], [0, 3, 6, 8, 11, 13, 14, 17], [0, 3, 5, 8, 11, 13, 14, 17], [0, 3, 5, 6, 10, 11, 15, 17], [0, 3, 6, 8, 11, 14, 17], [0, 3, 5, 8, 11, 14, 16], [0, 3, 6, 9, 11, 14, 17], [0, 3, 6, 8, 11, 14, 16], [0, 3, 5, 8, 11, 13, 16], [0, 3, 8, 11, 14], [0, 3, 8, 11, 16], [0, 5, 8, 10, 16], [0, 2, 5, 8, 10, 13, 16]],
-    [[0, 5, 10, 18, 23], [0, 5, 10, 15, 23], [0, 8, 13, 18, 26], [0, 5, 10, 18, 26], [0, 8, 13, 18, 23], [0, 3, 8, 10, 16, 18, 23, 26], [0, 5, 10, 15, 20, 25], [0, 5, 10, 13, 18, 21, 23, 28], [0, 5, 8, 13, 18, 21, 23, 28], [0, 5, 8, 10, 16, 18, 24, 28], [0, 5, 10, 13, 18, 23, 28], [0, 5, 8, 13, 18, 23, 26], [0, 5, 10, 15, 18, 23, 28], [0, 5, 10, 13, 18, 23, 26], [0, 5, 8, 13, 18, 21, 26], [0, 5, 13, 18, 23], [0, 5, 13, 18, 26], [0, 8, 13, 16, 26], [0, 3, 8, 13, 16, 21, 26]]];
-  // temperament (addr 237) → which division: 10 is 19-EDO, 11 is 31-EDO
-  const edoIndexOf = t => (t === 10 ? 1 : (t === 11 ? 2 : 0));
+  const EDO_BASE_NOTES = [[11,  4,  9,  2,  7,  0,  5],  [17,  6,  14,  3,  11,  0,  8],  [28,  10,  23,  5,  18,  0,  13],  [22,  8,  18,  4,  14,  0,  10]];
+  const EDO_SCALE_ROOT_OFFSETS = [[0,  7,  2,  9,  4,  11,  5,  10,  3,  8,  1,  6,  6,  1,  8,  3,  10,  5,  0,  4,  11],  [0,  11,  3,  14,  6,  17,  8,  16,  5,  13,  2,  10,  9,  1,  12,  4,  15,  7,  18,  7,  18],  [0,  18,  5,  23,  10,  28,  13,  26,  8,  21,  3,  16,  15,  2,  20,  7,  25,  12,  30,  11,  29],  [0,  14,  4,  18,  8,  22,  10,  20,  6,  16,  2,  12,  12,  2,  16,  6,  20,  10,  0,  8,  22]];
+  const EDO_SCALE_INTERVALS = [[[0,  2,  4,  5,  7,  9,  11],  [0,  2,  4,  7,  9],  [0,  2,  3,  7,  10],  [0,  2,  4,  5,  7,  8,  9,  11],  [0,  2,  3,  5,  7,  8,  10],  [0,  2,  3,  5,  7,  8,  11],  [0,  2,  3,  7,  10]],  [[0,  3,  6,  8,  11,  14,  17],  [0,  3,  6,  11,  14],  [0,  3,  5,  11,  16],  [0,  3,  6,  8,  11,  13,  14,  17],  [0,  3,  5,  8,  11,  13,  16],  [0,  3,  5,  8,  11,  13,  17],  [0,  3,  5,  11,  16]],  [[0,  5,  10,  13,  18,  23,  28],  [0,  5,  10,  18,  23],  [0,  5,  8,  18,  26],  [0,  5,  10,  13,  18,  21,  23,  28],  [0,  5,  8,  13,  18,  21,  26],  [0,  5,  8,  13,  18,  21,  28],  [0,  5,  8,  18,  26]],  [[0,  4,  8,  10,  14,  18,  22],  [0,  4,  8,  14,  18],  [0,  4,  6,  14,  20],  [0,  4,  8,  10,  14,  16,  18,  22],  [0,  4,  6,  10,  14,  16,  20],  [0,  4,  6,  10,  14,  16,  22],  [0,  4,  6,  14,  20]]];
+  const EDO_CHORD_SCALE_INTERVALS = [[[0,  2,  4,  7,  9],  [0,  2,  4,  6,  9],  [0,  3,  5,  7,  10],  [0,  2,  4,  7,  10],  [0,  3,  5,  7,  9],  [0,  1,  3,  4,  6,  7,  9,  10],  [0,  2,  4,  6,  8,  10],  [0,  2,  4,  5,  7,  8,  9,  11],  [0,  2,  3,  5,  7,  8,  9,  11],  [0,  2,  3,  4,  6,  7,  9,  11],  [0,  2,  4,  5,  7,  9,  11],  [0,  2,  3,  5,  7,  9,  10],  [0,  2,  4,  6,  7,  9,  11],  [0,  2,  4,  5,  7,  9,  10],  [0,  2,  3,  5,  7,  8,  10],  [0,  2,  5,  7,  9],  [0,  2,  5,  7,  10],  [0,  3,  5,  6,  10],  [0,  1,  3,  5,  6,  8,  10]],  [[0,  3,  6,  11,  14],  [0,  3,  6,  9,  14],  [0,  5,  8,  11,  16],  [0,  3,  6,  11,  16],  [0,  5,  8,  11,  14],  [0,  2,  5,  6,  10,  11,  14,  16],  [0,  3,  6,  9,  12,  15],  [0,  3,  6,  8,  11,  13,  14,  17],  [0,  3,  5,  8,  11,  13,  14,  17],  [0,  3,  5,  6,  10,  11,  15,  17],  [0,  3,  6,  8,  11,  14,  17],  [0,  3,  5,  8,  11,  14,  16],  [0,  3,  6,  9,  11,  14,  17],  [0,  3,  6,  8,  11,  14,  16],  [0,  3,  5,  8,  11,  13,  16],  [0,  3,  8,  11,  14],  [0,  3,  8,  11,  16],  [0,  5,  8,  10,  16],  [0,  2,  5,  8,  10,  13,  16]],  [[0,  5,  10,  18,  23],  [0,  5,  10,  15,  23],  [0,  8,  13,  18,  26],  [0,  5,  10,  18,  26],  [0,  8,  13,  18,  23],  [0,  3,  8,  10,  16,  18,  23,  26],  [0,  5,  10,  15,  20,  25],  [0,  5,  10,  13,  18,  21,  23,  28],  [0,  5,  8,  13,  18,  21,  23,  28],  [0,  5,  8,  10,  16,  18,  24,  28],  [0,  5,  10,  13,  18,  23,  28],  [0,  5,  8,  13,  18,  23,  26],  [0,  5,  10,  15,  18,  23,  28],  [0,  5,  10,  13,  18,  23,  26],  [0,  5,  8,  13,  18,  21,  26],  [0,  5,  13,  18,  23],  [0,  5,  13,  18,  26],  [0,  8,  13,  16,  26],  [0,  3,  8,  13,  16,  21,  26]],  [[0,  4,  8,  14,  18],  [0,  4,  8,  12,  18],  [0,  6,  10,  14,  20],  [0,  4,  8,  14,  20],  [0,  6,  10,  14,  18],  [0,  2,  6,  8,  12,  14,  18,  20],  [0,  4,  8,  12,  16,  20],  [0,  4,  8,  10,  14,  16,  18,  22],  [0,  4,  6,  10,  14,  16,  18,  22],  [0,  4,  6,  8,  12,  14,  18,  22],  [0,  4,  8,  10,  14,  18,  22],  [0,  4,  6,  10,  14,  18,  20],  [0,  4,  8,  12,  14,  18,  22],  [0,  4,  8,  10,  14,  18,  20],  [0,  4,  6,  10,  14,  16,  20],  [0,  4,  10,  14,  18],  [0,  4,  10,  14,  20],  [0,  6,  10,  12,  20],  [0,  2,  6,  10,  12,  16,  20]]];
+  // temperament (addr 237) → which division. Firmware 18 put 24-EDO between the two:
+  // 10 is 19-EDO, 11 is 24-EDO and 12 is 31-EDO; before it, 11 was 31-EDO.
+  const edoIndexOf = (t, fw) => (t === 10 ? 1 : fw >= 18 ? (t === 11 ? 3 : t === 12 ? 2 : 0) : (t === 11 ? 2 : 0));
   const TABLE_TYPE = new Map(Object.keys(CHORD).map(k => [CHORD[k], k]));
   // a chord table, in steps of the live division
   function edoTable(table, s) {
@@ -762,9 +763,9 @@
     return type ? EDO_CHORD[type][s.edoIdx] : table;
   }
   const edoType = (type, s) => (s.edoIdx ? EDO_CHORD[type][s.edoIdx] : CHORD[type]);
-  // midi_out_note(): steps to the nearest semitone. Never lands on a half:
-  // neither 19 nor 31 divides 24 steps' worth evenly.
-  const toMidi = (steps, s) => (s.edoIdx ? Math.round(steps * 12 / s.edo) : steps);
+  // midi_out_note(): steps to the nearest semitone, as lroundf does it. In 19 and 31
+  // it never lands on a half; in 24 every quarter-tone does, and rounds away from zero.
+  const toMidi = (steps, s) => { if (!s.edoIdx) return steps; const v = steps * 12 / s.edo; return Math.sign(v) * Math.round(Math.abs(v)); };
   const N = s => s.edo || 12;             // steps per octave
   // The chromatic harp (address 98): one step a string from C two octaves up, from
   // the start of the harp rank (address 116, firmware 15), which picks the division's
@@ -788,7 +789,8 @@
     const d = toMidi(r + EDO_CHORD[type][s.edoIdx][k], s) - toMidi(r, s);
     return (((rootMidi + d) % 12) + 12) % 12;
   }
-  const SH = s => s.sharpStep || 1;       // steps per sharp
+  const SH = s => s.sharpStep || 1;       // steps per sharp (a key signature's)
+  const MOD = s => s.modStep || SH(s);     // steps the modifier moves a note: a quarter-tone in 24
   // transpose_steps = (transpose_semitones * EDO + 6) / 12, integer division
   const transposeSteps = s => (s.edoIdx ? Math.trunc(((s.transpose | 0) * s.edo + 6) / 12) : (s.transpose | 0));
 
@@ -966,7 +968,7 @@
   function voiceSet(button, table, s, opts) {
     opts = opts || {};
     const count = opts.count == null ? 7 : opts.count;
-    const sharpSteps = opts.sharp ? (s.flat ? -1 : 1) * SH(s) : 0;
+    const sharpSteps = opts.sharp ? (s.flat ? -1 : 1) * MOD(s) : 0;
     const off = opts.off || 0;   // a MIDI-side shift (the lookup's ±1, an inferred transpose)
     const out = [];
     for (let v = 0; v < count; v++) out.push(chordVoiceNote(v, button, table, s, opts.slash || null, opts.row, sharpSteps) + off);
@@ -1194,7 +1196,7 @@
     // the scalar modes, in the same order the firmware tests them
     const mode = s.harpMode | 0;
     const n = N(s);
-    const sharpOff = held.sharp ? (s.flat ? -1 : 1) * SH(s) : 0;
+    const sharpOff = held.sharp ? (s.flat ? -1 : 1) * MOD(s) : 0;
     if (mode >= 1 && mode <= 7) return out(staticScaleNote(string, mode, s.key, s));
     if (mode === 10) {
       return out(customScaleNote(string, scaleRootOffset(s, s.key) + n, 0, s.customScale, s));
@@ -2037,7 +2039,7 @@
       const n = N(s);
       const t = s.chordTranspose == null ? s.transpose : s.chordTranspose;
       const lift = Math.trunc(((t | 0) * n + 6) / 12);
-      const sh = c.sharp ? (s.flat ? -1 : 1) * SH(s) : 0;
+      const sh = c.sharp ? (s.flat ? -1 : 1) * MOD(s) : 0;
       const root = rootButton(s, c.button) + sh;
       const pc = steps => (((MIDI_BASE + (steps + lift) * 12 / n) % 12) + 12) % 12;
       const out = edoType(c.type, s).slice(0, 4).map(v => pc(root + v));

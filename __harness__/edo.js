@@ -1,5 +1,5 @@
 "use strict";
-/* The Play mirror in 19- and 31-EDO, against the firmware.
+/* The Play mirror in 19-, 31- and 24-EDO, against the firmware.
 
  * In the divided octaves the device builds every note in steps and rounds to
  * the nearest semitone only on the way out to MIDI, so the mirror sees a
@@ -89,6 +89,7 @@ const DeviceMap = sandbox.window.DeviceMap;
  */
 let reuseKey = null, reuseDm = null;
 function deviceFor(patch) {
+  patch = { 7: 19, ...patch };                 // firmware 19: the temperaments in firmware 18's numbering
   const k = JSON.stringify(patch);
   if (k !== reuseKey) {
     reuseKey = k;
@@ -99,10 +100,13 @@ function deviceFor(patch) {
 }
 
 const FW = JSON.parse(fs.readFileSync(path.join(__dirname, "firmware-edo.json"), "utf8"));
-const TEMPERAMENT = [0, 10, 11];            // addr 237 for 12, 19 and 31
+// addr 237 for each division in the firmware's edo_index order (12, 19, 31, 24), as firmware 18
+// numbers them: 19-EDO 10, 24-EDO 11, 31-EDO 12. Every patch here reports firmware 19.
+const TEMPERAMENT = [0, 10, 12, 11];
+const DIVS = FW.steps.length;
 const BTN_NAME = ["B", "E", "A", "D", "G", "C", "F"];
 const LETTERS = "CDEFGAB";
-const LETTER_STEPS = [[0, 2, 4, 5, 7, 9, 11], [0, 3, 6, 8, 11, 14, 17], [0, 5, 10, 13, 18, 23, 28]];
+const LETTER_STEPS = [[0, 2, 4, 5, 7, 9, 11], [0, 3, 6, 8, 11, 14, 17], [0, 5, 10, 13, 18, 23, 28], [0, 4, 8, 10, 14, 18, 22]];
 const TYPE_NAME = { major: "", minor: "m", seventh: "7", maj_seventh: "maj7", min_seventh: "m7", dim: "dim", aug: "aug",
   maj_sixth: "6", min_sixth: "m6", full_dim: "\u00b07", half_dim: "m7\u266d5", sus_fourth: "sus4", sus_second: "sus2",
   seventh_sus: "7sus4", major_ninth: "maj9", minor_ninth: "m9", added_ninth: "add9", six_nine: "6/9",
@@ -118,7 +122,8 @@ function chordSteps(e, button, type) {
   const n = FW.steps[e], root = FW.base_notes[e][button], t = FW.chords[type][e];
   return [0, 1, 2, 3].map(i => n + root + t[i]);
 }
-const toMidi = (e, steps) => 48 + Math.round(steps * 12 / FW.steps[e]);
+// lroundf: halves (every quarter-tone in 24) away from zero
+const toMidi = (e, steps) => { const v = steps * 12 / FW.steps[e]; return 48 + Math.sign(v) * Math.round(Math.abs(v)); };
 
 // "E" "E#" "E\u266d\u266d" and the SMuFL quarter-tone signs (Stein-Zimmermann), to an alteration in sharps
 const ALT = [["\ue264\ue280", -2.5], ["\ue281", -1.5], ["\ue263\ue282", 2.5], ["\ue283", 1.5],
@@ -152,7 +157,7 @@ function readout(patch, notes) {
 
 const bad = [];
 let idChecked = 0, spellChecked = 0, handChecked = 0;
-const EDO_NAME = ["12", "19", "31"];
+const EDO_NAME = ["12", "19", "31", "24"];
 
 /* Rounding can make two chords send the same MIDI. In 19, B maj7's 17-step
  * seventh and B7's 16-step one both round to the same semitone over that root,
@@ -170,7 +175,7 @@ function rivals(e) {
   }
   return out;
 }
-const RIVALS = [0, 1, 2].map(rivals);
+const RIVALS = [...Array(DIVS).keys()].map(rivals);
 let ambiguous = 0;
 const ambiguousPairs = [];
 
@@ -196,7 +201,7 @@ function check(e, patch, button, type) {
   if (wantSteps !== gotSteps) bad.push(`${where}: spelled "${labels.join(" ")}" = steps ${gotSteps}, sounds ${wantSteps}`);
 }
 
-for (let e = 0; e < 3; e++) {
+for (let e = 0; e < DIVS; e++) {
   // the standard layout
   for (let button = 0; button < 7; button++) {
     for (const type of STANDARD) check(e, { 35: 0, 237: TEMPERAMENT[e] }, button, type);
@@ -230,8 +235,25 @@ function mpeRead(e, patch, steps) {
   settle();
   return cur.replace(/<sub[^>]*>.*?<\/sub>/g, "").replace(/<[^>]*>/g, "").trim();
 }
+/* ---- 24-EDO: the modifier is a quarter-tone ------------------------------
+ * In 24 (firmware 18) the modifier moves a note one step, half a sharp. Over MPE
+ * every chord the buttons play with it held, sharpening or flattening, must
+ * read as its root a quarter-tone up or down: C major with the modifier is C
+ * half-sharp major, not C# major and not C.
+ */
+let quarterChecked = 0;
+{
+  const e = FW.steps.indexOf(24);
+  if (e >= 0) for (const flat of [0, 1]) for (let button = 0; button < 7; button++) for (const type of STANDARD) {
+    quarterChecked++;
+    const steps = chordSteps(e, button, type).map(x => x + (flat ? -FW.modifier[e] : FW.modifier[e]));
+    const got = mpeRead(e, { 35: 0, 31: flat, 237: TEMPERAMENT[e], 110: 1 }, steps);
+    const want = BTN_NAME[button] + (flat ? "\ue280" : "\ue282") + TYPE_NAME[type];
+    if (got !== want) bad.push(`24-EDO the modifier ${flat ? "flattening" : "sharpening"} ${BTN_NAME[button]}${TYPE_NAME[type]}: read as "${got}", expected "${want}"`);
+  }
+}
 let mpeChecked = 0;
-for (let e = 0; e < 3; e++) {
+for (let e = 0; e < DIVS; e++) {
   for (let button = 0; button < 7; button++) for (const type of STANDARD) {
     mpeChecked++;
     const got = mpeRead(e, { 35: 0, 237: TEMPERAMENT[e], 110: 1 }, chordSteps(e, button, type));
@@ -269,7 +291,7 @@ const RATIO = {
 };
 const cents = r => 1200 * Math.log2(r[0] / r[1]);
 let ratioChecked = 0;
-for (const type in RATIO) for (let e = 1; e < 3; e++) RATIO[type].forEach((r, i) => {
+for (const type in RATIO) for (let e = 1; e < DIVS; e++) RATIO[type].forEach((r, i) => {
   // in twelve the just chords are twelve-note chords, not their ratios; in 19
   // and 31 each ratio is the nearest step (the firmware's own rule)
   const n = FW.steps[e], want = FW.chords[type][e][i] % n;
@@ -289,7 +311,7 @@ function readSpelled(e, type, conv, button) {
 
 // meantone: exact, like degree
 let meantoneChecked = 0;
-for (let e = 0; e < 3; e++) for (const type in RATIO) for (let button = 0; button < 7; button++) {
+for (let e = 0; e < DIVS; e++) for (const type in RATIO) for (let button = 0; button < 7; button++) {
   const labels = readSpelled(e, type, "meantone", button);
   const got = labels.map(parseNote);
   const where = `${EDO_NAME[e]}-EDO meantone ${BTN_NAME[button]}${TYPE_NAME[type]}`;
@@ -341,7 +363,7 @@ function hejiCents(label) {
   return c;
 }
 let hejiChecked = 0;
-for (let e = 0; e < 3; e++) for (const type in RATIO) {
+for (let e = 0; e < DIVS; e++) for (const type in RATIO) {
   const labels = readSpelled(e, type, "ratio", 5);        // over C, so the note IS the interval
   const want = RATIO[type].slice(0, 4).map(r => ((cents(r) % 1200) + 1200) % 1200);
   labels.forEach(label => {
@@ -383,10 +405,10 @@ function rootSteps(e, key, btn) {
   return n;
 }
 let padChecked = 0;
-for (let e = 1; e < 3; e++) {
+for (let e = 1; e < DIVS; e++) {
   const n = FW.steps[e];
   for (let key = 0; key < 21; key++) for (let tr = 0; tr <= 12; tr++) {
-    const patch = { 35: key, 30: tr, 237: TEMPERAMENT[e] };
+    const patch = { 7: 19, 35: key, 30: tr, 237: TEMPERAMENT[e] };
     const dm = DeviceMap.create({ getPatch: () => patch, getHue: () => 210 });
     dm.setConnected(true); dm.rebuild();
     const labels = [];
@@ -411,10 +433,10 @@ for (let e = 1; e < 3; e++) {
  * rounds to the semitone the string sends.
  */
 let harpChecked = 0;
-for (let e = 1; e < 3; e++) {
+for (let e = 1; e < DIVS; e++) {
   const n = FW.steps[e];
   for (const key of [0, 1, 6, 13, 19]) for (let mode = 0; mode < 12; mode++) for (const held of [false, true]) {
-    const patch = { 35: key, 36: mode, 236: 0b101010110101, 237: TEMPERAMENT[e] };
+    const patch = { 7: 19, 35: key, 36: mode, 236: 0b101010110101, 237: TEMPERAMENT[e] };
     const dm = deviceFor(patch);
     const chord = chordSteps(e, 5, "major").map(x => toMidi(e, x));
     if (held) chord.forEach(m => dm.onNote("chord", "on", m));
@@ -487,4 +509,4 @@ if (bad.length) {
   if (bad.length > 40) console.log(`  ... and ${bad.length - 40} more`);
   process.exit(1);
 }
-console.log(`edo: ${idChecked} chords in 12, 19 and 31 read back as themselves (${ambiguous} as a chord sending identical MIDI: ${ambiguousPairs.join(", ")}; over MPE all ${mpeChecked} read exactly as themselves), their ${spellChecked} notes spell the step that sounds, as do ${padChecked} pad roots across every key and transpose and ${harpChecked} harp strings, and ${handChecked} chords spell as worked by hand. The just chords' ${ratioChecked} ratios round to the firmware's steps, their ${meantoneChecked} meantone spellings name the step that sounds, and their ${hejiChecked} HEJI spellings name their ratio to the cent`);
+console.log(`edo: ${idChecked} chords in 12, 19, 31 and 24 read back as themselves; ${quarterChecked} quarter-tone chords in 24 (the modifier's) read as themselves over MPE (${ambiguous} as a chord sending identical MIDI: ${ambiguousPairs.join(", ")}; over MPE all ${mpeChecked} read exactly as themselves), their ${spellChecked} notes spell the step that sounds, as do ${padChecked} pad roots across every key and transpose and ${harpChecked} harp strings, and ${handChecked} chords spell as worked by hand. The just chords' ${ratioChecked} ratios round to the firmware's steps, their ${meantoneChecked} meantone spellings name the step that sounds, and their ${hejiChecked} HEJI spellings name their ratio to the cent`);
