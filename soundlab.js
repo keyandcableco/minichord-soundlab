@@ -20,6 +20,7 @@
   PARAM_GROUPS.forEach(g => g.params.forEach(p => { patch[p.addr] = p.def; paramByAddr[p.addr] = p; }));
   const controls = {}; // addr -> setter(value) that updates the UI + patch silently
   const fwWarnings = {}; // addr -> firmware-warning ELEMENTS (one per rendered copy of the param)
+  const pairWarnings = {}; // double tap value addr -> its warning ELEMENTS: a pair that won't do what it seems to
   const cardFlags = {};  // "groupId card" -> { flag } "inert" warning chip on a sub-component card
 
   let activeGroupId = PARAM_GROUPS[0].id;
@@ -1723,6 +1724,17 @@
       (fwWarnings[p.addr] = fwWarnings[p.addr] || []).push(fwWarnEl);
     }
 
+    // a double tap pair that won't do what it seems to: it changes nothing, another pair
+    // already has its setting, or the setting has no effect beside what else the tap does
+    let pairWarnEl = null;
+    if (p.followsTarget != null) {
+      const w = pairWarnEl = document.createElement("p");
+      w.className = "fw-warning pair-warning";
+      w.style.display = "none";
+      row.appendChild(w);
+      (pairWarnings[p.addr] = pairWarnings[p.addr] || []).push(w);
+    }
+
     // tip lives under the value description (uses the control column's space).
     // Built for the verbose-inline density only. Compact density shows the
     // tip inside the param popover instead (CSS hides these unless verbose).
@@ -1765,6 +1777,10 @@
       if (fwWarnEl && fwWarnings[p.addr]) {
         const j = fwWarnings[p.addr].indexOf(fwWarnEl);
         if (j >= 0) fwWarnings[p.addr].splice(j, 1);
+      }
+      if (pairWarnEl && pairWarnings[p.addr]) {
+        const j = pairWarnings[p.addr].indexOf(pairWarnEl);
+        if (j >= 0) pairWarnings[p.addr].splice(j, 1);
       }
     };
 
@@ -2561,6 +2577,7 @@
     });
     glossify(pinnedListEl);
     updateFirmwareWarnings();   // fresh copies start hidden; reflect the connected device
+    updatePairWarnings();
     balancePinnedCards();       // the rows just changed, re-split them across the columns
   }
   Prefs.subscribe("pins", () => { renderPinnedCard(); refreshPinUI(); });
@@ -2669,9 +2686,10 @@
     updateGateFlags();
     renderProfiles();
     if (deviceMap && p && DEVICEMAP_ADDRS.has(p.addr)) deviceMap.rebuild();
-    // the double tap's value control mirrors whatever its target is, so picking
-    // a new target has to redraw it
-    if (p && p.addr === 200) render();    if (p && p.addr === 35) syncStaffKey();
+    // the double tap's value controls mirror whatever their targets are, so picking
+    // a new target has to redraw them
+    if (p && (p.addr === 200 || p.addr === 209 || p.addr === 211)) render();
+    updatePairWarnings();          // any setting can make a pair do nothing, or something again    if (p && p.addr === 35) syncStaffKey();
     if (p && (p.addr === 108 || p.addr === 110)) updatePortNotice();   // MPE makes single-port mode readable
     if (p && (p.addr === 237 || p.addr === 110)) updateEdoNotice();    // 19, 24 and 31 need MPE for exact pitches
     // re-fingerprint after the edit settles (undo/redo identifies itself at
@@ -5090,8 +5108,41 @@
     if (deviceMap) { deviceMap.setConnected(true); deviceMap.rebuild(); }   // refresh the live mirror
     syncStaffKey();   // a dump can carry a key the device changed by itself
     midiRec.connection(true);   // a dump means the device is live, un-gray the Record button
+    updatePairWarnings();    // the device's own values decide what each pair will do
     applyBankAccent();       // bank hue may have changed with the new bank
     updateRhythmPotNote();   // pot targets (patch[10/12/14/16]) may have changed
+  }
+
+  // The double tap's pairs, in the order the firmware applies them: [control addr, value addr].
+  const DOUBLE_TAP_PAIRS = [[200, 201], [209, 210], [211, 212]];
+  // What a double tap pair will actually do, and why it might not seem to: the firmware skips
+  // a pair whose setting an earlier pair already took, a value equal to what the setting holds
+  // changes nothing, and Barry Harris mode only shapes the standard chord layout.
+  function pairWarning(valueAddr) {
+    const i = DOUBLE_TAP_PAIRS.findIndex(pr => pr[1] === +valueAddr);
+    if (i < 0) return "";
+    const target = patch[DOUBLE_TAP_PAIRS[i][0]];
+    if (!target || target < 21 || target > 219) return "";
+    const tp = paramByAddr[target], name = tp ? tp.name : `address ${target}`;
+    const value = patch[+valueAddr];
+    if (DOUBLE_TAP_PAIRS.slice(0, i).some(pr => patch[pr[0]] === target))
+      return `Another pair already switches ${name}, so the double tap skips this one.`;
+    if (patch[target] === value)
+      return `This pair changes nothing: ${name} is already set to that. Pick the other value.`;
+    // chord layout while the double tap is engaged: the first pair on it, or as the preset has it
+    const layoutPair = DOUBLE_TAP_PAIRS.find(pr => patch[pr[0]] === 39);
+    const layoutEngaged = layoutPair ? patch[layoutPair[1]] : patch[39];
+    if (target === 33 && layoutEngaged === 1)
+      return `Barry Harris mode only changes the standard chords, and the alternate chord layout is on while the double tap is, so this pair won't be heard.`;
+    if (target === 39 && value === 1)
+      return `In the alternate chord layout the modifier doesn't sharpen, so while the double tap is on, the modifier won't either.`;
+    return "";
+  }
+  function updatePairWarnings() {
+    Object.keys(pairWarnings).forEach(addr => {
+      const text = pairWarning(addr);
+      pairWarnings[addr].forEach(w => { w.innerHTML = text ? `<span>⚠</span> ${text}` : ""; w.style.display = text ? "" : "none"; });
+    });
   }
 
   // show a warning next to any parameter the connected device's firmware is too
